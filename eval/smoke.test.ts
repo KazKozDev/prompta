@@ -306,3 +306,11 @@ test('калибровочный бриф пригоден для отсева',
   assert.equal(CALIBRATION_BRIEF.task_type, 'classification');
   assert.equal(CALIBRATION_BRIEF.budget_calls, 1);
 });
+
+test('судья: числовой балл принимается, но помечается как неполный', () => {
+  const bare = JSON.stringify({ scores: Object.fromEntries(CRITERIA.map((c) => [c, 4])) });
+  const j = parseJudgement(bare);
+  assert.equal(j.total, 4);
+  assert.equal(j.degraded, true);
+  assert.equal(j.scores.fidelity.why, '(без обоснования)');
+});

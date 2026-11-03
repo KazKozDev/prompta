@@ -107,7 +107,10 @@ export interface PipelineResult {
   trace: PipelineTrace[];
 }
 
-export type LLM = (prompt: string, opts?: { temperature?: number }) => Promise<string>;
+export type LLM = (
+  prompt: string,
+  opts?: { temperature?: number; json?: boolean },
+) => Promise<string>;
 
 export class PipelineError extends Error {
   readonly step: string;

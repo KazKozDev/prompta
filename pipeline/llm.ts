@@ -60,7 +60,10 @@ export function createLLM(opts: LLMOptions): LLM {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
       const data = (await postJson(url, {
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: o.temperature ?? 0.2 },
+        generationConfig: {
+          temperature: o.temperature ?? 0.2,
+          ...(o.json ? { responseMimeType: 'application/json' } : {}),
+        },
       })) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
       const out = data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? '';
       if (!out) throw new Error('gemini вернул пустой ответ');
@@ -73,7 +76,12 @@ export function createLLM(opts: LLMOptions): LLM {
     return async (prompt, o = {}) => {
       const data = (await postJson(
         `${base || 'https://api.openai.com'}/v1/chat/completions`,
-        { model, messages: [{ role: 'user', content: prompt }], temperature: o.temperature ?? 0.2 },
+        {
+          model,
+          messages: [{ role: 'user', content: prompt }],
+          temperature: o.temperature ?? 0.2,
+          ...(o.json ? { response_format: { type: 'json_object' } } : {}),
+        },
         { authorization: `Bearer ${apiKey}` },
       )) as { choices?: { message?: { content?: string } }[] };
       const out = data.choices?.[0]?.message?.content ?? '';
@@ -87,6 +95,7 @@ export function createLLM(opts: LLMOptions): LLM {
       model,
       prompt,
       stream: false,
+      ...(o.json ? { format: 'json' } : {}),
       options: { temperature: o.temperature ?? 0.2 },
     })) as { response?: string };
     const out = data.response ?? '';

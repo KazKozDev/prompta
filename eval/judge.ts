@@ -17,6 +17,8 @@ export interface Judgement {
   total: number;
   verdict: 'accept' | 'revise' | 'reject';
   notes: string[];
+  /** Судья дал баллы без обоснования — оценка пригодна, но помечена как неполная. */
+  degraded: boolean;
 }
 
 export interface JudgeInput {
@@ -81,20 +83,38 @@ export function verdictFor(total: number): Judgement['verdict'] {
 export function parseJudgement(raw: string): Judgement {
   const step = 'judge';
   const obj = extractJson(raw, step) as Record<string, unknown>;
-  const scoresRaw = obj.scores;
-  if (!scoresRaw || typeof scoresRaw !== 'object') {
+  const source = (obj.scores ?? obj.criteria ?? obj.results ?? obj) as Record<string, unknown>;
+  if (!source || typeof source !== 'object') {
     throw new PipelineError('в ответе судьи нет объекта scores', step);
   }
 
+  // Слабые модели меняют регистр и названия полей — ищем критерий без учёта регистра.
+  const lookup = (name: string): Record<string, unknown> | number | undefined => {
+    const key = Object.keys(source).find((k) => k.trim().toLowerCase() === name);
+    const value = key ? source[key] : undefined;
+    if (typeof value === 'number') return value;
+    return value && typeof value === 'object' ? (value as Record<string, unknown>) : undefined;
+  };
+
   const scores = {} as Judgement['scores'];
+  let degraded = false;
   for (const c of CRITERIA) {
-    const item = (scoresRaw as Record<string, unknown>)[c] as { score?: unknown; why?: unknown } | undefined;
-    if (!item || typeof item !== 'object') {
+    const raw = lookup(c);
+    if (typeof raw === 'number') {
+      // Слабые модели отвечают {"fidelity": 4} — принимаем балл, но помечаем.
+      scores[c] = { score: Math.min(5, Math.max(1, Math.round(raw))), why: '(без обоснования)' };
+      degraded = true;
+      continue;
+    }
+    const item = raw;
+    if (!item) {
       throw new PipelineError(`судья не оценил критерий ${c}`, step);
     }
-    const score = Number(item.score);
+    const rawScore = item.score ?? item.value ?? item.rating ?? item.mark;
+    const score = Number(rawScore);
     if (!Number.isFinite(score)) throw new PipelineError(`критерий ${c}: балл не число`, step);
-    const why = typeof item.why === 'string' ? item.why.trim() : '';
+    const whyRaw = item.why ?? item.reason ?? item.comment ?? item.explanation;
+    const why = typeof whyRaw === 'string' ? whyRaw.trim() : '';
     if (!why) throw new PipelineError(`критерий ${c}: балл без объяснения`, step);
     scores[c] = { score: Math.min(5, Math.max(1, Math.round(score))), why };
   }
@@ -104,5 +124,5 @@ export function parseJudgement(raw: string): Judgement {
     ? obj.notes.filter((n): n is string => typeof n === 'string' && n.trim().length > 0)
     : [];
 
-  return { scores, total, verdict: verdictFor(total), notes };
+  return { scores, total, verdict: verdictFor(total), notes, degraded };
 }

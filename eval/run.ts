@@ -121,13 +121,21 @@ async function main() {
           choice: result.choice,
           synthesis: result.synthesis,
         });
-        const judgement = parseJudgement(await judgeLLM(judgePrompt, { temperature: 0 }));
+        const judgeOnce = async () =>
+          parseJudgement(await judgeLLM(judgePrompt, { temperature: 0, json: true }));
+
+        let judgement;
+        try {
+          judgement = await judgeOnce();
+        } catch {
+          judgement = await judgeOnce(); // слабые модели иногда срываются в прозу — один повтор
+        }
 
         const warnings = [...result.synthesis.warnings];
         let judgement2;
         if (judge2LLM) {
           try {
-            judgement2 = parseJudgement(await judge2LLM(judgePrompt, { temperature: 0 }));
+            judgement2 = parseJudgement(await judge2LLM(judgePrompt, { temperature: 0, json: true }));
           } catch (e) {
             warnings.push(`второй судья не ответил: ${e instanceof Error ? e.message : String(e)}`);
           }

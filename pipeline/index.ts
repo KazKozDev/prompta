@@ -30,7 +30,7 @@ export async function runPipeline(opts: RunOptions): Promise<PipelineResult> {
   if (!brief) {
     const start = t0();
     const briefPrompt = buildBriefPrompt(opts.thoughts);
-    const raw = await opts.llm(briefPrompt, { temperature: 0 });
+    const raw = await opts.llm(briefPrompt, { temperature: 0, json: true });
     brief = parseBrief(raw);
     push('brief', t0() - start, { prompt: briefPrompt, raw });
   } else {
@@ -69,7 +69,7 @@ export async function runPipeline(opts: RunOptions): Promise<PipelineResult> {
   } else {
     const selectStart = t0();
     const selectPrompt = buildSelectionPrompt(brief, candidates);
-    const selectRaw = await opts.llm(selectPrompt, { temperature: 0 });
+    const selectRaw = await opts.llm(selectPrompt, { temperature: 0, json: true });
     choice = parseChoice(selectRaw, candidates);
     push('select', t0() - selectStart, { prompt: selectPrompt, raw: selectRaw });
   }
