@@ -26,12 +26,31 @@ export async function runPipeline(opts: RunOptions): Promise<PipelineResult> {
   const push = (step: string, ms: number, extra: Partial<PipelineTrace> = {}) =>
     trace.push({ step, ms: Math.round(ms), ...extra });
 
+  /** Слабые модели иногда ломают JSON — один повтор с напоминанием о схеме. */
+  async function askJson<T>(prompt: string, parse: (raw: string) => T): Promise<{ value: T; raw: string }> {
+    let lastError: unknown;
+    let raw = '';
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+      const suffix =
+        attempt === 1
+          ? ''
+          : `\n\nПредыдущий ответ не разобрался (${lastError instanceof Error ? lastError.message : 'ошибка'}). Верни строго JSON по схеме, без пояснений.`;
+      raw = await opts.llm(prompt + suffix, { temperature: 0, json: true });
+      try {
+        return { value: parse(raw), raw };
+      } catch (e) {
+        lastError = e;
+      }
+    }
+    throw lastError;
+  }
+
   let brief = opts.brief;
   if (!brief) {
     const start = t0();
     const briefPrompt = buildBriefPrompt(opts.thoughts);
-    const raw = await opts.llm(briefPrompt, { temperature: 0, json: true });
-    brief = parseBrief(raw);
+    const { value, raw } = await askJson(briefPrompt, parseBrief);
+    brief = value;
     push('brief', t0() - start, { prompt: briefPrompt, raw });
   } else {
     push('brief', 0, {});
@@ -69,9 +88,9 @@ export async function runPipeline(opts: RunOptions): Promise<PipelineResult> {
   } else {
     const selectStart = t0();
     const selectPrompt = buildSelectionPrompt(brief, candidates);
-    const selectRaw = await opts.llm(selectPrompt, { temperature: 0, json: true });
-    choice = parseChoice(selectRaw, candidates);
-    push('select', t0() - selectStart, { prompt: selectPrompt, raw: selectRaw });
+    const parsed = await askJson(selectPrompt, (raw) => parseChoice(raw, candidates));
+    choice = parsed.value;
+    push('select', t0() - selectStart, { prompt: selectPrompt, raw: parsed.raw });
   }
 
   const technique = getTechnique(opts.catalog, choice.key);
