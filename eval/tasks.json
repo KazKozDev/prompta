@@ -1,0 +1,407 @@
+[
+  {
+    "id": "meeting-actions",
+    "title": "Заметки встречи → таблица решений и задач",
+    "thoughts": "разбираю заметки после встречи, надо вытащить решения и задачи с ответственными, оформить таблицей, ошибки недопустимы, языка два",
+    "expect": {
+      "task_type": "extraction",
+      "any_of": [
+        "contextual_prompting",
+        "system_prompting",
+        "few_shot",
+        "separate_llm"
+      ],
+      "forbidden": [
+        "tree_of_thoughts",
+        "graph_of_thought",
+        "automatic_prompt_engineering"
+      ],
+      "must_mention": [
+        "таблиц"
+      ],
+      "budget_calls": 1
+    }
+  },
+  {
+    "id": "invoice-fields",
+    "title": "Счета → JSON с полями",
+    "thoughts": "нужно из текста счёта достать номер, дату, поставщика, сумму и валюту, вернуть строго JSON, без пояснений, разные форматы счетов вперемешку",
+    "expect": {
+      "task_type": "extraction",
+      "any_of": [
+        "few_shot",
+        "system_prompting",
+        "separate_llm",
+        "contextual_prompting"
+      ],
+      "forbidden": [
+        "tree_of_thoughts",
+        "react",
+        "dense"
+      ],
+      "must_mention": [
+        "json"
+      ],
+      "budget_calls": 1
+    }
+  },
+  {
+    "id": "tickets-classify",
+    "title": "Тикеты поддержки → 4 категории",
+    "thoughts": "классифицирую входящие тикеты на billing, bug, feature, other, ответ одним словом, надо стабильно и дешево",
+    "expect": {
+      "task_type": "classification",
+      "any_of": [
+        "zero_shot",
+        "few_shot",
+        "verbalizer",
+        "system_prompting"
+      ],
+      "forbidden": [
+        "tree_of_thoughts",
+        "automatic_prompt_engineering",
+        "voyager"
+      ],
+      "must_mention": [
+        "billing"
+      ],
+      "budget_calls": 1
+    }
+  },
+  {
+    "id": "reviews-toxicity",
+    "title": "Тональность отзывов на границе",
+    "thoughts": "надо определять позитив или негатив, но в отзывах сарказм и смешанные чувства, формат JSON с полем label и коротким обоснованием",
+    "expect": {
+      "task_type": "classification",
+      "any_of": [
+        "few_shot",
+        "contrastive_cot",
+        "chain_of_thought",
+        "system_prompting"
+      ],
+      "forbidden": [
+        "tree_of_thoughts",
+        "automatic_prompt_engineering"
+      ],
+      "must_mention": [
+        "label"
+      ],
+      "budget_calls": null
+    }
+  },
+  {
+    "id": "landing-copy",
+    "title": "Текст на лендинг",
+    "thoughts": "нужен текст для лендинга сервиса доставки, тон дружелюбный, 3 блока, без воды, можно поэкспериментировать",
+    "expect": {
+      "task_type": "generation",
+      "any_of": [
+        "zero_shot",
+        "role_prompting",
+        "style_prompting",
+        "prompt_chaining"
+      ],
+      "forbidden": [
+        "tree_of_thoughts",
+        "verify_and_edit",
+        "ircot"
+      ],
+      "must_mention": [
+        "лендинг"
+      ],
+      "budget_calls": null
+    }
+  },
+  {
+    "id": "email-reply",
+    "title": "Ответ недовольному клиенту",
+    "thoughts": "клиент злится на задержку, надо ответить спокойно и по делу, извиниться, дать сроки, не обещать лишнего",
+    "expect": {
+      "task_type": "generation",
+      "any_of": [
+        "role_prompting",
+        "system_prompting",
+        "zero_shot",
+        "style_prompting"
+      ],
+      "forbidden": [
+        "tree_of_thoughts",
+        "ircot"
+      ],
+      "must_mention": [
+        "извин"
+      ],
+      "budget_calls": 1
+    }
+  },
+  {
+    "id": "summary-three-bullets",
+    "title": "Пересказ статьи ровно в 3 пунктах",
+    "thoughts": "надо сжать длинную статью до трёх пунктов по 20 слов, строго без вступлений, только факты",
+    "expect": {
+      "task_type": "generation",
+      "any_of": [
+        "zero_shot",
+        "system_prompting",
+        "contextual_prompting"
+      ],
+      "forbidden": [
+        "tree_of_thoughts",
+        "react",
+        "voyager"
+      ],
+      "must_mention": [
+        "пункт"
+      ],
+      "budget_calls": 1
+    }
+  },
+  {
+    "id": "math-word-problem",
+    "title": "Текстовая задача на проценты",
+    "thoughts": "задача про скидки и наценки, надо посчитать итоговую цену, важно не ошибиться в арифметике",
+    "expect": {
+      "task_type": "reasoning",
+      "any_of": [
+        "chain_of_thought",
+        "self_consistency",
+        "program_of_thoughts",
+        "pal",
+        "plan_and_solve"
+      ],
+      "forbidden": [
+        "role_prompting",
+        "style_prompting"
+      ],
+      "must_mention": [
+        "шаг",
+        "step"
+      ],
+      "budget_calls": null
+    }
+  },
+  {
+    "id": "compare-vendors",
+    "title": "Сравнить трёх поставщиков по критериям",
+    "thoughts": "есть три предложения, надо сравнить по цене, срокам, рискам и выбрать, результат таблицей с обоснованием",
+    "expect": {
+      "task_type": "reasoning",
+      "any_of": [
+        "tabular_cot",
+        "chain_of_thought",
+        "tree_of_thoughts",
+        "plan_and_solve"
+      ],
+      "forbidden": [
+        "verbalizer",
+        "jailbreaking"
+      ],
+      "must_mention": [
+        "таблиц"
+      ],
+      "budget_calls": null
+    }
+  },
+  {
+    "id": "sprint-plan",
+    "title": "План спринта на две недели",
+    "thoughts": "надо распланировать спринт: 4 человека, бэклог из 12 задач, есть зависимости и отпуск у одного, нужен план по дням с рисками",
+    "expect": {
+      "task_type": "planning",
+      "any_of": [
+        "plan_and_solve",
+        "least_to_most",
+        "prompt_chaining",
+        "tree_of_thoughts"
+      ],
+      "forbidden": [
+        "verbalizer",
+        "regex_extractor"
+      ],
+      "must_mention": [
+        "план"
+      ],
+      "budget_calls": null
+    }
+  },
+  {
+    "id": "refactor-function",
+    "title": "Отрефакторить функцию",
+    "thoughts": "функция на 80 строк с вложенными if, надо разбить на части, сохранить поведение, добавить типы и короткое объяснение",
+    "expect": {
+      "task_type": "coding",
+      "any_of": [
+        "code_prompting",
+        "system_prompting",
+        "self_refine"
+      ],
+      "forbidden": [
+        "tree_of_thoughts",
+        "dense",
+        "emotion_prompting"
+      ],
+      "must_mention": [
+        "тип",
+        "type"
+      ],
+      "budget_calls": null
+    }
+  },
+  {
+    "id": "sql-report",
+    "title": "SQL-запрос по описанию отчёта",
+    "thoughts": "нужен запрос: выручка по месяцам и регионам, только активные клиенты, за последний год, база postgres, надо пояснить ход мысли",
+    "expect": {
+      "task_type": "coding",
+      "any_of": [
+        "code_prompting",
+        "chain_of_thought",
+        "program_of_thoughts"
+      ],
+      "forbidden": [
+        "emotion_prompting",
+        "voyager"
+      ],
+      "must_mention": [
+        "sql",
+        "select"
+      ],
+      "budget_calls": null
+    }
+  },
+  {
+    "id": "docs-qa",
+    "title": "Ответ строго по документации",
+    "thoughts": "отвечать на вопросы только по приложенным докам, со ссылками на разделы, если ответа нет — так и написать",
+    "expect": {
+      "task_type": "qa_over_docs",
+      "any_of": [
+        "contextual_prompting",
+        "verify_and_edit",
+        "ircot",
+        "demonstrate_search_predict"
+      ],
+      "forbidden": [
+        "zero_shot",
+        "role_prompting",
+        "tree_of_thoughts"
+      ],
+      "must_mention": [
+        "документ"
+      ],
+      "budget_calls": null
+    }
+  },
+  {
+    "id": "contract-clauses",
+    "title": "Вытащить рисковые пункты договора",
+    "thoughts": "надо найти в договоре пункты про штрафы, расторжение и подсудность, отметить риски для нас, ошибаться нельзя, юрист потом проверит",
+    "expect": {
+      "task_type": "qa_over_docs",
+      "any_of": [
+        "contextual_prompting",
+        "chain_of_verification",
+        "verify_and_edit",
+        "self_verification"
+      ],
+      "forbidden": [
+        "emotion_prompting",
+        "zero_shot"
+      ],
+      "must_mention": [
+        "риск"
+      ],
+      "budget_calls": null
+    }
+  },
+  {
+    "id": "agent-research",
+    "title": "Агент: собрать факты и проверить",
+    "thoughts": "нужно найти актуальные цены на three cloud провайдера и проверить их по официальным страницам, я не хочу верить памяти модели",
+    "expect": {
+      "task_type": "agentic",
+      "any_of": [
+        "react",
+        "reflexion",
+        "iterative_retrieval",
+        "demonstrate_search_predict"
+      ],
+      "forbidden": [
+        "zero_shot",
+        "role_prompting"
+      ],
+      "must_mention": [
+        "источник"
+      ],
+      "budget_calls": null
+    }
+  },
+  {
+    "id": "explain-to-junior",
+    "title": "Объяснить джуну, что такое индексы в БД",
+    "thoughts": "надо объяснить джуну индексы в базах, с примерами и вопросами на проверку понимания, чтобы он сам дошёл",
+    "expect": {
+      "task_type": "teaching",
+      "any_of": [
+        "pedagogic_socratic",
+        "pedagogic_open",
+        "role_prompting",
+        "few_shot"
+      ],
+      "forbidden": [
+        "regex_extractor",
+        "verbalizer"
+      ],
+      "must_mention": [
+        "индекс"
+      ],
+      "budget_calls": null
+    }
+  },
+  {
+    "id": "vague-idea",
+    "title": "Смутная идея без деталей",
+    "thoughts": "хочу что-то сделать с отзывами чтобы было лучше, наверное дашборд, не знаю, помоги",
+    "expect": {
+      "task_type": "generation",
+      "any_of": [
+        "zero_shot",
+        "system_prompting",
+        "rephrase_and_respond",
+        "role_prompting"
+      ],
+      "forbidden": [
+        "tree_of_thoughts",
+        "automatic_prompt_engineering",
+        "dense"
+      ],
+      "must_mention": [
+        "отзыв"
+      ],
+      "budget_calls": 1
+    }
+  },
+  {
+    "id": "long-context-summary",
+    "title": "Разбор длинного транскрипта",
+    "thoughts": "транскрипт на два часа, надо вытащить все упомянутые дедлайны и владельцев, вопросов много, контекст длинный",
+    "expect": {
+      "task_type": "extraction",
+      "any_of": [
+        "contextual_prompting",
+        "re_reading",
+        "self_ask",
+        "system_prompting"
+      ],
+      "forbidden": [
+        "zero_shot",
+        "tree_of_thoughts"
+      ],
+      "must_mention": [
+        "дедлайн"
+      ],
+      "budget_calls": null
+    }
+  }
+]
