@@ -38,7 +38,12 @@ ROOT = Path(__file__).resolve().parent.parent
 BRIDGE = ROOT / "desktop" / "bridge.ts"
 
 OLLAMA_TAGS = "http://localhost:11434/api/tags"
-FALLBACK_MODELS = ["glm-5.3:cloud", "deepseek-v4-pro:cloud", "qwen3:30b"]
+FALLBACK_MODELS = [
+    "minimax-m3.1-flash:cloud",
+    "glm-5.3:cloud",
+    "deepseek-v4-pro:cloud",
+    "qwen3:30b",
+]
 
 
 def fetch_ollama_models(timeout: float = 3.0) -> list[str]:
@@ -257,6 +262,7 @@ class MainWindow(QMainWindow):
         self.model = QComboBox()
         self.model.setEditable(True)
         self.model.addItems(FALLBACK_MODELS)
+        self.model.setCurrentText("minimax-m3.1-flash:cloud")
         model_row.addWidget(self.model, 1)
         self.refresh_button = QPushButton("↻")
         self.refresh_button.setObjectName("ghost")

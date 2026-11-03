@@ -86,6 +86,19 @@ export function gateTechniques(brief: TaskBrief, catalog: Catalog, opts: GateOpt
       rejected.push({ key: t.key, reason: `${t.status}: нет шаблона синтеза` });
       continue;
     }
+    // Тип задачи: техника, заявленная для других задач, в короткий список не попадает.
+    const types = t.task_types ?? [];
+    if (types.length && !types.includes(brief.task_type)) {
+      rejected.push({ key: t.key, reason: `не для ${brief.task_type}: заявлена для ${types.join(', ')}` });
+      continue;
+    }
+
+    // Задача «ответить по материалам» требует техники, которая реально вставляет материал.
+    if (brief.task_type === 'qa_over_docs' && !/\{\{\s*(document|text|context|external_text)\s*\}\}/.test(t.template ?? '')) {
+      rejected.push({ key: t.key, reason: 'нет опоры на материал, а задача требует источник' });
+      continue;
+    }
+
     const [min] = costRange(t.cost_calls);
     if (budget != null && min > budget) {
       rejected.push({ key: t.key, reason: `дороже бюджета: минимум ${min} вызовов при бюджете ${budget}` });
@@ -103,7 +116,29 @@ export function gateTechniques(brief: TaskBrief, catalog: Catalog, opts: GateOpt
   }
 
   candidates.sort((a, b) => costRange(a.cost_calls)[0] - costRange(b.cost_calls)[0]);
+
+  // Если фильтр по типу задачи отсёк всё — ослабляем его, но материал оставляем обязательным.
+  if (candidates.length === 0) {
+    const relaxed = catalog.techniques.filter(
+      (t) =>
+        t.status === 'ready' &&
+        ['technique', 'prompt_type'].includes(t.kind) &&
+        (bestEffortBudget(t, budget)) &&
+        (brief.task_type !== 'qa_over_docs' ||
+          /\{\{\s*(document|text|context|external_text)\s*\}\}/.test(t.template ?? '')),
+    );
+    if (relaxed.length) {
+      rejected.push({ key: '*', reason: 'фильтр по типу задачи ослаблен: подходящих не осталось' });
+      relaxed.sort((a, b) => costRange(a.cost_calls)[0] - costRange(b.cost_calls)[0]);
+      return { candidates: relaxed, rejected };
+    }
+  }
+
   return { candidates, rejected };
+}
+
+function bestEffortBudget(t: Technique, budget: number | null): boolean {
+  return budget == null || costRange(t.cost_calls)[0] <= budget;
 }
 
 export const SUPPORTED_MODALITIES: Modality[] = ['text'];
