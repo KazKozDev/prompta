@@ -198,7 +198,7 @@ CATEGORY_LABELS = {
 class TechniqueItem(QFrame):
     clicked = pyqtSignal(str)
 
-    def __init__(self, key: str, name: str, hint: str) -> None:
+    def __init__(self, key: str, name: str, hint: str = "") -> None:
         super().__init__()
         self.key = key
         self.setObjectName("techItem")
@@ -223,42 +223,64 @@ class TechniqueItem(QFrame):
         self.clicked.emit(self.key)
 
 
-class TechniquePicker(QPushButton):
-    """Кнопка, открывающая панель техник: две колонки, группы по категориям, подсказки."""
+class Dropdown(QPushButton):
+    """Единый выпадающий список: одна панель на провайдера, модель, варианты и техники.
 
-    def __init__(self) -> None:
-        super().__init__("авто — пайплайн выберет сам")
+    Умеет: одну или две колонки, заголовки категорий, подсказки, поиск по списку.
+    """
+
+    changed = pyqtSignal(str)
+
+    def __init__(
+        self,
+        placeholder: str = "—",
+        columns: int = 1,
+        searchable: bool = False,
+        popup_width: int = 380,
+    ) -> None:
+        super().__init__(placeholder)
         self.setObjectName("picker")
+        self._placeholder = placeholder
         self._items: list[dict] = []
         self._current = ""
-        self._current_label = "авто — пайплайн выберет сам"
+        self._columns = columns
+        self._searchable = searchable
+        self._popup_width = popup_width
+        self._popup: QFrame | None = None
         self.clicked.connect(self._open)
 
+    # ── данные ───────────────────────────────────────────────────
     def set_items(self, items: list[dict], keep: str = "") -> None:
         self._items = items
-        if keep:
-            self.select_key(keep, emit=False)
+        want = keep or self._current
+        if want and any(item.get("key") == want for item in items):
+            self.set_current(want)
 
     def current_key(self) -> str:
         return self._current
 
-    def select_key(self, key: str) -> None:
+    def set_current(self, key: str, emit: bool = False) -> None:
         self._current = key
-        if not key:
-            self._current_label = "авто — пайплайн выберет сам"
-        else:
-            item = next((i for i in self._items if i.get("key") == key), None)
-            self._current_label = item.get("name", key) if item else key
-        self.setText(self._current_label)
+        item = next((i for i in self._items if i.get("key") == key), None)
+        self.setText(item.get("label") or item.get("name") or key if item else (key or self._placeholder))
+        if emit:
+            self.changed.emit(key)
 
+    # ── панель ───────────────────────────────────────────────────
     def _open(self) -> None:
         popup = QFrame(self, Qt.WindowType.Popup)
-        self._popup = popup
         popup.setObjectName("techniquePopup")
+        self._popup = popup
 
         outer = QVBoxLayout(popup)
         outer.setContentsMargins(12, 12, 12, 12)
         outer.setSpacing(8)
+
+        search: QLineEdit | None = None
+        if self._searchable:
+            search = QLineEdit()
+            search.setPlaceholderText("фильтр по названию…")
+            outer.addWidget(search)
 
         scroll = QScrollArea(popup)
         scroll.setWidgetResizable(True)
@@ -270,40 +292,68 @@ class TechniquePicker(QPushButton):
         body.setContentsMargins(0, 0, 0, 0)
         body.setSpacing(10)
 
-        auto = TechniqueItem("", "Авто", "пайплайн сам выберет технику по брифу")
-        auto.clicked.connect(lambda key: self._choose(popup, key))
-        body.addWidget(auto)
+        entries: list[tuple[TechniqueItem, str]] = []
+        headers: list[tuple[QLabel, list[TechniqueItem]]] = []
 
         grouped: dict[str, list[dict]] = {}
         for item in self._items:
-            grouped.setdefault(item.get("category", "other"), []).append(item)
+            grouped.setdefault(item.get("category") or "", []).append(item)
 
-        for category, items in sorted(grouped.items(), key=lambda kv: CATEGORY_LABELS.get(kv[0], kv[0])):
-            header = QLabel(CATEGORY_LABELS.get(category, category).upper())
-            header.setObjectName("catHeader")
-            body.addWidget(header)
+        multi_group = any(key for key in grouped)
+
+        for category, items in grouped.items():
+            if multi_group:
+                header = QLabel(CATEGORY_LABELS.get(category, category).upper() if category else "ОСНОВНОЕ")
+                header.setObjectName("catHeader")
+                body.addWidget(header)
 
             grid = QGridLayout()
             grid.setSpacing(6)
+            grid_items: list[TechniqueItem] = []
             for index, item in enumerate(items):
-                widget = TechniqueItem(item["key"], item.get("name", item["key"]), item.get("hint", ""))
-                widget.clicked.connect(lambda key: self._choose(popup, key))
-                grid.addWidget(widget, index // 2, index % 2)
-            grid.setColumnStretch(0, 1)
-            grid.setColumnStretch(1, 1)
+                label = item.get("label") or item.get("name") or item["key"]
+                widget = TechniqueItem(item["key"], label, item.get("hint", ""))
+                widget.clicked.connect(lambda key: self._choose(key))
+                grid.addWidget(widget, index // self._columns, index % self._columns)
+                entries.append((widget, f"{label} {item.get('hint','')} {category}".lower()))
+                grid_items.append(widget)
+            for column in range(self._columns):
+                grid.setColumnStretch(column, 1)
             body.addLayout(grid)
+            if multi_group:
+                headers.append((header, grid_items))
 
         body.addStretch(1)
         scroll.setWidget(content)
         outer.addWidget(scroll)
 
-        popup.resize(820, 560)
+        def apply_filter(text: str) -> None:
+            needle = text.strip().lower()
+            for widget, haystack in entries:
+                widget.setVisible(needle in haystack)
+            for header, grid_items in headers:
+                header.setVisible(any(w.isVisible() for w in grid_items))
+
+        if search is not None:
+            search.textChanged.connect(apply_filter)
+
+        # Высота по содержимому: пустая панель на весь экран выглядит неаккуратно.
+        rows = sum(
+            (len(items) + self._columns - 1) // self._columns for items in grouped.values()
+        )
+        height = 44 + rows * 50 + (len(grouped) * 24 if multi_group else 0)
+        if self._searchable:
+            height += 46
+        popup.resize(self._popup_width, min(560, max(120, height)))
         popup.move(self.mapToGlobal(QPoint(0, self.height() + 4)))
         popup.show()
+        if search is not None:
+            search.setFocus()
 
-    def _choose(self, popup: QFrame, key: str) -> None:
-        self.select_key(key)
-        popup.close()
+    def _choose(self, key: str) -> None:
+        self.set_current(key, emit=True)
+        if self._popup is not None:
+            self._popup.close()
 
 
 class Card(QFrame):
@@ -352,7 +402,7 @@ class MainWindow(QMainWindow):
         self.status.setObjectName("status")
         outer.addWidget(self.status)
 
-        self.provider.currentTextChanged.connect(self._on_provider_changed)
+        self.provider.changed.connect(self._on_provider_changed)
         self.load_models()
         self.load_techniques()
 
@@ -384,7 +434,7 @@ class MainWindow(QMainWindow):
         box.addWidget(self.thoughts, 1)
 
         box.addWidget(self._mini_label("Техника"))
-        self.technique = TechniquePicker()
+        self.technique = Dropdown("авто — пайплайн выберет сам", columns=2, searchable=True, popup_width=820)
         box.addWidget(self.technique)
         self.technique_hint = QLabel("конкретная техника → промпт собирается по её методике")
         self.technique_hint.setObjectName("muted")
@@ -397,8 +447,15 @@ class MainWindow(QMainWindow):
         left = QVBoxLayout()
         left.setSpacing(4)
         left.addWidget(self._mini_label("Провайдер"))
-        self.provider = QComboBox()
-        self.provider.addItems(["ollama", "gemini", "openai"])
+        self.provider = Dropdown("Ollama", popup_width=300)
+        self.provider.set_items(
+            [
+                {"key": "ollama", "label": "Ollama (локально/облако)"},
+                {"key": "gemini", "label": "Gemini"},
+                {"key": "openai", "label": "OpenAI"},
+            ]
+        )
+        self.provider.set_current("ollama")
         left.addWidget(self.provider)
         row.addLayout(left, 1)
 
@@ -407,10 +464,9 @@ class MainWindow(QMainWindow):
         mid.addWidget(self._mini_label("Модель"))
         model_row = QHBoxLayout()
         model_row.setSpacing(6)
-        self.model = QComboBox()
-        self.model.setEditable(True)
-        self.model.addItems(FALLBACK_MODELS)
-        self.model.setCurrentText("minimax-m3.1-flash:cloud")
+        self.model = Dropdown("выбери модель", searchable=True, popup_width=460)
+        self.model.set_items([{"key": name, "label": name} for name in FALLBACK_MODELS])
+        self.model.set_current("minimax-m3.1-flash:cloud")
         model_row.addWidget(self.model, 1)
         self.refresh_button = QPushButton("↻")
         self.refresh_button.setObjectName("ghost")
@@ -444,9 +500,13 @@ class MainWindow(QMainWindow):
         variants_label = QLabel("Вариантов техник:")
         variants_label.setObjectName("muted")
         variants_row.addWidget(variants_label)
-        self.variants = QComboBox()
-        self.variants.addItems(["3", "2", "1"])
-        self.variants.setFixedWidth(70)
+        self.variants = Dropdown("3", popup_width=160)
+        self.variants.set_items([
+            {"key": "3", "label": "3 варианта"},
+            {"key": "2", "label": "2 варианта"},
+            {"key": "1", "label": "1 вариант"},
+        ])
+        self.variants.set_current("3")
         variants_row.addWidget(self.variants)
         variants_row.addStretch(1)
         box.addLayout(variants_row)
@@ -487,6 +547,7 @@ class MainWindow(QMainWindow):
         for item in techniques:
             if item.get("status") == "procedure":
                 item["name"] = f"{item.get('name', item['key'])} (процедура)"
+            item["label"] = item.get("name", item["key"])
         self.technique.set_items(techniques, keep=self.technique.current_key())
         self.technique_hint.setText(f"конкретная техника → промпт по её методике ({len(techniques)} доступно)")
 
@@ -505,12 +566,10 @@ class MainWindow(QMainWindow):
             )
             return
 
-        current = self.model.currentText().strip()
-        self.model.blockSignals(True)
-        self.model.clear()
-        self.model.addItems(names)
-        self.model.setCurrentText(current if current in names else names[0])
-        self.model.blockSignals(False)
+        current = self.model.current_key().strip()
+        self.model.set_items([{"key": name, "label": name} for name in names], keep=current)
+        if not self.model.current_key():
+            self.model.set_current(names[0])
         self.models_hint.setText(f"загружено моделей: {len(names)}")
 
     def _on_provider_changed(self, provider: str) -> None:
@@ -604,8 +663,8 @@ class MainWindow(QMainWindow):
             self.status.setText("напиши поток мыслей")
             return
 
-        provider = self.provider.currentText()
-        model = self.model.currentText().strip()
+        provider = self.provider.current_key()
+        model = self.model.current_key().strip()
         api_key = self.api_key.text().strip()
 
         if not model:
@@ -622,7 +681,7 @@ class MainWindow(QMainWindow):
             "model": model,
             "apiKey": api_key,
             "deterministic": self.deterministic.isChecked(),
-            "variants": int(self.variants.currentText()),
+            "variants": int(self.variants.current_key() or "3"),
         }
         if technique_key:
             payload["manualTechnique"] = technique_key
@@ -988,10 +1047,19 @@ def main() -> int:
         if "--screenshot-popup" in sys.argv:
             popup_index = sys.argv.index("--screenshot-popup")
             popup_path = sys.argv[popup_index + 1] if len(sys.argv) > popup_index + 1 else "/tmp/popup.png"
-            window.technique._open()
-            app.processEvents()
-            window.technique._popup.grab().save(popup_path)
-            print(f"попап: {popup_path}")
+            base = popup_path.rsplit(".", 1)[0]
+            for name, widget in (
+                ("provider", window.provider),
+                ("model", window.model),
+                ("variants", window.variants),
+                ("technique", window.technique),
+            ):
+                widget._open()
+                app.processEvents()
+                if widget._popup is not None:
+                    widget._popup.grab().save(f"{base}-{name}.png")
+                    widget._popup.close()
+            print(f"попапы: {base}-*.png")
         print(f"скриншот: {path}")
         return 0
 
