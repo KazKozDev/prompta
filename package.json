@@ -10,7 +10,8 @@
     "test": "node --test \"pipeline/**/*.test.ts\" \"eval/**/*.test.ts\" \"desktop/**/*.test.ts\"",
     "pipeline": "node pipeline/cli.ts",
     "eval": "node eval/run.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "audit": "node eval/audit.ts"
   },
   "dependencies": {
     "@google/genai": "^2.8.0",
