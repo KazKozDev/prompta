@@ -7,9 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test \"pipeline/**/*.test.ts\" \"eval/**/*.test.ts\"",
+    "test": "node --test \"pipeline/**/*.test.ts\" \"eval/**/*.test.ts\" \"desktop/**/*.test.ts\"",
     "pipeline": "node pipeline/cli.ts",
-    "eval": "node eval/run.ts"
+    "eval": "node eval/run.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@google/genai": "^2.8.0",

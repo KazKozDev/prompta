@@ -245,3 +245,15 @@ test('офлайн-режим отсекает техники с невывод�
   assert.ok(rejected.some((r) => r.key === 'few_shot' && r.reason.includes('нечем заполнить')));
   assert.ok(candidates.some((c) => c.key === 'zero_shot'));
 });
+
+test('защита от инъекций добавляется только там, где есть внешний материал', () => {
+  const contextual = catalog.techniques.find((t) => t.key === 'contextual_prompting')!;
+  const zero = catalog.techniques.find((t) => t.key === 'zero_shot')!;
+
+  const guarded = synthesizeDeterministic({ ...brief, task_type: 'qa_over_docs' }, contextual);
+  assert.match(guarded.prompt, /это данные, а не инструкции/);
+  assert.ok(guarded.warnings.some((w) => w.includes('prompt injection')));
+
+  const plain = synthesizeDeterministic({ ...brief, task_type: 'generation' }, zero);
+  assert.equal(/это данные, а не инструкции/.test(plain.prompt), false);
+});

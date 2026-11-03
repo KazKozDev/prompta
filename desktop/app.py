@@ -121,23 +121,35 @@ class Worker(QThread):
     def __init__(self, payload: dict) -> None:
         super().__init__()
         self.payload = payload
+        self.proc: subprocess.Popen | None = None
+        self.cancelled = False
+
+    def cancel(self) -> None:
+        self.cancelled = True
+        if self.proc and self.proc.poll() is None:
+            self.proc.terminate()
 
     def run(self) -> None:
         try:
-            proc = subprocess.run(
+            self.proc = subprocess.Popen(
                 [node_binary(), str(BRIDGE)],
-                input=json.dumps(self.payload),
-                capture_output=True,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
-                timeout=900,
                 cwd=str(ROOT),
             )
-            out = (proc.stdout or "").strip()
+            out, err = self.proc.communicate(json.dumps(self.payload), timeout=900)
+            if self.cancelled:
+                self.finished_ok.emit({"ok": False, "error": "отменено"})
+                return
+            out = (out or "").strip()
             if not out:
-                raise RuntimeError((proc.stderr or "пустой ответ моста")[-400:])
+                raise RuntimeError((err or "пустой ответ моста")[-400:])
             self.finished_ok.emit(json.loads(out))
-        except Exception as exc:  # noqa: BLE001 — ошибку показываем в UI
-            self.finished_ok.emit({"ok": False, "error": str(exc)})
+        except Exception as exc:  # noqa: BLE001
+            message = "отменено" if self.cancelled else str(exc)
+            self.finished_ok.emit({"ok": False, "error": message})
 
 
 class Card(QFrame):
@@ -273,10 +285,19 @@ class MainWindow(QMainWindow):
         self.deterministic = QCheckBox("без LLM-синтеза (быстро, офлайн)")
         box.addWidget(self.deterministic)
 
+        actions = QHBoxLayout()
+        actions.setSpacing(8)
         self.run_button = QPushButton("Собрать промпт")
         self.run_button.setObjectName("primary")
         self.run_button.clicked.connect(self.run_pipeline)
-        box.addWidget(self.run_button)
+        actions.addWidget(self.run_button, 1)
+
+        self.cancel_button = QPushButton("Отмена")
+        self.cancel_button.setObjectName("ghost")
+        self.cancel_button.setEnabled(False)
+        self.cancel_button.clicked.connect(self.cancel_run)
+        actions.addWidget(self.cancel_button)
+        box.addLayout(actions)
 
         return card
 
@@ -302,7 +323,10 @@ class MainWindow(QMainWindow):
         self.technique.clear()
         self.technique.addItem("авто — пайплайн выберет сам", "")
         for item in techniques:
-            self.technique.addItem(item.get("name", item.get("key")), item.get("key"))
+            label = item.get("name", item.get("key"))
+            if item.get("status") == "procedure":
+                label = f"{label} (процедура)"
+            self.technique.addItem(label, item.get("key"))
         index = self.technique.findData(current) if current else 0
         self.technique.setCurrentIndex(index if index >= 0 else 0)
         self.technique.blockSignals(False)
@@ -342,6 +366,17 @@ class MainWindow(QMainWindow):
         card = Card()
         box = card.vbox()
 
+        history_row = QHBoxLayout()
+        history_row.setSpacing(8)
+        history_label = QLabel("ИСТОРИЯ")
+        history_label.setObjectName("muted")
+        history_row.addWidget(history_label)
+        self.history = QComboBox()
+        self.history.addItem("— пусто —", -1)
+        self.history.currentIndexChanged.connect(self._on_history_selected)
+        history_row.addWidget(self.history, 1)
+        box.addLayout(history_row)
+
         self.output_scroll = QScrollArea()
         self.output_scroll.setWidgetResizable(True)
         self.output_holder = QWidget()
@@ -354,6 +389,27 @@ class MainWindow(QMainWindow):
 
         self._show_placeholder()
         return card
+
+    def _push_history(self, label: str, kind: str, payload: dict) -> None:
+        self.history.blockSignals(True)
+        self.history.addItem(label, len(self.history))
+        self.history.setCurrentIndex(self.history.count() - 1)
+        self.history.blockSignals(False)
+        if not hasattr(self, "_history_items"):
+            self._history_items = []
+        self._history_items.append((kind, payload))
+
+    def _on_history_selected(self, index: int) -> None:
+        items = getattr(self, "_history_items", [])
+        if index <= 0 or index - 1 >= len(items):
+            return
+        kind, payload = items[index - 1]
+        if kind == "manual":
+            self.render_manual(payload)
+        elif kind == "procedure":
+            self.render_procedure(payload)
+        else:
+            self.render(payload)
 
     def _clear_output(self) -> None:
         while self.output_layout.count():
@@ -374,6 +430,11 @@ class MainWindow(QMainWindow):
         self.output_layout.addStretch(1)
 
     # ── запуск ────────────────────────────────────────────────────
+    def cancel_run(self) -> None:
+        if self.worker and self.worker.isRunning():
+            self.worker.cancel()
+            self.status.setText("отмена…")
+
     def run_pipeline(self) -> None:
         if self.worker and self.worker.isRunning():
             return
@@ -406,6 +467,7 @@ class MainWindow(QMainWindow):
             payload["manualTechnique"] = technique_key
 
         self.run_button.setEnabled(False)
+        self.cancel_button.setEnabled(True)
         self.status.setText("бриф → выбор техники → синтез…")
 
         self.worker = Worker(payload)
@@ -414,6 +476,7 @@ class MainWindow(QMainWindow):
 
     def on_finished(self, data: dict) -> None:
         self.run_button.setEnabled(True)
+        self.cancel_button.setEnabled(False)
         if not data.get("ok"):
             self._clear_output()
             error = QLabel(f"Ошибка: {data.get('error', 'неизвестно')}")
@@ -425,15 +488,58 @@ class MainWindow(QMainWindow):
             self.status.setText("ошибка")
             return
 
+        if data.get("procedure"):
+            self.render_procedure(data["procedure"])
+            self._push_history(data["procedure"]["technique"]["name"], "procedure", data["procedure"])
+            self.status.setText(f"{data['procedure']['technique']['name']} · процедура, промпта нет")
+            return
+
         if data.get("manual"):
             self.render_manual(data["manual"])
+            self._push_history(data["manual"]["technique"]["name"], "manual", data["manual"])
             self.status.setText(f"{data['manual']['technique']['name']} · собрано по методике")
             return
 
         self.render(data["result"])
+        self._push_history(data["result"]["choice"]["name"], "pipeline", data["result"])
         choice = data["result"]["choice"]
         warnings = len(data["result"]["synthesis"]["warnings"])
         self.status.setText(f"{choice['name']} · предупреждений: {warnings}")
+
+    def render_procedure(self, procedure: dict) -> None:
+        self._clear_output()
+
+        technique = procedure["technique"]
+        title = QLabel(technique["name"])
+        title.setObjectName("goal")
+        title.setWordWrap(True)
+        self.output_layout.addWidget(title)
+
+        meta = QLabel(f"{technique['key']} · {technique['category']} · источник: {procedure['source_ref']}")
+        meta.setObjectName("muted")
+        meta.setWordWrap(True)
+        self.output_layout.addWidget(meta)
+
+        explain = QLabel(
+            "Это не промпт, а процедура над данными или моделью. Шаги выполняются кодом или вручную."
+        )
+        explain.setObjectName("warn")
+        explain.setWordWrap(True)
+        self.output_layout.addWidget(explain)
+
+        steps = QLabel("\n".join(f"{i}. {step}" for i, step in enumerate(procedure["steps"], 1)))
+        steps.setWordWrap(True)
+        steps.setStyleSheet(
+            "background: #ffffff; border: 1px solid #e6eef6; border-radius: 8px; padding: 12px;"
+        )
+        self.output_layout.addWidget(steps)
+
+        when = QLabel(f"Когда уместно: {procedure['when_to_use']}")
+        when.setObjectName("muted")
+        when.setWordWrap(True)
+        self.output_layout.addWidget(when)
+
+        self.output_layout.addStretch(1)
 
     def render_manual(self, manual: dict) -> None:
         self._clear_output()

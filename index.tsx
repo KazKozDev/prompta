@@ -1,10 +1,7 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import LoadingScreen from "./LoadingScreen/LoadingScreen.jsx";
 import "./LoadingScreen/LoadingScreen.css";
 import "./index.css";
-import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
-// @ts-ignore - OpenAI imported via CDN
-import OpenAI from "openai";
 import { runPipeline } from './pipeline/index.ts';
 import { loadCatalog } from './pipeline/catalog.ts';
 import { createLLM } from './pipeline/llm.ts';
@@ -14,8 +11,8 @@ import catalogJson from './catalog/catalog.json';
 
 const CATALOG = loadCatalog(catalogJson);
 const MANUAL_TECHNIQUES = CATALOG.techniques.filter((t) => t.status === 'ready');
+const PROCEDURES = CATALOG.techniques.filter((t) => t.status === 'procedure');
 
-let ai: GoogleGenAI | OpenAI | null = null;
 let currentProvider: string = 'ollama';
 let currentModel: string = '';
 let currentApiKey: string = '';
@@ -147,7 +144,7 @@ async function saveLLMConfig() {
     return;
   }
   
-  const success = await initializeGenAI();
+  const success = await checkConnection();
   if (statusSpan) {
     if (success) {
       statusSpan.textContent = 'Settings saved!';
@@ -160,172 +157,20 @@ async function saveLLMConfig() {
   }
 }
 
-async function initializeGenAI() {
-  try {
-    if (currentProvider === 'gemini') {
-      if (!currentApiKey) {
-        console.log("API_KEY not provided yet.");
-        return false;
-      }
-      ai = new GoogleGenAI({ apiKey: currentApiKey });
-      return true;
-    } else if (currentProvider === 'ollama') {
-      // For Ollama, test connection to local server
-      try {
-        const healthResponse = await fetch('http://localhost:11434/api/tags');
-        if (!healthResponse.ok) {
-          throw new Error(`Ollama server responded with status: ${healthResponse.status}`);
-        }
-        const data = await healthResponse.json();
-        const availableModels = data.models?.map((m: any) => m.name) || [];
-        console.log('Ollama models available:', availableModels);
-        
-        // Check if the selected model exists
-        if (availableModels.length > 0 && !availableModels.includes(currentModel)) {
-          console.warn(`Model "${currentModel}" not found. Available models:`, availableModels);
-          // You might want to show a warning to the user here
-        }
-        
-        // Create a mock ai object with generateContent method for Ollama
-        ai = {
-          models: {
-            generateContent: async (request: any) => {
-              return await generateWithOllama(request.contents, request.model || currentModel);
-            }
-          }
-        } as any;
-        return true;
-      } catch (error) {
-        console.error("Failed to connect to Ollama:", error);
-        if (error instanceof TypeError && error.message.includes('fetch')) {
-          displayGlobalError("Cannot connect to Ollama server. Make sure Ollama is installed and running (try: ollama serve)");
-        } else {
-          displayGlobalError(`Failed to connect to Ollama server: ${error instanceof Error ? error.message : String(error)}`);
-        }
-        return false;
-      }
-    } else if (currentProvider === 'openai') {
-      // For OpenAI, initialize with API key
-      if (!currentApiKey) {
-        console.log("OpenAI API_KEY not provided yet.");
-        return false;
-      }
-      
-      try {
-        const originalAI = new OpenAI({
-          apiKey: currentApiKey,
-          dangerouslyAllowBrowser: true // Note: In production, use server-side proxy
-        });
-        
-        // Create wrapper to match Google AI interface
-        ai = {
-          models: {
-            generateContent: async (request: any) => {
-              return await generateWithOpenAI(request.contents, request.model || currentModel);
-            }
-          }
-        } as any;
-        
-        // Store original OpenAI instance for actual API calls
-        (ai as any)._openai = originalAI;
-        
-        return true;
-      } catch (error) {
-        console.error("Failed to initialize OpenAI:", error);
-        displayGlobalError(`Failed to initialize OpenAI: ${error instanceof Error ? error.message : String(error)}`);
-        return false;
-      }
-    } else {
-      ai = null; // Unknown provider
-      displayGlobalError("Unknown LLM provider selected.");
+async function checkConnection(): Promise<boolean> {
+  if (currentProvider === 'ollama') {
+    try {
+      const response = await fetch('http://localhost:11434/api/tags');
+      return response.ok;
+    } catch (error) {
+      displayGlobalError(
+        `Cannot connect to Ollama server: ${error instanceof Error ? error.message : String(error)}`,
+      );
       return false;
     }
-  } catch (error) {
-    console.error("Failed to initialize LLM:", error);
-    displayGlobalError("Failed to initialize LLM service. Please check console for details.");
-    return false;
   }
-}
-
-async function generateWithOllama(prompt: string, model: string): Promise<GenerateContentResponse> {
-  try {
-    const response = await fetch('http://localhost:11434/api/generate', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: model,
-        prompt: prompt,
-        stream: false
-      })
-    });
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        throw new Error(`Model "${model}" not found. Make sure the model is installed in Ollama (run: ollama pull ${model})`);
-      }
-      throw new Error(`Ollama API error: ${response.status} ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    
-    if (data.error) {
-      throw new Error(`Ollama error: ${data.error}`);
-    }
-    
-    // Return in the same format as Google's GenerateContentResponse
-    return {
-      text: data.response || '',
-      usageMetadata: {
-        candidatesTokenCount: data.eval_count || 'N/A'
-      }
-    } as GenerateContentResponse;
-  } catch (error) {
-    if (error instanceof TypeError && error.message.includes('fetch')) {
-      throw new Error('Cannot connect to Ollama server. Make sure Ollama is running on localhost:11434');
-    }
-    console.error('Ollama generation error:', error);
-    throw error;
-  }
-}
-
-async function generateWithOpenAI(prompt: string, model: string): Promise<GenerateContentResponse> {
-  try {
-    const openaiInstance = (ai as any)?._openai;
-    if (!openaiInstance) {
-      throw new Error('OpenAI client not properly initialized');
-    }
-
-    const response = await openaiInstance.chat.completions.create({
-      model: model,
-      messages: [
-        {
-          role: 'user',
-          content: prompt
-        }
-      ],
-      temperature: 0.7,
-      max_tokens: 2000
-    });
-
-    const content = response.choices[0]?.message?.content || '';
-    const tokenCount = response.usage?.completion_tokens || 'N/A';
-
-    // Return in the same format as Google's GenerateContentResponse
-    return {
-      text: content,
-      usageMetadata: {
-        candidatesTokenCount: tokenCount
-      }
-    } as GenerateContentResponse;
-  } catch (error) {
-    console.error('OpenAI generation error:', error);
-    if (error instanceof Error && error.message.includes('API key')) {
-      throw new Error('Invalid OpenAI API key. Please check your API key.');
-    }
-    throw error;
-  }
+  // Для облачных провайдеров проверяем только наличие ключа: валидность покажет первый запрос.
+  return Boolean(currentApiKey);
 }
 
 function displayGlobalError(message: string) {
@@ -352,6 +197,22 @@ function renderManualCard(technique: (typeof MANUAL_TECHNIQUES)[number], prompt:
       </p>
       <button class="copy-button" type="button">Копировать</button>
     </div>`;
+}
+
+function renderProcedures(): void {
+  const host = document.getElementById('procedures-list');
+  if (!host) return;
+  host.innerHTML = PROCEDURES.map(
+    (p) => `
+      <details class="procedure-item">
+        <summary>
+          <span class="procedure-name">${escapeHtml(p.name)}</span>
+          <span class="pipeline-chip">${escapeHtml(p.category)}</span>
+        </summary>
+        <ol>${(p.procedure ?? []).map((step) => `<li>${escapeHtml(step)}</li>`).join('')}</ol>
+        <p class="pipeline-note">${escapeHtml(p.when_to_use)}</p>
+      </details>`,
+  ).join('');
 }
 
 function renderManualTechniques(): void {
@@ -523,6 +384,7 @@ function App() {
         modelSelect.addEventListener('change', getLLMConfigFromUI);
       }
       renderManualTechniques();
+      renderProcedures();
       const manualButton = document.getElementById('manual-generate');
       if (manualButton) {
         manualButton.addEventListener('click', handleManualGenerate);
@@ -644,6 +506,20 @@ function App() {
                 <div id="manual-results" className="manual-results"></div>
               </div>
             </section>
+
+            <details className="procedures-block">
+              <summary>
+                <span className="material-symbols-outlined">account_tree</span>
+                Процедуры: {PROCEDURES.length} техник, у которых нет промпта — только шаги
+              </summary>
+              <div className="procedures-body">
+                <p className="pipeline-hint">
+                  Это не промпты, а операции над данными или моделью: отбор примеров, ансамбли, RL-оптимизация.
+                  Выполнять их нужно кодом или вручную — шаблон здесь был бы обманом.
+                </p>
+                <div id="procedures-list" className="procedures-list"></div>
+              </div>
+            </details>
 
             <section id="model-settings" aria-labelledby="model-settings-heading">
               <h2 id="model-settings-heading">

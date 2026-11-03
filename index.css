@@ -346,6 +346,43 @@ footer { margin-top: 26px; padding-top: 16px; border-top: 1px solid #edf2f7; tex
 @media (max-width: 860px) { .techniques-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .techniques-grid { grid-template-columns: 1fr; } }
 
+/* ── Процедуры ─────────────────────────────────────────────────── */
+.procedures-block {
+  border: 1px solid #e6eef6;
+  border-radius: 12px;
+  background: #fbfdff;
+}
+.procedures-block > summary {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .85rem 1.1rem;
+  font-size: .88rem;
+  color: #5b6b7c;
+  cursor: pointer;
+  list-style: none;
+}
+.procedures-block > summary::-webkit-details-marker { display: none; }
+.procedures-block > summary .material-symbols-outlined { font-size: 1.1rem; color: #8fa3bd; }
+.procedures-block > summary::after { content: '▾'; margin-left: auto; color: #a9b8c8; }
+.procedures-block[open] > summary::after { transform: rotate(180deg); }
+.procedures-body { padding: 0 1.1rem 1.1rem; }
+.procedures-list { display: grid; gap: 6px; margin-top: .6rem; }
+.procedure-item { border: 1px solid #eaf2f9; border-radius: 8px; background: #fff; }
+.procedure-item > summary {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .5rem .7rem;
+  font-size: .84rem;
+  cursor: pointer;
+  list-style: none;
+}
+.procedure-item > summary::-webkit-details-marker { display: none; }
+.procedure-name { color: #2c3e50; }
+.procedure-item ol { margin: .2rem 0 .6rem 1.9rem; font-size: .82rem; color: #5b6b7c; line-height: 1.5; }
+.procedure-item .pipeline-note { padding: 0 .7rem .6rem; }
+
 /* ── Настройки модели ──────────────────────────────────────────── */
 #model-settings {
   border: 1px solid #e6eef6;

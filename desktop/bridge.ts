@@ -42,8 +42,12 @@ async function main() {
 
   if (req.listTechniques) {
     const ready = catalog.techniques
-      .filter((t) => t.status === 'ready' && ['technique', 'prompt_type'].includes(t.kind))
-      .map((t) => ({ key: t.key, name: t.name, category: t.category }));
+      .filter(
+        (t) =>
+          ['ready', 'procedure'].includes(t.status) &&
+          ['technique', 'prompt_type', 'procedure'].includes(t.kind),
+      )
+      .map((t) => ({ key: t.key, name: t.name, category: t.category, status: t.status }));
     process.stdout.write(JSON.stringify({ ok: true, techniques: ready }));
     return;
   }
@@ -53,6 +57,22 @@ async function main() {
   if (req.manualTechnique) {
     const technique = catalog.techniques.find((t) => t.key === req.manualTechnique);
     if (!technique) throw new Error(`нет техники ${req.manualTechnique}`);
+
+    if (technique.status === 'procedure') {
+      process.stdout.write(
+        JSON.stringify({
+          ok: true,
+          procedure: {
+            technique: { key: technique.key, name: technique.name, category: technique.category },
+            steps: technique.procedure ?? [],
+            when_to_use: technique.when_to_use,
+            source_ref: technique.source_ref,
+          },
+        }),
+      );
+      return;
+    }
+
     if (!technique.template) throw new Error(`${technique.key}: нет шаблона синтеза`);
 
     let prompt = (await llm(buildManualPrompt(req.thoughts, technique), { temperature: 0.3 })).trim();
