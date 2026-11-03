@@ -14,13 +14,14 @@ import sys
 import urllib.request
 from pathlib import Path
 
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtCore import QPoint, Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QFont, QGuiApplication, QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QApplication,
     QCheckBox,
     QComboBox,
     QFrame,
+    QGridLayout,
     QHBoxLayout,
     QLabel,
     QLayout,
@@ -74,6 +75,21 @@ QPlainTextEdit { background: #ffffff; border: 1px solid #d6e0ea; border-radius: 
 QPlainTextEdit:focus { border-color: #007bff; }
 QPlainTextEdit#prompt { background: #0f172a; color: #e6edf7; border: 1px solid #1b2437; font-family: Menlo, monospace; font-size: 12px; }
 QLineEdit, QComboBox { background: #ffffff; border: 1px solid #d6e0ea; border-radius: 8px; padding: 7px 9px; }
+QComboBox QAbstractItemView {
+  background: #ffffff; color: #333333; border: 1px solid #d6e0ea; outline: none;
+  selection-background-color: #e3f0ff; selection-color: #0b62c6;
+}
+QPushButton#picker {
+  background: #ffffff; color: #333333; border: 1px solid #d6e0ea; border-radius: 8px;
+  padding: 8px 10px; text-align: left;
+}
+QPushButton#picker:hover { border-color: #007bff; }
+QFrame#techniquePopup { background: #ffffff; border: 1px solid #d6e0ea; border-radius: 12px; }
+QFrame#techItem { background: #fbfdff; border: 1px solid #e6eef6; border-radius: 8px; }
+QFrame#techItem:hover { background: #eef6ff; border-color: #a9cdf5; }
+QLabel#techName { font-weight: 600; color: #1f2d3d; font-size: 12px; }
+QLabel#techHint { color: #6b7a8c; font-size: 11px; }
+QLabel#catHeader { color: #93a4b5; font-size: 10px; font-weight: 600; letter-spacing: 1px; }
 QLineEdit:focus, QComboBox:focus { border-color: #007bff; }
 QPushButton#primary { background: #007bff; color: #ffffff; border: none; border-radius: 8px; padding: 10px 18px; font-weight: 600; }
 QPushButton#primary:hover { background: #0067d6; }
@@ -158,6 +174,138 @@ class Worker(QThread):
             self.finished_ok.emit({"ok": False, "error": message})
 
 
+CATEGORY_LABELS = {
+    "context": "Контекст и подача",
+    "reasoning": "Рассуждение",
+    "thought_generation": "Генерация мыслей",
+    "decomposition": "Декомпозиция",
+    "icl": "Примеры (ICL)",
+    "zero_shot_boost": "Усиление zero-shot",
+    "ensembling": "Ансамбли",
+    "self_critique": "Самокритика",
+    "optimization": "Оптимизация промптов",
+    "answer_engineering": "Извлечение ответа",
+    "agents": "Агенты",
+    "rag": "RAG",
+    "automation": "Автоматизация и код",
+    "pedagogy": "Обучение",
+    "procedure": "Процедуры",
+    "security": "Безопасность",
+    "generation_config": "Настройки",
+}
+
+
+class TechniqueItem(QFrame):
+    clicked = pyqtSignal(str)
+
+    def __init__(self, key: str, name: str, hint: str) -> None:
+        super().__init__()
+        self.key = key
+        self.setObjectName("techItem")
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(9, 7, 9, 7)
+        layout.setSpacing(2)
+
+        title = QLabel(name)
+        title.setObjectName("techName")
+        title.setWordWrap(True)
+        layout.addWidget(title)
+
+        if hint:
+            note = QLabel(hint)
+            note.setObjectName("techHint")
+            note.setWordWrap(True)
+            layout.addWidget(note)
+
+    def mousePressEvent(self, event) -> None:  # noqa: N802
+        self.clicked.emit(self.key)
+
+
+class TechniquePicker(QPushButton):
+    """Кнопка, открывающая панель техник: две колонки, группы по категориям, подсказки."""
+
+    def __init__(self) -> None:
+        super().__init__("авто — пайплайн выберет сам")
+        self.setObjectName("picker")
+        self._items: list[dict] = []
+        self._current = ""
+        self._current_label = "авто — пайплайн выберет сам"
+        self.clicked.connect(self._open)
+
+    def set_items(self, items: list[dict], keep: str = "") -> None:
+        self._items = items
+        if keep:
+            self.select_key(keep, emit=False)
+
+    def current_key(self) -> str:
+        return self._current
+
+    def select_key(self, key: str) -> None:
+        self._current = key
+        if not key:
+            self._current_label = "авто — пайплайн выберет сам"
+        else:
+            item = next((i for i in self._items if i.get("key") == key), None)
+            self._current_label = item.get("name", key) if item else key
+        self.setText(self._current_label)
+
+    def _open(self) -> None:
+        popup = QFrame(self, Qt.WindowType.Popup)
+        self._popup = popup
+        popup.setObjectName("techniquePopup")
+
+        outer = QVBoxLayout(popup)
+        outer.setContentsMargins(12, 12, 12, 12)
+        outer.setSpacing(8)
+
+        scroll = QScrollArea(popup)
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea { background: #ffffff; border: none; }")
+
+        content = QWidget()
+        content.setStyleSheet("background: #ffffff;")
+        body = QVBoxLayout(content)
+        body.setContentsMargins(0, 0, 0, 0)
+        body.setSpacing(10)
+
+        auto = TechniqueItem("", "Авто", "пайплайн сам выберет технику по брифу")
+        auto.clicked.connect(lambda key: self._choose(popup, key))
+        body.addWidget(auto)
+
+        grouped: dict[str, list[dict]] = {}
+        for item in self._items:
+            grouped.setdefault(item.get("category", "other"), []).append(item)
+
+        for category, items in sorted(grouped.items(), key=lambda kv: CATEGORY_LABELS.get(kv[0], kv[0])):
+            header = QLabel(CATEGORY_LABELS.get(category, category).upper())
+            header.setObjectName("catHeader")
+            body.addWidget(header)
+
+            grid = QGridLayout()
+            grid.setSpacing(6)
+            for index, item in enumerate(items):
+                widget = TechniqueItem(item["key"], item.get("name", item["key"]), item.get("hint", ""))
+                widget.clicked.connect(lambda key: self._choose(popup, key))
+                grid.addWidget(widget, index // 2, index % 2)
+            grid.setColumnStretch(0, 1)
+            grid.setColumnStretch(1, 1)
+            body.addLayout(grid)
+
+        body.addStretch(1)
+        scroll.setWidget(content)
+        outer.addWidget(scroll)
+
+        popup.resize(820, 560)
+        popup.move(self.mapToGlobal(QPoint(0, self.height() + 4)))
+        popup.show()
+
+    def _choose(self, popup: QFrame, key: str) -> None:
+        self.select_key(key)
+        popup.close()
+
+
 class Card(QFrame):
     def __init__(self) -> None:
         super().__init__()
@@ -236,8 +384,7 @@ class MainWindow(QMainWindow):
         box.addWidget(self.thoughts, 1)
 
         box.addWidget(self._mini_label("Техника"))
-        self.technique = QComboBox()
-        self.technique.addItem("авто — пайплайн выберет сам", "")
+        self.technique = TechniquePicker()
         box.addWidget(self.technique)
         self.technique_hint = QLabel("конкретная техника → промпт собирается по её методике")
         self.technique_hint.setObjectName("muted")
@@ -337,18 +484,10 @@ class MainWindow(QMainWindow):
     def _on_techniques_loaded(self, techniques: list) -> None:
         if not techniques:
             return
-        current = self.technique.currentData()
-        self.technique.blockSignals(True)
-        self.technique.clear()
-        self.technique.addItem("авто — пайплайн выберет сам", "")
         for item in techniques:
-            label = item.get("name", item.get("key"))
             if item.get("status") == "procedure":
-                label = f"{label} (процедура)"
-            self.technique.addItem(label, item.get("key"))
-        index = self.technique.findData(current) if current else 0
-        self.technique.setCurrentIndex(index if index >= 0 else 0)
-        self.technique.blockSignals(False)
+                item["name"] = f"{item.get('name', item['key'])} (процедура)"
+        self.technique.set_items(techniques, keep=self.technique.current_key())
         self.technique_hint.setText(f"конкретная техника → промпт по её методике ({len(techniques)} доступно)")
 
     def load_models(self) -> None:
@@ -476,7 +615,7 @@ class MainWindow(QMainWindow):
             self.status.setText("нужен API key")
             return
 
-        technique_key = self.technique.currentData() or ""
+        technique_key = self.technique.current_key() or ""
         payload = {
             "thoughts": thoughts,
             "provider": provider,
@@ -784,6 +923,16 @@ def main() -> int:
             "и вытаскивала решения, задачи и ответственных в таблицу"
         )
         window._on_models_loaded(fetch_ollama_models())
+        # техники тоже нужны в скриншоте: тянем синхронно через мост
+        try:
+            proc = subprocess.run(
+                [node_binary(), str(BRIDGE)],
+                input=json.dumps({"thoughts": "x", "listTechniques": True, "model": "dummy"}),
+                capture_output=True, text=True, timeout=120, cwd=str(ROOT),
+            )
+            window._on_techniques_loaded(json.loads(proc.stdout or "{}").get("techniques", []))
+        except Exception:
+            pass
         window.render(
             {
                 "brief": {
@@ -835,6 +984,14 @@ def main() -> int:
         window.resize(1160, 1180)
         app.processEvents()
         window.grab().save(path)
+
+        if "--screenshot-popup" in sys.argv:
+            popup_index = sys.argv.index("--screenshot-popup")
+            popup_path = sys.argv[popup_index + 1] if len(sys.argv) > popup_index + 1 else "/tmp/popup.png"
+            window.technique._open()
+            app.processEvents()
+            window.technique._popup.grab().save(popup_path)
+            print(f"попап: {popup_path}")
         print(f"скриншот: {path}")
         return 0
 

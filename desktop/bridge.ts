@@ -49,7 +49,14 @@ async function main() {
           ['ready', 'procedure'].includes(t.status) &&
           ['technique', 'prompt_type', 'procedure'].includes(t.kind),
       )
-      .map((t) => ({ key: t.key, name: t.name, category: t.category, status: t.status }));
+      .map((t) => ({
+        key: t.key,
+        name: t.name,
+        category: t.category,
+        status: t.status,
+        // Подсказка в одну фразу: первое предложение when_to_use без хвоста.
+        hint: t.when_to_use.split(/[.;]/)[0].trim().slice(0, 90),
+      }));
     process.stdout.write(JSON.stringify({ ok: true, techniques: ready }));
     return;
   }
