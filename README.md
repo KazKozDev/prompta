@@ -20,7 +20,7 @@ A web application that transforms your simple queries into advanced, optimized p
 каркасу техники из `catalog/catalog.json` (89 техник: 64 с шаблоном синтеза, 18 процедур, 7 настроек и рисков).
 
 ```bash
-npm test               # 30 проверок, офлайн, без ключей
+npm test               # 41 проверка, офлайн, без ключей
 npm run pipeline "…"    # живой прогон (Gemini / OpenAI / Ollama)
 npm run eval -- --ids meeting-actions,tickets-classify --repeat 3   # качество и дрейф выбора
 node eval/calibrate.ts --hard --provider ollama --model glm-5.3:cloud  # проверка: судья ↔ точность

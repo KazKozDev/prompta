@@ -24,7 +24,7 @@
 | `llm.ts` | Адаптеры Gemini / OpenAI / Ollama на голом `fetch` |
 | `index.ts` | `runPipeline`, `formatResult`, трассировка шагов |
 | `cli.ts` | Запуск из терминала |
-| `smoke.test.ts` | 20 проверок на `node:test`, без сети (`eval/` добавляет ещё 10) |
+| `smoke.test.ts` | 20 проверок на `node:test`, без сети (всего в проекте 41: +21 в `eval/`) |
 
 ## Что гарантируется
 
@@ -44,7 +44,7 @@
 ## Запуск
 
 ```bash
-npm test                                             # 20 проверок, офлайн
+npm test                                             # 41 проверка, офлайн
 npm run pipeline "разбери мои заметки с встречи..."   # Gemini по умолчанию
 npm run pipeline "..." --provider ollama --model glm-5.3:cloud --deterministic
 ```

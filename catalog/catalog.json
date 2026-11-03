@@ -63,7 +63,7 @@
       "kind": "setting",
       "category": "generation_config",
       "task_types": [],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "none",
       "when_to_use": "Низкая (0–0.3) — когда нужен воспроизводимый ответ: классификация, извлечение полей, код. Высокая (0.8–1.0) — брейншторм, тексты, варианты. 0 = greedy-декодинг, но при равных вероятностях токенов результат всё равно может «плавать» (с. 10)",
       "when_not": null,
@@ -90,7 +90,7 @@
       "kind": "setting",
       "category": "generation_config",
       "task_types": [],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "none",
       "when_to_use": "Отсекают маловероятные токены: top-K — жёстко по количеству, top-P (nucleus) — по накопленной вероятности. Убирают «странные» слова, не убивая разнообразие целиком",
       "when_not": null,
@@ -117,7 +117,7 @@
       "kind": "setting",
       "category": "generation_config",
       "task_types": [],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "none",
       "when_to_use": "Обрезает генерацию. Важно: лимит не делает ответ лаконичнее, он просто обрывает поток — краткость надо просить в промпте. Критично для ReAct, который «сыплет» токенами после нужного ответа",
       "when_not": null,
@@ -149,7 +149,7 @@
         "generation",
         "qa_over_docs"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Простые однозначные задачи, где формат не важен: «переведи», «классифицируй», «суммируй». Дёшево и быстро. Ломается, когда нужен строгий формат или тонкая граница классов",
       "when_not": "Нужен строгий формат или тонкая граница классов — модель угадает формат.",
@@ -183,10 +183,9 @@
       "task_types": [
         "classification",
         "extraction",
-        "generation",
-        "qa_over_docs"
+        "generation"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Когда важен формат, стиль или неочевидная граница классов. 3–5 примеров обычно достаточно. Плохо работает, если примеры однотипные или предвзятые — модель копирует и смещение",
       "when_not": "Мало данных или примеры однотипные: модель копирует смещение примеров.",
@@ -219,9 +218,11 @@
         "classification",
         "extraction",
         "generation",
-        "qa_over_docs"
+        "coding",
+        "qa_over_docs",
+        "agentic"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Задать роль, правила, формат ответа, ограничения — то, что должно действовать на весь диалог. Основное место для «не выходи за рамки», «отвечай по-русски», «JSON only»",
       "when_not": "Правило нужно один раз для конкретного запроса — дешевле инструкция в user-сообщении.",
@@ -251,12 +252,11 @@
       "kind": "technique",
       "category": "context",
       "task_types": [
-        "classification",
-        "extraction",
         "generation",
-        "qa_over_docs"
+        "qa_over_docs",
+        "teaching"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Стиль и уровень экспертизы: «объясни как педиатру», «ответь как финаналитик». Меняет лексику и глубину, не добавляет знаний",
       "when_not": "Задача фактическая: роль меняет стиль, а не добавляет знаний.",
@@ -354,9 +354,9 @@
       "category": "reasoning",
       "task_types": [
         "reasoning",
-        "planning"
+        "qa_over_docs"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "multi_step",
       "when_to_use": "Когда модель тонет в деталях: сначала спросить общий принцип/правило, потом решать конкретную задачу. Хорошо для физики, математики, планирования",
       "when_not": "Задача чисто фактическая: абстракция уводит от нужного ответа.",
@@ -387,9 +387,10 @@
       "category": "reasoning",
       "task_types": [
         "reasoning",
-        "planning"
+        "planning",
+        "coding"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Многошаговые задачи: арифметика, логика, планирование, разбор противоречий. Даёт заметный прирост на рассуждениях. Цена — токены; на простых задачах только вредит. Для чистого финального ответа CoT можно не показывать пользователю",
       "when_not": "Задача простая или ответ нужен мгновенно — лишние токены и задержка.",
@@ -421,9 +422,9 @@
       "category": "reasoning",
       "task_types": [
         "reasoning",
-        "planning"
+        "classification"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "n_calls_vote",
       "when_to_use": "Когда ответ проверяем (число, метка): несколько независимых CoT-прогонов с ненулевой температурой + голосование большинством. Точнее одного CoT, но стоимость ×N",
       "when_not": "Ответ не приводится к канонической форме (свободный текст) — голосовать нечем.",
@@ -619,7 +620,7 @@
       "task_types": [
         "teaching"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Проверка факта, быстрый контроль знаний",
       "when_not": "Нужно оценить рассуждение, а не память — закрытый вопрос этого не покажет.",
@@ -651,7 +652,7 @@
       "task_types": [
         "teaching"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Развёрнутое рассуждение, обзор темы",
       "when_not": "Нужен быстрый детерминированный ответ — открытый вопрос дорог в проверке.",
@@ -683,7 +684,7 @@
       "task_types": [
         "teaching"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Тренировка критического мышления: вопрос за вопросом",
       "when_not": "Ученик ещё не сформулировал позицию — вскрывать нечего.",
@@ -715,7 +716,7 @@
       "task_types": [
         "teaching"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Рефлексия, закрепление, метапознание",
       "when_not": "Нужен фактологический контроль — рефлексия не проверяет знание.",
@@ -746,10 +747,9 @@
       "category": "icl",
       "task_types": [
         "classification",
-        "extraction",
-        "generation"
+        "extraction"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Взять примеры, близкие к текущему входу: точнее держит формат на узкой задаче. Нужен пул размеченных данных и эмбеддинги",
       "when_not": null,
@@ -782,10 +782,9 @@
       "category": "icl",
       "task_types": [
         "classification",
-        "extraction",
-        "generation"
+        "extraction"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Своих примеров мало: модель предлагает кандидатов, отбор идёт голосованием/аннотацией",
       "when_not": null,
@@ -821,7 +820,7 @@
         "extraction",
         "generation"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Размеченных данных нет вообще: модель сама пишет примеры. Заметно лучше zero-shot, но качество примеров не гарантировано",
       "when_not": "Есть настоящие размеченные примеры — выдуманные хуже.",
@@ -851,11 +850,9 @@
       "kind": "procedure",
       "category": "icl",
       "task_types": [
-        "classification",
-        "extraction",
-        "generation"
+        "classification"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Автопоиск «серединных слов» шаблона по корпусу. Практически — исследовательская задача, руками не делается",
       "when_not": null,
@@ -891,7 +888,7 @@
         "extraction",
         "generation"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Кол-во, порядок, баланс меток, формат, сходство примеров. Порядок может двигать точность с <50% до 90%+ — проверять перестановкой",
       "when_not": null,
@@ -924,11 +921,9 @@
       "kind": "technique",
       "category": "zero_shot_boost",
       "task_types": [
-        "generation",
-        "reasoning",
-        "qa_over_docs"
+        "generation"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Задать тон/жанр вместо роли. Дешевле role prompting и достаточно для формата",
       "when_not": "Нужен нейтральный технический ответ — стиль будет мешать.",
@@ -958,11 +953,10 @@
       "kind": "technique",
       "category": "zero_shot_boost",
       "task_types": [
-        "generation",
         "reasoning",
-        "qa_over_docs"
+        "generation"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Фразы вроде «это важно для моей карьеры» дают небольшой прирост на бенчмарках. На фактах не помогает — не тратить надежду",
       "when_not": "Фактическая задача: фраза не добавит точности, только токены.",
@@ -992,11 +986,10 @@
       "kind": "technique",
       "category": "zero_shot_boost",
       "task_types": [
-        "generation",
-        "reasoning",
-        "qa_over_docs"
+        "qa_over_docs",
+        "extraction"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Шумный контекст: сначала переписать промпт, выкинув нерелевантное, потом отвечать",
       "when_not": "Контекст короткий и весь по делу — чистить нечего.",
@@ -1026,11 +1019,10 @@
       "kind": "technique",
       "category": "zero_shot_boost",
       "task_types": [
-        "generation",
         "reasoning",
         "qa_over_docs"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Вопросы о том, что знает конкретный персонаж (theory of mind). Сначала фиксируется набор фактов о нём, потом ответ",
       "when_not": "Вопрос не про чьё-то знание — теория сознания не нужна.",
@@ -1060,11 +1052,11 @@
       "kind": "technique",
       "category": "zero_shot_boost",
       "task_types": [
-        "generation",
         "reasoning",
-        "qa_over_docs"
+        "qa_over_docs",
+        "generation"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "multi_step",
       "when_to_use": "Неоднозначный вопрос: попросить переформулировать и расширить его перед ответом",
       "when_not": "Вопрос уже однозначен — трата токенов и риск подмены смысла.",
@@ -1094,11 +1086,10 @@
       "kind": "technique",
       "category": "zero_shot_boost",
       "task_types": [
-        "generation",
-        "reasoning",
-        "qa_over_docs"
+        "qa_over_docs",
+        "extraction"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Почти бесплатный прирост на длинных промптах: повторить вопрос и добавить «прочитай ещё раз»",
       "when_not": "Промпт короткий — эффект теряется, это приём для длинного контекста.",
@@ -1128,11 +1119,10 @@
       "kind": "technique",
       "category": "zero_shot_boost",
       "task_types": [
-        "generation",
-        "reasoning",
-        "qa_over_docs"
+        "qa_over_docs",
+        "reasoning"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "multi_step",
       "when_to_use": "Модель сама задаёт подвопросы и отвечает на них. Альтернатива CoT там, где нужны факты, а не рассуждение",
       "when_not": "Вопрос одношаговый — подвопросы только раздувают ответ.",
@@ -1162,9 +1152,10 @@
       "kind": "technique",
       "category": "thought_generation",
       "task_types": [
-        "reasoning"
+        "reasoning",
+        "coding"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Нет примеров, но нужны аналогии: модель сама придумывает похожие задачи с решениями. Математика, код",
       "when_not": "Задача уникальная, аналогии уведут в сторону.",
@@ -1194,9 +1185,10 @@
       "kind": "technique",
       "category": "thought_generation",
       "task_types": [
+        "qa_over_docs",
         "reasoning"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Замена «думай по шагам» на «проведи меня по контексту по частям» — лучше работает на длинных текстах",
       "when_not": "Короткий промпт — эффект теряется.",
@@ -1259,9 +1251,10 @@
       "kind": "technique",
       "category": "thought_generation",
       "task_types": [
+        "classification",
         "reasoning"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Показать и неправильные объяснения («так рассуждать не надо») — снижает повтор типичных ошибок",
       "when_not": "Нет достоверного примера ошибки — модель придумает ложную.",
@@ -1293,7 +1286,7 @@
       "task_types": [
         "reasoning"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Гибрид: несколько путей, и если согласие ниже порога — переключаться на выбранный лучший путь",
       "when_not": "Задача творческая — «согласие» не имеет смысла.",
@@ -1325,7 +1318,7 @@
       "task_types": [
         "reasoning"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "В примеры отбираются самые сложные цепочки — прирост на рассуждениях, дороже по токенам",
       "when_not": null,
@@ -1357,9 +1350,10 @@
       "kind": "procedure",
       "category": "thought_generation",
       "task_types": [
-        "reasoning"
+        "classification",
+        "extraction"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Аннотировать человеком самые неопределённые примеры. Дорого; оправдано в узком домене",
       "when_not": null,
@@ -1391,9 +1385,10 @@
       "kind": "procedure",
       "category": "thought_generation",
       "task_types": [
-        "reasoning"
+        "reasoning",
+        "qa_over_docs"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Заранее построить банк CoT-примеров из неразмеченных данных, на инференсе брать похожие",
       "when_not": null,
@@ -1427,7 +1422,7 @@
       "task_types": [
         "reasoning"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Автоматически собрать few-shot CoT из zero-shot прогонов — без ручной разметки цепочек",
       "when_not": null,
@@ -1492,10 +1487,10 @@
       "kind": "technique",
       "category": "decomposition",
       "task_types": [
-        "reasoning",
+        "agentic",
         "planning"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Показать модели, как пользоваться функциями (split, search, lookup) — декомпозиция под инструменты",
       "when_not": "Нет инструментов — декомпозиция превратится в обычный план.",
@@ -1561,7 +1556,7 @@
         "reasoning",
         "planning"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Сложную подзадачу вынести в отдельный вызов и вернуть результат в основную цепочку",
       "when_not": "Задача не распадается на независимые части.",
@@ -1723,10 +1718,10 @@
       "kind": "procedure",
       "category": "ensembling",
       "task_types": [
-        "reasoning",
-        "classification"
+        "classification",
+        "reasoning"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Несколько few-shot промптов с разными подмножествами примеров, затем агрегация — снижает зависимость от конкретных примеров",
       "when_not": null,
@@ -1758,10 +1753,11 @@
       "kind": "technique",
       "category": "ensembling",
       "task_types": [
+        "qa_over_docs",
         "reasoning",
-        "classification"
+        "coding"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Разные промпты-эксперты под типы рассуждений (поиск, код, логика) + роутер выбирает",
       "when_not": "Один тип задач — роутер не нужен.",
@@ -1791,10 +1787,9 @@
       "kind": "technique",
       "category": "ensembling",
       "task_types": [
-        "reasoning",
-        "classification"
+        "generation"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Перефразирование промпта: аугментация и проверка устойчивости формулировки",
       "when_not": "Нужен один стабильный промпт — перефразирование размоет формулировку.",
@@ -1824,10 +1819,9 @@
       "kind": "procedure",
       "category": "ensembling",
       "task_types": [
-        "reasoning",
         "classification"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Выбрать шаблон, максимизирующий взаимную информацию между входом и выходом. Требует метрики",
       "when_not": null,
@@ -1860,9 +1854,9 @@
       "category": "ensembling",
       "task_types": [
         "reasoning",
-        "classification"
+        "generation"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "n_calls_vote",
       "when_to_use": "Голосование для свободного текста, где нельзя посчитать большинство: голосует сама LLM",
       "when_not": "Ответы сильно расходятся по смыслу — «согласованность» выберет мусор.",
@@ -1892,10 +1886,9 @@
       "kind": "technique",
       "category": "ensembling",
       "task_types": [
-        "reasoning",
-        "classification"
+        "reasoning"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Отдельный вызов сводит несколько цепочек рассуждений в один ответ",
       "when_not": "Нет нескольких цепочек — сводить нечего.",
@@ -1928,7 +1921,7 @@
         "reasoning",
         "classification"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Несколько промптов × self-consistency + скоринг путей. Дорого, для важных решений",
       "when_not": null,
@@ -1960,10 +1953,9 @@
       "kind": "procedure",
       "category": "ensembling",
       "task_types": [
-        "reasoning",
-        "classification"
+        "reasoning"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Собрать few-shot CoT из согласованных zero-shot прогонов — без разметки",
       "when_not": null,
@@ -1996,9 +1988,9 @@
       "category": "ensembling",
       "task_types": [
         "reasoning",
-        "classification"
+        "generation"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Обобщение COSP на любые задачи: примеры и промпт строятся из неразмеченных данных",
       "when_not": null,
@@ -2031,9 +2023,9 @@
       "category": "self_critique",
       "task_types": [
         "reasoning",
-        "generation"
+        "classification"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "multi_step",
       "when_to_use": "Ответ → вопрос «насколько уверен» → калибровка вероятности. Для оценки риска",
       "when_not": "Калибровка модели сама по себе плохо откалибрована — не заменяет проверку.",
@@ -2097,9 +2089,9 @@
       "category": "self_critique",
       "task_types": [
         "reasoning",
-        "generation"
+        "extraction"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Восстановить задачу из ответа и сравнить с исходной — ловит искажения условия",
       "when_not": "Ответ короткий (метка, число) — восстанавливать нечего.",
@@ -2130,9 +2122,9 @@
       "category": "self_critique",
       "task_types": [
         "reasoning",
-        "generation"
+        "coding"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Несколько решений, затем проверка: маскировать часть вопроса и смотреть, держится ли ответ",
       "when_not": "Один проход достаточен — тройная цена.",
@@ -2195,10 +2187,9 @@
       "kind": "technique",
       "category": "self_critique",
       "task_types": [
-        "reasoning",
-        "generation"
+        "reasoning"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Шаги генерируются, оцениваются и принимаются/отклоняются — «проверяемое» рассуждение для сложной логики",
       "when_not": "Простая задача — контроль шагов дороже результата.",
@@ -2230,7 +2221,7 @@
       "task_types": [
         "generation"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "LLM генерирует или улучшает промпт, без метрики — быстрый черновик инструкции",
       "when_not": "Промпт уже известен — мета-уровень лишний.",
@@ -2260,9 +2251,9 @@
       "kind": "procedure",
       "category": "optimization",
       "task_types": [
-        "generation"
+        "classification"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Обучение trigger-токенов градиентом. Нужен доступ к весам — не для API-моделей",
       "when_not": null,
@@ -2293,9 +2284,10 @@
       "kind": "procedure",
       "category": "optimization",
       "task_types": [
+        "classification",
         "generation"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Операции над промптом: удаление, вставка, перестановка, перефразирование — поиск по пространству промптов",
       "when_not": null,
@@ -2327,9 +2319,10 @@
       "kind": "procedure",
       "category": "optimization",
       "task_types": [
+        "classification",
         "generation"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "«Текстовые градиенты»: LLM объясняет ошибки и правит промпт по шагам",
       "when_not": null,
@@ -2362,9 +2355,10 @@
       "kind": "procedure",
       "category": "optimization",
       "task_types": [
+        "classification",
         "generation"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "RL-обучение промпта с замороженной LLM. Исследовательская, нужна инфраструктура",
       "when_not": null,
@@ -2397,7 +2391,7 @@
       "task_types": [
         "generation"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "RL + диалог с LLM — самый сложный вариант оптимизации. Для исследовательских задач",
       "when_not": null,
@@ -2559,10 +2553,10 @@
       "kind": "technique",
       "category": "agents",
       "task_types": [
-        "agentic",
-        "coding"
+        "coding",
+        "agentic"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Чередование кода и рассуждения на протяжении всей задачи, а не один вызов",
       "when_not": "Нет исполнителя кода.",
@@ -2592,10 +2586,10 @@
       "kind": "technique",
       "category": "agents",
       "task_types": [
-        "agentic",
-        "coding"
+        "coding",
+        "agentic"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Код + пользовательские плагины: доменные действия как функции",
       "when_not": "Нет плагинов/интеграций.",
@@ -2657,10 +2651,9 @@
       "kind": "technique",
       "category": "agents",
       "task_types": [
-        "agentic",
-        "coding"
+        "agentic"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Самостоятельное предложение задач + накопление навыков-кода",
       "when_not": "Одноразовая задача — библиотека навыков не нужна.",
@@ -2691,9 +2684,9 @@
       "category": "agents",
       "task_types": [
         "agentic",
-        "coding"
+        "planning"
       ],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Рекурсивная декомпозиция цели + структурированные действия",
       "when_not": "Цель достигается одним действием.",
@@ -2853,7 +2846,7 @@
       "kind": "risk",
       "category": "security",
       "task_types": [],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "none",
       "when_to_use": "Пользовательский ввод переопределяет инструкции разработчика — главный риск при работе с внешними текстами",
       "when_not": null,
@@ -2880,7 +2873,7 @@
       "kind": "risk",
       "category": "security",
       "task_types": [],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "none",
       "when_to_use": "Обход ограничений модели через формулировку",
       "when_not": null,
@@ -2907,7 +2900,7 @@
       "kind": "risk",
       "category": "security",
       "task_types": [],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "none",
       "when_to_use": "Извлечение системного промпта приложения",
       "when_not": null,
@@ -2934,7 +2927,7 @@
       "kind": "risk",
       "category": "security",
       "task_types": [],
-      "task_types_source": "category-default",
+      "task_types_source": "explicit",
       "execution": "none",
       "when_to_use": "Выдуманные пакеты в сгенерированном коде — риск supply-chain атаки",
       "when_not": null,
@@ -2960,8 +2953,12 @@
       "name": "Защита: prompt-based, detectors, guardrails",
       "kind": "technique",
       "category": "security",
-      "task_types": [],
-      "task_types_source": "category-default",
+      "task_types": [
+        "qa_over_docs",
+        "extraction",
+        "agentic"
+      ],
+      "task_types_source": "explicit",
       "execution": "single_call",
       "when_to_use": "Инструкции-защиты в промпте, детекторы входов, рамки для выходов",
       "when_not": "Внешнего текста в контуре нет — защита не нужна.",

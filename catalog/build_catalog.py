@@ -341,6 +341,69 @@ READY = {
 }
 
 
+
+# Явные типы задач для всех записей (заменяет вывод «по категории»).
+# Пустой список — техника не привязана к типу задачи (настройки, риски).
+EXPLICIT_TASK_TYPES = {
+ 'temperature': [], 'top_k_top_p': [], 'output_length': [],
+ 'zero_shot': ['classification', 'extraction', 'generation', 'qa_over_docs'],
+ 'few_shot': ['classification', 'extraction', 'generation'],
+ 'system_prompting': ['classification', 'extraction', 'generation', 'coding', 'qa_over_docs', 'agentic'],
+ 'role_prompting': ['generation', 'qa_over_docs', 'teaching'],
+ 'step_back_prompting': ['reasoning', 'qa_over_docs'],
+ 'chain_of_thought': ['reasoning', 'planning', 'coding'],
+ 'self_consistency': ['reasoning', 'classification'],
+ 'pedagogic_closed': ['teaching'], 'pedagogic_open': ['teaching'],
+ 'pedagogic_socratic': ['teaching'], 'pedagogic_reflective': ['teaching'],
+ 'icl_knn_selection': ['classification', 'extraction'],
+ 'icl_vote_k': ['classification', 'extraction'],
+ 'icl_sg_icl': ['classification', 'extraction', 'generation'],
+ 'icl_prompt_mining': ['classification'],
+ 'icl_exemplar_settings': ['classification', 'extraction', 'generation'],
+ 'style_prompting': ['generation'],
+ 'emotion_prompting': ['reasoning', 'generation'],
+ 'system2_attention': ['qa_over_docs', 'extraction'],
+ 'simtom': ['reasoning', 'qa_over_docs'],
+ 'rephrase_and_respond': ['reasoning', 'qa_over_docs', 'generation'],
+ 're_reading': ['qa_over_docs', 'extraction'],
+ 'self_ask': ['qa_over_docs', 'reasoning'],
+ 'analogical_prompting': ['reasoning', 'coding'],
+ 'thread_of_thought': ['qa_over_docs', 'reasoning'],
+ 'contrastive_cot': ['classification', 'reasoning'],
+ 'uncertainty_routed_cot': ['reasoning'],
+ 'complexity_based_prompting': ['reasoning'],
+ 'active_prompting': ['classification', 'extraction'],
+ 'memory_of_thought': ['reasoning', 'qa_over_docs'],
+ 'auto_cot': ['reasoning'],
+ 'decomposed_prompting': ['agentic', 'planning'],
+ 'recursion_of_thought': ['reasoning', 'planning'],
+ 'dense': ['classification', 'reasoning'],
+ 'more': ['qa_over_docs', 'reasoning', 'coding'],
+ 'prompt_paraphrasing': ['generation'],
+ 'max_mutual_information': ['classification'],
+ 'universal_self_consistency': ['reasoning', 'generation'],
+ 'meta_reasoning_cots': ['reasoning'],
+ 'diverse': ['reasoning', 'classification'],
+ 'cosp': ['reasoning'],
+ 'usp': ['reasoning', 'generation'],
+ 'self_calibration': ['reasoning', 'classification'],
+ 'reversing_cot': ['reasoning', 'extraction'],
+ 'self_verification': ['reasoning', 'coding'],
+ 'cumulative_reasoning': ['reasoning'],
+ 'meta_prompting': ['generation'],
+ 'autoprompt': ['classification'],
+ 'grips': ['classification', 'generation'],
+ 'protegi': ['classification', 'generation'],
+ 'rlprompt': ['classification', 'generation'],
+ 'dp2o': ['generation'],
+ 'tora': ['coding', 'agentic'],
+ 'taskweaver': ['coding', 'agentic'],
+ 'voyager': ['agentic'],
+ 'gitm': ['agentic', 'planning'],
+ 'prompt_injection': [], 'jailbreaking': [], 'prompt_leaking': [], 'package_hallucination': [],
+ 'injection_defenses': ['qa_over_docs', 'extraction', 'agentic'],
+}
+
 PROCEDURES = {
  'icl_knn_selection': dict(
    steps=['Посчитать эмбеддинги всех размеченных примеров', 'Для текущего входа найти k ближайших', 'Вставить их в промпт как few-shot', 'Проверить, что формат примеров совпадает с ожидаемым'],
@@ -448,14 +511,14 @@ for section, cells in rows:
         cells = [cells[0], cells[1] + '; §2.4, с. 16', cells[2], cells[3]]
         docs = docs + ['the-prompt-report-arxiv-2406.06608']
     proc = PROCEDURES.get(key)
-    ttypes = OVERRIDES.get(key) or BY_CATEGORY[cat]
+    ttypes = OVERRIDES.get(key) or EXPLICIT_TASK_TYPES.get(key) or BY_CATEGORY[cat]
     techs.append({
         'key': key,
         'name': name,
         'kind': 'procedure' if proc else kind,
         'category': cat,
         'task_types': ttypes,
-        'task_types_source': 'explicit' if key in OVERRIDES else 'category-default',
+        'task_types_source': 'explicit' if (key in OVERRIDES or key in EXPLICIT_TASK_TYPES) else 'category-default',
         'execution': exec_type,
         'when_to_use': re.sub(r'\*\*|`', '', cells[2]).strip(),
         'when_not': r.get('when_not'),
