@@ -62,6 +62,7 @@ export function createLLM(opts: LLMOptions): LLM {
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: o.temperature ?? 0.2,
+          ...(o.maxTokens ? { maxOutputTokens: o.maxTokens } : {}),
           ...(o.json ? { responseMimeType: 'application/json' } : {}),
         },
       })) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
@@ -80,6 +81,7 @@ export function createLLM(opts: LLMOptions): LLM {
           model,
           messages: [{ role: 'user', content: prompt }],
           temperature: o.temperature ?? 0.2,
+          ...(o.maxTokens ? { max_tokens: o.maxTokens } : {}),
           ...(o.json ? { response_format: { type: 'json_object' } } : {}),
         },
         { authorization: `Bearer ${apiKey}` },
@@ -96,7 +98,10 @@ export function createLLM(opts: LLMOptions): LLM {
       prompt,
       stream: false,
       ...(o.json ? { format: 'json' } : {}),
-      options: { temperature: o.temperature ?? 0.2 },
+      options: {
+        temperature: o.temperature ?? 0.2,
+        ...(o.maxTokens ? { num_predict: o.maxTokens } : {}),
+      },
     })) as { response?: string };
     const out = data.response ?? '';
     if (!out) throw new Error('ollama вернул пустой ответ');

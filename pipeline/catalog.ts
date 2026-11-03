@@ -36,10 +36,10 @@ export function projectForSelection(techniques: Technique[]): string {
   return techniques
     .map((t) => {
       const cost = Array.isArray(t.cost_calls) ? t.cost_calls.join('–') : String(t.cost_calls);
-      const when = t.when_to_use.slice(0, 170);
-      const not = t.when_not ? ` | не подходит: ${t.when_not.slice(0, 130)}` : '';
-      const tasks = t.task_types?.length ? ` | задачи: ${t.task_types.join(', ')}` : '';
-      return `- ${t.key} (${t.category}, вызовов: ${cost}): ${when}${not}${tasks}`;
+      // Компактно: список уже отфильтрован по типу задачи, поэтому задачи не дублируем.
+      const when = t.when_to_use.slice(0, 110);
+      const not = t.when_not ? ` | не подходит: ${t.when_not.slice(0, 80)}` : '';
+      return `- ${t.key} (${cost} вызовов): ${when}${not}`;
     })
     .join('\n');
 }

@@ -113,7 +113,7 @@ export interface PipelineResult {
 
 export type LLM = (
   prompt: string,
-  opts?: { temperature?: number; json?: boolean },
+  opts?: { temperature?: number; json?: boolean; maxTokens?: number },
 ) => Promise<string>;
 
 export class PipelineError extends Error {
