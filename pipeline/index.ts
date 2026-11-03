@@ -84,6 +84,12 @@ export async function runPipeline(opts: RunOptions): Promise<PipelineResult> {
       : await synthesizeWithLLM(brief, technique, opts.llm);
   push('synthesize', t0() - synthStart);
 
+  if (choice.cheapestOverride) {
+    synthesis.warnings.push(
+      `выбрана не самая дешёвая техника (${choice.key}), обоснование не предоставлено`,
+    );
+  }
+
   const declared = technique.task_types ?? [];
   if (declared.length && !declared.includes(brief.task_type)) {
     synthesis.warnings.push(

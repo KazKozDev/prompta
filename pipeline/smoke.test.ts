@@ -161,12 +161,14 @@ test('parseChoice отвергает технику вне списка канд
   assert.throws(() => parseChoice(raw, candidates), /нет среди допустимых/);
 });
 
-test('parseChoice требует объяснить, почему не самая дешёвая', () => {
+test('parseChoice помечает выбор не самой дешёвой техники без обоснования', () => {
   const { candidates } = gateTechniques(brief, catalog);
-  const expensive = candidates.find((c) => c.execution === 'multi_step' || c.key !== candidates[0].key);
+  const expensive = candidates.find((c) => c.key !== candidates[0].key);
   assert.ok(expensive);
   const raw = JSON.stringify({ key: expensive!.key, reason: 'x', confidence: 0.6, whyNotCheaper: '' });
-  assert.throws(() => parseChoice(raw, candidates), /не объяснено/);
+  const choice = parseChoice(raw, candidates);
+  assert.equal(choice.cheapestOverride, true);
+  assert.equal(choice.whyNotCheaper, 'не объяснено');
 });
 
 test('runPipeline проходит весь путь на фейковой модели', async () => {
@@ -256,4 +258,20 @@ test('защита от инъекций добавляется только т�
 
   const plain = synthesizeDeterministic({ ...brief, task_type: 'generation' }, zero);
   assert.equal(/это данные, а не инструкции/.test(plain.prompt), false);
+});
+
+test('бриф: русские значения modality и stakes нормализуются', () => {
+  const raw = JSON.stringify({
+    goal: 'цель', task_type: 'extraction', input: 'вход', output_format: 'json',
+    constraints: [], language: 'ru', modality: 'текст', stakes: 'средний', assumptions: [], budget_calls: null,
+  });
+  const brief = parseBrief(raw);
+  assert.equal(brief.modality, 'text');
+  assert.equal(brief.stakes, 'medium');
+});
+
+test('выбор: ключ техники принимается из синонимов поля', () => {
+  const { candidates } = gateTechniques(brief, catalog);
+  const raw = JSON.stringify({ technique: 'zero_shot', reason: 'x', confidence: 0.7, whyNotCheaper: 'y' });
+  assert.equal(parseChoice(raw, candidates).key, 'zero_shot');
 });

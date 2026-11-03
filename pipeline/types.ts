@@ -73,6 +73,8 @@ export interface TechniqueChoice {
   confidence: number;
   /** Почему не более дешёвая техника — обязательный ответ на главный вопрос. */
   whyNotCheaper: string;
+  /** Модель выбрала не самую дешёвую и не объяснила — выбор принят, но помечен. */
+  cheapestOverride?: boolean;
 }
 
 export interface PromptConfig {

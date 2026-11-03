@@ -50,6 +50,24 @@ ${thoughts}
 JSON:`;
 }
 
+/** Модели отвечают по-русски или синонимами — приводим к канону, а не падаем. */
+export function normalizeModality(value: unknown): Modality {
+  const v = String(value ?? 'text').trim().toLowerCase();
+  if (['text', 'текст', 'текстовый', 'text-only'].includes(v)) return 'text';
+  if (['image', 'изображение', 'картинка', 'изображения'].includes(v)) return 'image';
+  if (['audio', 'аудио', 'звук'].includes(v)) return 'audio';
+  if (['video', 'видео'].includes(v)) return 'video';
+  return 'text';
+}
+
+export function normalizeStakes(value: unknown): Stakes {
+  const v = String(value ?? 'medium').trim().toLowerCase();
+  if (['low', 'низкий', 'низкая', 'низкие'].includes(v)) return 'low';
+  if (['high', 'высокий', 'высокая', 'высокие'].includes(v)) return 'high';
+  if (['medium', 'средний', 'средняя', 'средние', 'normal'].includes(v)) return 'medium';
+  return 'medium';
+}
+
 export function parseBrief(raw: string): TaskBrief {
   const step = 'brief';
   const obj = extractJson(raw, step) as Record<string, unknown>;
@@ -65,15 +83,8 @@ export function parseBrief(raw: string): TaskBrief {
     );
   }
 
-  const modality = (obj.modality ?? 'text') as Modality;
-  if (!['text', 'image', 'audio', 'video'].includes(modality)) {
-    throw new PipelineError(`неизвестная modality=${String(obj.modality)}`, step);
-  }
-
-  const stakes = (obj.stakes ?? 'medium') as Stakes;
-  if (!['low', 'medium', 'high'].includes(stakes)) {
-    throw new PipelineError(`неизвестный stakes=${String(obj.stakes)}`, step);
-  }
+  const modality = normalizeModality(obj.modality);
+  const stakes = normalizeStakes(obj.stakes);
 
   const budget = obj.budget_calls;
   const budgetCalls =

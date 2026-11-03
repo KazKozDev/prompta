@@ -32,7 +32,16 @@ JSON:`;
 export function parseChoice(raw: string, candidates: Technique[]): TechniqueChoice {
   const step = 'select';
   const obj = extractJson(raw, step) as Record<string, unknown>;
-  const rawKey = requireString(obj, 'key', step);
+  // Слабые модели называют поле по-разному — принимаем известные синонимы.
+  const candidateKey = [obj.key, obj.technique, obj.technique_key, obj.id, obj.name, obj.choice]
+    .find((v) => typeof v === 'string' && v.trim().length > 0) as string | undefined;
+  if (!candidateKey) {
+    throw new PipelineError(
+      'в ответе нет ключа техники (ожидалось поле key/technique/id/name)',
+      step,
+    );
+  }
+  const rawKey = candidateKey;
 
   const key = rawKey.trim().toLowerCase();
   const found =
@@ -50,19 +59,15 @@ export function parseChoice(raw: string, candidates: Technique[]): TechniqueChoi
     typeof obj.whyNotCheaper === 'string' && obj.whyNotCheaper.trim() ? obj.whyNotCheaper.trim() : '';
 
   const cheapest = candidates[0];
-  if (!whyNotCheaper && cheapest && cheapest.key !== found.key) {
-    throw new PipelineError(
-      `выбрана не самая дешёвая техника (${found.key}), но не объяснено, почему не ${cheapest.key}`,
-      step,
-    );
-  }
+  const overrides = Boolean(cheapest && cheapest.key !== found.key && !whyNotCheaper);
 
   return {
     key: found.key,
     name: found.name,
     reason,
     confidence: clamp01(obj.confidence),
-    whyNotCheaper: whyNotCheaper || 'взята самая дешёвая из подходящих',
+    whyNotCheaper: whyNotCheaper || 'не объяснено',
+    cheapestOverride: overrides || undefined,
   };
 }
 
