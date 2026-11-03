@@ -23,6 +23,8 @@ interface BridgeRequest {
   listTechniques?: boolean;
   /** Принудительно собрать промпт по методике конкретной техники. */
   manualTechnique?: string;
+  /** Сколько вариантов техник предложить (1–3). */
+  variants?: number;
 }
 
 async function main() {
@@ -105,6 +107,7 @@ async function main() {
     llm,
     mode: req.deterministic ? 'deterministic' : 'llm',
     budgetCalls: req.budgetCalls ?? null,
+    variants: req.variants ?? 3,
   });
 
   process.stdout.write(JSON.stringify({ ok: true, result }));

@@ -346,6 +346,18 @@ footer { margin-top: 26px; padding-top: 16px; border-top: 1px solid #edf2f7; tex
 @media (max-width: 860px) { .techniques-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .techniques-grid { grid-template-columns: 1fr; } }
 
+.pipeline-alt {
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px dashed #e6eef6;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+.pipeline-alt-head { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.pipeline-alt-title { font-size: .92rem; font-weight: 500; color: #2c3e50; }
+.pipeline-alt .pipeline-prompt { max-height: 220px; }
+
 /* ── Процедуры ─────────────────────────────────────────────────── */
 .procedures-block {
   border: 1px solid #e6eef6;

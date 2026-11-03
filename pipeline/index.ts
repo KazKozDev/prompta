@@ -2,7 +2,7 @@ import type { Catalog, LLM, PipelineResult, PipelineTrace, TaskBrief, TechniqueC
 import { PipelineError } from './types.ts';
 import { buildBriefPrompt, parseBrief } from './brief.ts';
 import { gateTechniques, getTechnique } from './catalog.ts';
-import { buildSelectionPrompt, parseChoice } from './select.ts';
+import { buildSelectionPrompt, parseChoices } from './select.ts';
 import { synthesizeDeterministic, synthesizeWithLLM, valuesFromBrief } from './synthesize.ts';
 
 export interface RunOptions {
@@ -16,6 +16,8 @@ export interface RunOptions {
   brief?: TaskBrief;
   /** Принудительно выбрать технику, минуя стадию выбора (калибровка, сравнение техник). */
   techniqueKey?: string;
+  /** Сколько вариантов предложить: 1 — только лучший, 2–3 — с альтернативами. */
+  variants?: number;
 }
 
 /** Полный проход: мысли → бриф → отсев → выбор → синтез. */
@@ -69,6 +71,7 @@ export async function runPipeline(opts: RunOptions): Promise<PipelineResult> {
   }
 
   let choice: TechniqueChoice;
+  let choices: TechniqueChoice[] = [];
   if (opts.techniqueKey) {
     const forced = candidates.find((c) => c.key === opts.techniqueKey);
     if (!forced) {
@@ -84,39 +87,63 @@ export async function runPipeline(opts: RunOptions): Promise<PipelineResult> {
       confidence: 1,
       whyNotCheaper: 'принудительный выбор вне правила «самая дешёвая»',
     };
+    choices = [choice];
     push('select', 0);
   } else {
     const selectStart = t0();
-    const selectPrompt = buildSelectionPrompt(brief, candidates);
-    const parsed = await askJson(selectPrompt, (raw) => parseChoice(raw, candidates));
-    choice = parsed.value;
+    const variants = Math.min(3, Math.max(1, opts.variants ?? 1));
+    const selectPrompt = buildSelectionPrompt(brief, candidates, variants);
+    const parsed = await askJson(selectPrompt, (raw) => parseChoices(raw, candidates));
+    choices = parsed.value.slice(0, variants);
+    choice = choices[0];
     push('select', t0() - selectStart, { prompt: selectPrompt, raw: parsed.raw });
   }
 
-  const technique = getTechnique(opts.catalog, choice.key);
-  if (!technique) throw new PipelineError(`техника ${choice.key} исчезла из каталога`, 'synthesize');
-
   const synthStart = t0();
-  const synthesis =
-    mode === 'deterministic'
-      ? synthesizeDeterministic(brief, technique)
-      : await synthesizeWithLLM(brief, technique, opts.llm);
+  // Варианты независимы — собираем параллельно, чтобы 3 промпта не ждались по очереди.
+  const built = await Promise.all(
+    choices.map(async (item) => {
+      const technique = getTechnique(opts.catalog, item.key);
+      if (!technique) throw new PipelineError(`техника ${item.key} исчезла из каталога`, 'synthesize');
+      const synthesis =
+        mode === 'deterministic'
+          ? synthesizeDeterministic(brief, technique)
+          : await synthesizeWithLLM(brief, technique, opts.llm);
+      return { choice: item, technique, synthesis };
+    }),
+  );
   push('synthesize', t0() - synthStart);
 
-  if (choice.cheapestOverride) {
-    synthesis.warnings.push(
-      `выбрана не самая дешёвая техника (${choice.key}), обоснование не предоставлено`,
-    );
+  const primary = built[0];
+  const synthesis = primary.synthesis;
+
+  for (const item of built) {
+    if (item.choice.cheapestOverride) {
+      item.synthesis.warnings.push(
+        `выбрана не самая дешёвая техника (${item.choice.key}), обоснование не предоставлено`,
+      );
+    }
+    const declared = item.technique.task_types ?? [];
+    if (declared.length && !declared.includes(brief.task_type)) {
+      item.synthesis.warnings.push(
+        `техника заявлена для задач [${declared.join(', ')}], а бриф — ${brief.task_type}`,
+      );
+    }
   }
 
-  const declared = technique.task_types ?? [];
-  if (declared.length && !declared.includes(brief.task_type)) {
-    synthesis.warnings.push(
-      `техника заявлена для задач [${declared.join(', ')}], а бриф — ${brief.task_type}`,
-    );
-  }
+  const alternatives = built.slice(1).map((item) => ({
+    choice: item.choice,
+    synthesis: item.synthesis,
+  }));
 
-  return { brief, choice, synthesis, rejected, trace };
+  return {
+    brief,
+    choice,
+    synthesis,
+    alternatives: alternatives.length ? alternatives : undefined,
+    rejected,
+    trace,
+  };
 }
 
 /** Человекочитаемый отчёт для CLI и логов. */

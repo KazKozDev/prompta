@@ -104,6 +104,8 @@ export interface PipelineResult {
   brief: TaskBrief;
   choice: TechniqueChoice;
   synthesis: Synthesis;
+  /** Дополнительные варианты техник с их промптами (если запрошено больше одного). */
+  alternatives?: { choice: TechniqueChoice; synthesis: Synthesis }[];
   /** Техники, которые выбыли до выбора: почему. */
   rejected: { key: string; reason: string }[];
   trace: PipelineTrace[];

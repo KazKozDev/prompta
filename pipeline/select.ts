@@ -1,11 +1,11 @@
 import type { TaskBrief, Technique, TechniqueChoice } from './types.ts';
 import { PipelineError } from './types.ts';
-import { clamp01, extractJson, requireString } from './json.ts';
+import { clamp01, extractJson } from './json.ts';
 import { briefToJson } from './brief.ts';
 import { projectForSelection, costRange } from './catalog.ts';
 
 /** Промпт стадии 2: бриф + список допустимых техник → выбор одной. */
-export function buildSelectionPrompt(brief: TaskBrief, candidates: Technique[]): string {
+export function buildSelectionPrompt(brief: TaskBrief, candidates: Technique[], count = 1): string {
   const cheapest = candidates[0];
   return `Ты выбираешь одну технику промптинга для задачи. Из списка уже отфильтровано всё, что не подходит по типу, статусу и бюджету.
 
@@ -14,6 +14,8 @@ ${briefToJson(brief)}
 
 Доступные техники (отсортированы от дешёвой к дорогой):
 ${projectForSelection(candidates)}
+
+${count > 1 ? `Нужно ${count} варианта, от лучшего к худшему. Первый — самый уместный, второй и третий — реальные альтернативы, а не копии того же подхода.` : 'Нужен один вариант.'}
 
 Правила выбора:
 1. Выбирай САМУЮ ДЕШЁВУЮ технику, которая закрывает задачу. Дорогая техника допустима только если дешёвая не решает.
@@ -24,9 +26,34 @@ ${projectForSelection(candidates)}
 6. Отвечай ТОЛЬКО JSON, без пояснений.
 
 Формат ответа:
-{"key": "ключ из списка", "reason": "почему эта техника решает задачу", "confidence": 0.0-1.0, "whyNotCheaper": "почему не более дешёвая"}
+${count > 1
+    ? '{"choices": [{"key": "…", "reason": "…", "confidence": 0.0-1.0, "whyNotCheaper": "…"}, …]}'
+    : '{"key": "ключ из списка", "reason": "почему эта техника решает задачу", "confidence": 0.0-1.0, "whyNotCheaper": "почему не более дешёвая"}'}
 
 JSON:`;
+}
+
+/** Разбор одного или нескольких вариантов выбора (модель может вернуть choices[]). */
+export function parseChoices(raw: string, candidates: Technique[]): TechniqueChoice[] {
+  const step = 'select';
+  const obj = extractJson(raw, step) as Record<string, unknown>;
+  const list = Array.isArray(obj.choices) ? (obj.choices as Record<string, unknown>[]) : null;
+  if (!list) return [parseChoice(raw, candidates)];
+
+  const seen = new Set<string>();
+  const out: TechniqueChoice[] = [];
+  for (const item of list) {
+    try {
+      const choice = parseChoice(JSON.stringify(item), candidates);
+      if (seen.has(choice.key)) continue;
+      seen.add(choice.key);
+      out.push(choice);
+    } catch {
+      // один битый вариант не должен ронять весь выбор
+    }
+  }
+  if (out.length === 0) return [parseChoice(raw, candidates)];
+  return out;
 }
 
 export function parseChoice(raw: string, candidates: Technique[]): TechniqueChoice {

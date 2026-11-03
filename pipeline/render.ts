@@ -25,6 +25,26 @@ export function renderPipelineResult(result: PipelineResult): string {
     .map(([label, value]) => `<span class="pipeline-chip">${label}: <b>${escapeHtml(value)}</b></span>`)
     .join('');
 
+  const alternativeCards = (result.alternatives ?? [])
+    .map((alt, index) => {
+      const altWarnings = [...new Set(alt.synthesis.warnings)];
+      return `
+      <div class="pipeline-alt">
+        <div class="pipeline-alt-head">
+          <span class="pipeline-alt-title">Вариант ${index + 2}: ${escapeHtml(alt.choice.name)}</span>
+          <span class="pipeline-chip">${escapeHtml(alt.choice.key)}</span>
+          <span class="pipeline-confidence">${Math.round(alt.choice.confidence * 100)}%</span>
+        </div>
+        <p class="pipeline-why">${escapeHtml(alt.choice.reason)}</p>
+        <pre class="pipeline-prompt">${escapeHtml(alt.synthesis.prompt)}</pre>
+        <p class="pipeline-note">
+          temperature ${alt.synthesis.config.temperature ?? '—'} · ${escapeHtml(alt.synthesis.config.max_tokens)}
+        </p>
+        ${altWarnings.length ? `<ul class="pipeline-warnings">${altWarnings.map((w) => `<li>${escapeHtml(w)}</li>`).join('')}</ul>` : ''}
+      </div>`;
+    })
+    .join('');
+
   const uniqueWarnings = [...new Set(synthesis.warnings)];
   const warnings = uniqueWarnings.length
     ? `<ul class="pipeline-warnings">${uniqueWarnings.map((w) => `<li>${escapeHtml(w)}</li>`).join('')}</ul>`
@@ -73,6 +93,7 @@ export function renderPipelineResult(result: PipelineResult): string {
       <p class="pipeline-note">${escapeHtml(cfg.rationale)}</p>
       ${warnings}
       <p class="pipeline-footer">отсеяно до выбора: ${result.rejected.length} техник</p>
+      ${alternativeCards}
     </div>`;
 }
 

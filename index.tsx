@@ -344,6 +344,7 @@ async function handlePipelineRun() {
       catalog,
       llm,
       mode: deterministic ? 'deterministic' : 'llm',
+      variants: 3,
     });
     out.innerHTML = renderPipelineResult(result);
     statusEl.textContent = `${result.choice.name} · предупреждений: ${result.synthesis.warnings.length}`;

@@ -23,6 +23,7 @@ from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
+    QLayout,
     QLineEdit,
     QMainWindow,
     QPlainTextEdit,
@@ -291,6 +292,18 @@ class MainWindow(QMainWindow):
         self.deterministic = QCheckBox("без LLM-синтеза (быстро, офлайн)")
         box.addWidget(self.deterministic)
 
+        variants_row = QHBoxLayout()
+        variants_row.setSpacing(8)
+        variants_label = QLabel("Вариантов техник:")
+        variants_label.setObjectName("muted")
+        variants_row.addWidget(variants_label)
+        self.variants = QComboBox()
+        self.variants.addItems(["3", "2", "1"])
+        self.variants.setFixedWidth(70)
+        variants_row.addWidget(self.variants)
+        variants_row.addStretch(1)
+        box.addLayout(variants_row)
+
         actions = QHBoxLayout()
         actions.setSpacing(8)
         self.run_button = QPushButton("Собрать промпт")
@@ -390,6 +403,8 @@ class MainWindow(QMainWindow):
         self.output_layout = QVBoxLayout(self.output_holder)
         self.output_layout.setContentsMargins(0, 0, 0, 0)
         self.output_layout.setSpacing(10)
+        # Скролл должен расти под содержимое, иначе виджеты наезжают друг на друга.
+        self.output_layout.setSizeConstraint(QLayout.SizeConstraint.SetMinimumSize)
         self.output_scroll.setWidget(self.output_holder)
         box.addWidget(self.output_scroll, 1)
 
@@ -468,6 +483,7 @@ class MainWindow(QMainWindow):
             "model": model,
             "apiKey": api_key,
             "deterministic": self.deterministic.isChecked(),
+            "variants": int(self.variants.currentText()),
         }
         if technique_key:
             payload["manualTechnique"] = technique_key
@@ -579,7 +595,7 @@ class MainWindow(QMainWindow):
         )
         self.prompt_edit.setPlainText(manual["prompt"])
         self.prompt_edit.setReadOnly(True)
-        self.prompt_edit.setMinimumHeight(320)
+        self.prompt_edit.setFixedHeight(320)
         copy_button.clicked.connect(
             lambda: QGuiApplication.clipboard().setText(self.prompt_edit.toPlainText())
         )
@@ -693,8 +709,8 @@ class MainWindow(QMainWindow):
         )
         self.prompt_edit.setPlainText(synthesis["prompt"])
         self.prompt_edit.setReadOnly(True)
-        self.prompt_edit.setMinimumHeight(220)
-        self.output_layout.addWidget(self.prompt_edit, 1)
+        self.prompt_edit.setFixedHeight(220)
+        self.output_layout.addWidget(self.prompt_edit)
 
         config_label = QLabel(
             f"temperature {config['temperature']} · top_p {config['top_p']} · "
@@ -714,6 +730,36 @@ class MainWindow(QMainWindow):
             warn.setObjectName("warn")
             warn.setWordWrap(True)
             self.output_layout.addWidget(warn)
+
+        for index, alt in enumerate(result.get("alternatives") or [], start=2):
+            alt_choice = alt["choice"]
+            alt_synth = alt["synthesis"]
+
+            head = QLabel(f"Вариант {index}: {alt_choice['name']} ({alt_choice['key']})")
+            head.setObjectName("section")
+            head.setWordWrap(True)
+            head.setStyleSheet("margin-top: 10px; border-top: 1px dashed #e6eef6; padding-top: 10px;")
+            self.output_layout.addWidget(head)
+
+            why = QLabel(alt_choice["reason"])
+            why.setObjectName("muted")
+            why.setWordWrap(True)
+            self.output_layout.addWidget(why)
+
+            box = QPlainTextEdit()
+            box.setStyleSheet(
+                "QPlainTextEdit { background: #0f172a; color: #e6edf7; border: 1px solid #1b2437;"
+                " border-radius: 8px; padding: 8px; font-family: Menlo, monospace; font-size: 11px; }"
+            )
+            box.setPlainText(alt_synth["prompt"])
+            box.setReadOnly(True)
+            box.setFixedHeight(150)
+            self.output_layout.addWidget(box)
+
+            cfg = alt_synth["config"]
+            meta = QLabel(f"temperature {cfg['temperature']} · {cfg['max_tokens']}")
+            meta.setObjectName("muted")
+            self.output_layout.addWidget(meta)
 
         footer = QLabel(f"отсеяно до выбора: {len(result['rejected'])} техник")
         footer.setObjectName("muted")
@@ -763,12 +809,30 @@ def main() -> int:
                         "max_tokens": "1024",
                         "rationale": "Низкая температура: нужен стабильный формат и следование инструкции.",
                     },
-                    "warnings": ["каркас техники на английском: в LLM-режиме будет переведён"],
+                    "warnings": [],
                 },
+                "alternatives": [
+                    {
+                        "choice": {
+                            "name": "Few-shot (one-shot)",
+                            "key": "few_shot",
+                            "confidence": 0.64,
+                            "reason": "Нужен строгий формат таблицы — примеры задают его лучше инструкции.",
+                            "whyNotCheaper": "zero_shot не удержит формат.",
+                        },
+                        "synthesis": {
+                            "prompt": "Task: разбери заметки и верни таблицу.\n\nПример 1:\nInput: «Петя подготовит отчёт к пятнице»\nOutput: | Подготовить отчёт | Петя | пятница |\n\nInput: ВСТАВЬ СЮДА: текст заметок\nOutput:",
+                            "config": {"temperature": 0.2, "top_p": 0.95, "max_tokens": "1024"},
+                            "warnings": [],
+                            "rationale": "Низкая температура: форматы должны совпадать.",
+                        },
+                    }
+                ],
                 "rejected": [{}] * 53,
             }
         )
         window.status.setText("Contextual prompting · предупреждений: 1")
+        window.resize(1160, 1180)
         app.processEvents()
         window.grab().save(path)
         print(f"скриншот: {path}")
