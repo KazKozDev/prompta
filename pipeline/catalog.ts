@@ -1,3 +1,4 @@
+import { hints, names, procedures, rationales } from '../catalog/display.en.ts';
 import type { Catalog, Modality, TaskBrief, Technique } from './types.ts';
 import { PipelineError } from './types.ts';
 
@@ -13,18 +14,24 @@ export function costRange(cost: number | string): [number, number] {
 export function loadCatalog(raw: unknown): Catalog {
   const data = raw as Partial<Catalog> | null;
   if (!data || !Array.isArray(data.techniques) || data.techniques.length === 0) {
-    throw new PipelineError('каталог пуст или без поля techniques', 'catalog');
+    throw new PipelineError('Catalog is empty or missing techniques', 'catalog');
   }
   const seen = new Set<string>();
   for (const t of data.techniques) {
-    if (!t.key) throw new PipelineError('запись без key', 'catalog');
-    if (seen.has(t.key)) throw new PipelineError(`дубль ключа: ${t.key}`, 'catalog');
+    if (!t.key) throw new PipelineError('Entry is missing a key', 'catalog');
+    if (seen.has(t.key)) throw new PipelineError(`Duplicate key: ${t.key}`, 'catalog');
     seen.add(t.key);
     if (t.status === 'ready' && !t.template) {
-      throw new PipelineError(`${t.key}: status=ready без template`, 'catalog');
+      throw new PipelineError(`${t.key}: Ready technique has no template`, 'catalog');
     }
   }
-  return { version: data.version ?? 'unknown', techniques: data.techniques };
+  return { version: data.version ?? 'unknown', techniques: data.techniques.map((t) => ({
+    ...t,
+    name: names[t.key] ?? t.name,
+    when_to_use: hints[t.key] ?? t.when_to_use,
+    procedure: procedures[t.key] ?? t.procedure,
+    config: { ...t.config, rationale: rationales[t.config.rationale] ?? t.config.rationale },
+  })) };
 }
 
 export function getTechnique(catalog: Catalog, key: string): Technique | undefined {
@@ -68,47 +75,47 @@ export function gateTechniques(brief: TaskBrief, catalog: Catalog, opts: GateOpt
 
   if (brief.modality !== 'text') {
     throw new PipelineError(
-      `каталог содержит только текстовые техники, а бриф требует modality=${brief.modality}`,
+      `The catalog supports text techniques only; the brief requires modality=${brief.modality}`,
       'gate',
     );
   }
 
   for (const t of catalog.techniques) {
     if (t.kind === 'setting' || t.kind === 'risk') {
-      rejected.push({ key: t.key, reason: `kind=${t.kind}: это не техника синтеза` });
+      rejected.push({ key: t.key, reason: `kind=${t.kind}: Not a synthesis technique` });
       continue;
     }
     if (t.kind === 'prompt_type' && brief.task_type !== 'teaching') {
-      rejected.push({ key: t.key, reason: 'педагогический тип вне учебной задачи' });
+      rejected.push({ key: t.key, reason: 'Teaching technique outside a teaching task' });
       continue;
     }
     if (t.status !== 'ready') {
-      rejected.push({ key: t.key, reason: `${t.status}: нет шаблона синтеза` });
+      rejected.push({ key: t.key, reason: `${t.status}: No synthesis template` });
       continue;
     }
     // Тип задачи: техника, заявленная для других задач, в короткий список не попадает.
     const types = t.task_types ?? [];
     if (types.length && !types.includes(brief.task_type)) {
-      rejected.push({ key: t.key, reason: `не для ${brief.task_type}: заявлена для ${types.join(', ')}` });
+      rejected.push({ key: t.key, reason: `Not intended for ${brief.task_type}; designed for ${types.join(', ')}` });
       continue;
     }
 
     // Задача «ответить по материалам» требует техники, которая реально вставляет материал.
     if (brief.task_type === 'qa_over_docs' && !/\{\{\s*(document|text|context|external_text)\s*\}\}/.test(t.template ?? '')) {
-      rejected.push({ key: t.key, reason: 'нет опоры на материал, а задача требует источник' });
+      rejected.push({ key: t.key, reason: 'This task requires a source-grounded technique' });
       continue;
     }
 
     const [min] = costRange(t.cost_calls);
     if (budget != null && min > budget) {
-      rejected.push({ key: t.key, reason: `дороже бюджета: минимум ${min} вызовов при бюджете ${budget}` });
+      rejected.push({ key: t.key, reason: `Over budget: at least ${min} calls, budget ${budget}` });
       continue;
     }
     if (opts.derivablePlaceholders) {
       const need = t.template ? placeholdersOf(t.template) : [];
       const unknown = [...new Set(need)].filter((n) => !opts.derivablePlaceholders!.has(n));
       if (unknown.length) {
-        rejected.push({ key: t.key, reason: `в офлайн-режиме нечем заполнить: ${unknown.join(', ')}` });
+        rejected.push({ key: t.key, reason: `Cannot fill these fields without LLM synthesis: ${unknown.join(', ')}` });
         continue;
       }
     }
@@ -123,14 +130,17 @@ export function gateTechniques(brief: TaskBrief, catalog: Catalog, opts: GateOpt
       (t) =>
         t.status === 'ready' &&
         ['technique', 'prompt_type'].includes(t.kind) &&
+        (t.kind !== 'prompt_type' || brief.task_type === 'teaching') &&
+        (!opts.derivablePlaceholders || placeholdersOf(t.template ?? '').every((name) => opts.derivablePlaceholders!.has(name))) &&
         (bestEffortBudget(t, budget)) &&
         (brief.task_type !== 'qa_over_docs' ||
           /\{\{\s*(document|text|context|external_text)\s*\}\}/.test(t.template ?? '')),
     );
     if (relaxed.length) {
-      rejected.push({ key: '*', reason: 'фильтр по типу задачи ослаблен: подходящих не осталось' });
+      rejected.push({ key: '*', reason: 'Task-type filter relaxed because no techniques remained' });
       relaxed.sort((a, b) => costRange(a.cost_calls)[0] - costRange(b.cost_calls)[0]);
-      return { candidates: relaxed, rejected };
+      const accepted = new Set(relaxed.map((t) => t.key));
+      return { candidates: relaxed, rejected: rejected.filter((item) => !accepted.has(item.key)) };
     }
   }
 

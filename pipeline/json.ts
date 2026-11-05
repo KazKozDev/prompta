@@ -2,13 +2,13 @@ import { PipelineError } from './types.ts';
 
 /** Достать JSON из ответа модели: снимает ```-обёртку и берёт первый сбалансированный объект. */
 export function extractJson(raw: string, step: string): unknown {
-  if (!raw || !raw.trim()) throw new PipelineError('пустой ответ модели', step);
+  if (!raw || !raw.trim()) throw new PipelineError('Empty model response', step);
 
   const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
   const text = (fenced ? fenced[1] : raw).trim();
 
   const start = text.indexOf('{');
-  if (start === -1) throw new PipelineError(`в ответе нет JSON-объекта: ${text.slice(0, 120)}`, step);
+  if (start === -1) throw new PipelineError(`No JSON object in response: ${text.slice(0, 120)}`, step);
 
   let depth = 0;
   let inString = false;
@@ -30,19 +30,19 @@ export function extractJson(raw: string, step: string): unknown {
         try {
           return JSON.parse(slice);
         } catch (e) {
-          throw new PipelineError(`невалидный JSON: ${(e as Error).message}`, step);
+          throw new PipelineError(`Invalid JSON: ${(e as Error).message}`, step);
         }
       }
     }
   }
-  throw new PipelineError('JSON-объект не закрыт', step);
+  throw new PipelineError('Unclosed JSON object', step);
 }
 
 /** Строковое поле с проверкой на непустоту. */
 export function requireString(obj: Record<string, unknown>, field: string, step: string): string {
   const v = obj[field];
   if (typeof v !== 'string' || !v.trim()) {
-    throw new PipelineError(`поле ${field} отсутствует или пустое`, step);
+    throw new PipelineError(`Missing or empty field: ${field}`, step);
   }
   return v.trim();
 }

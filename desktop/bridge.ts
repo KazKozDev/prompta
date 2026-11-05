@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { loadCatalog } from '../pipeline/catalog.ts';
 import { runPipeline } from '../pipeline/index.ts';
 import { createLLM } from '../pipeline/llm.ts';
-import { buildManualPrompt, hasPlaceholders } from '../pipeline/manual.ts';
+import { generateManualPrompt } from '../pipeline/manual.ts';
 import type { Provider } from '../pipeline/llm.ts';
 
 /** Мост для десктопного UI: JSON на stdin → JSON на stdout. Никаких аргументов, чтобы не мучиться с кавычками. */
@@ -32,13 +32,13 @@ async function main() {
   const req = JSON.parse(raw) as BridgeRequest;
 
   if (!req.thoughts || !req.thoughts.trim()) {
-    throw new Error('пустой поток мыслей');
+    throw new Error('Enter your thoughts');
   }
 
   const provider = req.provider ?? 'ollama';
   const model = req.model ?? '';
-  if (!model) throw new Error('не выбрана модель');
-  if (provider !== 'ollama' && !req.apiKey) throw new Error(`нужен API key для ${provider}`);
+  if (!model) throw new Error('Choose a model');
+  if (provider !== 'ollama' && !req.apiKey) throw new Error(`An API key is required for ${provider}`);
 
   const catalog = loadCatalog(JSON.parse(readFileSync(join(root, 'catalog', 'catalog.json'), 'utf8')));
 
@@ -65,7 +65,7 @@ async function main() {
 
   if (req.manualTechnique) {
     const technique = catalog.techniques.find((t) => t.key === req.manualTechnique);
-    if (!technique) throw new Error(`нет техники ${req.manualTechnique}`);
+    if (!technique) throw new Error(`Unknown technique: ${req.manualTechnique}`);
 
     if (technique.status === 'procedure') {
       process.stdout.write(
@@ -82,17 +82,10 @@ async function main() {
       return;
     }
 
-    if (!technique.template) throw new Error(`${technique.key}: нет шаблона синтеза`);
+    if (!technique.template) throw new Error(`${technique.key}: No synthesis template`);
 
-    let prompt = (await llm(buildManualPrompt(req.thoughts, technique), { temperature: 0.3 })).trim();
-    if (hasPlaceholders(prompt)) {
-      prompt = (
-        await llm(
-          `${buildManualPrompt(req.thoughts, technique)}\n\nВ прошлом ответе остались {{плейсхолдеры}}. Перепиши без заглушек.`,
-          { temperature: 0.3 },
-        )
-      ).trim();
-    }
+    if (req.deterministic) throw new Error('Manual technique selection requires LLM synthesis. Disable Skip LLM synthesis.');
+    const prompt = await generateManualPrompt(req.thoughts, technique, llm);
 
     process.stdout.write(
       JSON.stringify({

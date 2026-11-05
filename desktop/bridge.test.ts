@@ -23,16 +23,16 @@ function call(payload: unknown): { ok: boolean; data: Record<string, unknown>; s
   };
 }
 
-test('мост: пустой поток мыслей возвращает ошибку, а не падает', () => {
+test('мост: Enter your thoughts возвращает ошибку, а не падает', () => {
   const { data } = call({ thoughts: '   ', model: 'dummy' });
   assert.equal(data.ok, false);
-  assert.match(String(data.error), /пустой поток мыслей/);
+  assert.match(String(data.error), /Enter your thoughts/);
 });
 
 test('мост: без модели просит её указать', () => {
   const { data } = call({ thoughts: 'сделай что-нибудь' });
   assert.equal(data.ok, false);
-  assert.match(String(data.error), /модель/);
+  assert.match(String(data.error), /model/);
 });
 
 test('мост: список техник содержит и готовые, и процедуры', () => {
@@ -56,4 +56,10 @@ test('мост: процедура возвращает шаги, а не про
   assert.ok(Array.isArray(procedure.steps));
   assert.ok(procedure.steps.length >= 3);
   assert.equal(data.manual, undefined);
+});
+
+test('мост: ручная техника не игнорирует запрет LLM-синтеза', () => {
+  const { data } = call({ thoughts: 'синтетический тест', model: 'dummy', manualTechnique: 'zero_shot', deterministic: true });
+  assert.equal(data.ok, false);
+  assert.match(String(data.error), /Disable Skip/);
 });

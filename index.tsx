@@ -6,7 +6,7 @@ import { runPipeline } from './pipeline/index.ts';
 import { loadCatalog } from './pipeline/catalog.ts';
 import { createLLM } from './pipeline/llm.ts';
 import { escapeHtml, renderPipelineResult } from './pipeline/render.ts';
-import { buildManualPrompt, hasPlaceholders } from './pipeline/manual.ts';
+import { generateManualPrompt } from './pipeline/manual.ts';
 import catalogJson from './catalog/catalog.json';
 
 const CATALOG = loadCatalog(catalogJson);
@@ -188,14 +188,14 @@ function renderManualCard(technique: (typeof MANUAL_TECHNIQUES)[number], prompt:
   return `
     <div class="result-card">
       <h3>${escapeHtml(technique.name)}</h3>
-      <strong>Промпт</strong>
+      <strong>Prompt</strong>
       <pre>${escapeHtml(prompt)}</pre>
       <p class="token-count">
         temperature: <strong>${temperature}</strong> ·
-        вызовов: <strong>${technique.cost_calls}</strong> ·
-        источник: ${escapeHtml(technique.source_ref)}
+        calls: <strong>${technique.cost_calls}</strong> ·
+        source: ${escapeHtml(technique.source_ref)}
       </p>
-      <button class="copy-button" type="button">Копировать</button>
+      <button class="copy-button" type="button">Copy</button>
     </div>`;
 }
 
@@ -251,17 +251,17 @@ async function handleManualGenerate(): Promise<void> {
   ).map((input) => input.value);
 
   if (!thoughts) {
-    status.textContent = 'напиши задачу';
+    status.textContent = 'Enter a task';
     return;
   }
   if (selected.length === 0) {
-    status.textContent = 'выбери хотя бы одну технику';
+    status.textContent = 'Select at least one technique';
     return;
   }
 
   const provider = (currentProvider || 'ollama') as 'gemini' | 'openai' | 'ollama';
   if (provider !== 'ollama' && !currentApiKey) {
-    status.textContent = 'нужен API key в настройках модели';
+    status.textContent = 'An API key is required in model settings';
     return;
   }
 
@@ -277,19 +277,9 @@ async function handleManualGenerate(): Promise<void> {
   for (const key of selected) {
     const technique = MANUAL_TECHNIQUES.find((t) => t.key === key);
     if (!technique) continue;
-    status.textContent = `генерация ${done + 1}/${selected.length}: ${technique.name}…`;
+    status.textContent = `Generating ${done + 1}/${selected.length}: ${technique.name}…`;
     try {
-      let prompt = (await llm(buildManualPrompt(thoughts, technique), { temperature: 0.3 })).trim();
-
-      // Модель иногда оставляет {{плейсхолдеры}} — просим один раз переписать без них.
-      if (hasPlaceholders(prompt)) {
-        prompt = (
-          await llm(
-            `${buildManualPrompt(thoughts, technique)}\n\nВ твоём прошлом ответе остались {{плейсхолдеры}}. Перепиши промпт без заглушек.`,
-            { temperature: 0.3 },
-          )
-        ).trim();
-      }
+      const prompt = await generateManualPrompt(thoughts, technique, llm);
 
       out.insertAdjacentHTML('beforeend', renderManualCard(technique, prompt));
       done += 1;
@@ -301,7 +291,7 @@ async function handleManualGenerate(): Promise<void> {
     }
   }
 
-  status.textContent = `готово: ${done} из ${selected.length}`;
+  status.textContent = `Ready: ${done} of ${selected.length}`;
   button.disabled = false;
 }
 
@@ -316,13 +306,13 @@ async function handlePipelineRun() {
   const thoughts = thoughtsEl.value.trim();
   out.innerHTML = '';
   if (!thoughts) {
-    statusEl.textContent = 'напиши поток мыслей';
+    statusEl.textContent = 'Enter your thoughts';
     return;
   }
 
   const provider = (currentProvider || 'ollama') as 'gemini' | 'openai' | 'ollama';
   if (provider !== 'ollama' && !currentApiKey) {
-    statusEl.textContent = 'нужен API key в настройках модели';
+    statusEl.textContent = 'An API key is required in model settings';
     return;
   }
 
@@ -331,7 +321,7 @@ async function handlePipelineRun() {
 
   button.disabled = true;
   statusEl.classList.remove('is-error');
-  statusEl.textContent = 'бриф → выбор техники → синтез…';
+  statusEl.textContent = 'Brief → technique selection → synthesis…';
   try {
     const catalog = loadCatalog(catalogJson);
     const llm = createLLM({
@@ -347,10 +337,10 @@ async function handlePipelineRun() {
       variants: 3,
     });
     out.innerHTML = renderPipelineResult(result);
-    statusEl.textContent = `${result.choice.name} · предупреждений: ${result.synthesis.warnings.length}`;
+    statusEl.textContent = `${result.choice.name} · warnings: ${result.synthesis.warnings.length}`;
   } catch (e) {
     out.innerHTML = `<p class="error-message">${escapeHtml(e instanceof Error ? e.message : String(e))}</p>`;
-    statusEl.textContent = 'ошибка';
+    statusEl.textContent = 'Error';
     statusEl.classList.add('is-error');
   } finally {
     button.disabled = false;
@@ -400,10 +390,10 @@ function App() {
           if (!pre) return;
           try {
             await navigator.clipboard.writeText(pre.textContent ?? '');
-            button.textContent = 'Скопировано';
-            setTimeout(() => { button.textContent = 'Копировать'; }, 1500);
+            button.textContent = 'Copied';
+            setTimeout(() => { button.textContent = 'Copy'; }, 1500);
           } catch {
-            button.textContent = 'Не вышло';
+            button.textContent = 'Copy failed';
           }
         });
       }
@@ -417,15 +407,15 @@ function App() {
         pipelineOutput.addEventListener('click', async (event) => {
           const button = (event.target as HTMLElement).closest('.pipeline-copy') as HTMLButtonElement | null;
           if (!button) return;
-          const promptEl = pipelineOutput.querySelector('.pipeline-prompt');
+          const promptEl = button.closest('.pipeline-prompt-wrap')?.querySelector('.pipeline-prompt');
           if (!promptEl) return;
           try {
             await navigator.clipboard.writeText(promptEl.textContent ?? '');
             const original = button.textContent;
-            button.textContent = 'Скопировано';
+            button.textContent = 'Copied';
             setTimeout(() => { button.textContent = original; }, 1600);
           } catch {
-            button.textContent = 'Не вышло';
+            button.textContent = 'Copy failed';
           }
         });
       }
@@ -438,36 +428,36 @@ function App() {
       {!loading && (
         <>
           <header>
-            <h1><span className="material-symbols-outlined">auto_awesome</span> Prompt Engineering Studio</h1>
-            <p>Поток мыслей → бриф → техника → готовый промпт</p>
+            <h1><span className="material-symbols-outlined">auto_awesome</span> Prompta</h1>
+            <p>Thoughts → brief → technique → ready-to-use prompt</p>
           </header>
           <main>
             <section id="pipeline-section" aria-labelledby="pipeline-heading">
               <div className="pipeline-head">
                 <h2 id="pipeline-heading">
                   <span className="material-symbols-outlined">route</span>
-                  Пайплайн: поток мыслей → промпт
+                  Pipeline: thoughts → prompt
                   <span className="pipeline-badge">beta</span>
                 </h2>
                 <p className="pipeline-hint">
-                  Опиши как думаешь, без структуры. Пайплайн соберёт бриф, отсеет неподходящие техники
-                  по каталогу и вернёт промпт с обоснованным конфигом.
+                  Write freely. The pipeline builds a brief, filters unsuitable techniques
+                  using the catalog, and returns a prompt with recommended settings.
                 </p>
               </div>
 
               <div className="pipeline-grid">
                 <div className="pipeline-input-col">
-                  <label htmlFor="pipeline-thoughts">Поток мыслей</label>
+                  <label htmlFor="pipeline-thoughts">Thoughts</label>
                   <textarea
                     id="pipeline-thoughts"
                     rows={6}
-                    placeholder="хочу чтобы нейросеть разбирала мои заметки после встреч и вытаскивала решения, задачи и ответственных в таблицу"
+                    placeholder="I want AI to review my meeting notes and extract decisions, tasks, and owners into a table"
                   />
                   <div className="pipeline-controls">
-                    <button id="pipeline-run" className="pipeline-primary" type="button">Собрать промпт</button>
+                    <button id="pipeline-run" className="pipeline-primary" type="button">Build prompt</button>
                     <label className="pipeline-toggle">
                       <input type="checkbox" id="pipeline-deterministic" />
-                      <span>без LLM-синтеза</span>
+                      <span>Skip LLM synthesis</span>
                     </label>
                   </div>
                   <p id="pipeline-status" className="pipeline-status" aria-live="polite"></p>
@@ -476,7 +466,7 @@ function App() {
                 <div id="pipeline-output" className="pipeline-output" aria-live="polite">
                   <div className="pipeline-empty">
                     <span className="material-symbols-outlined">auto_awesome</span>
-                    <span>Здесь появятся бриф, выбранная техника с обоснованием, промпт и конфиг</span>
+                    <span>Your brief, selected technique, prompt, and settings will appear here</span>
                   </div>
                 </div>
               </div>
@@ -486,21 +476,21 @@ function App() {
               <div className="pipeline-head">
                 <h2 id="manual-heading">
                   <span className="material-symbols-outlined">checklist</span>
-                  Ручной режим: выбери техники
-                  <span className="pipeline-badge">готовых к синтезу: {MANUAL_TECHNIQUES.length}</span>
+                  Manual mode: choose techniques
+                  <span className="pipeline-badge">Ready for synthesis: {MANUAL_TECHNIQUES.length}</span>
                 </h2>
                 <p className="pipeline-hint">
-                  Отметь техники — по каждой будет собран отдельный промпт: каркас и пример берутся
-                  из каталога, поэтому результаты отличаются структурой, а не формулировкой.
+                  Choose techniques to generate a separate prompt for each. Templates and examples come
+                  from the catalog, giving each prompt a distinct structure.
                 </p>
               </div>
               <div className="manual-body">
-                <label htmlFor="manual-thoughts">Задача</label>
-                <textarea id="manual-thoughts" rows={3} placeholder="опиши задачу одной-двумя фразами" />
+                <label htmlFor="manual-thoughts">Task</label>
+                <textarea id="manual-thoughts" rows={3} placeholder="Describe your task in one or two sentences" />
                 <div id="manual-techniques" className="techniques-grid"></div>
                 <div className="pipeline-controls">
                   <button id="manual-generate" className="pipeline-primary" type="button">
-                    Сгенерировать по выбранным
+                    Generate selected prompts
                   </button>
                   <span id="manual-status" className="pipeline-status" aria-live="polite"></span>
                 </div>
@@ -511,12 +501,12 @@ function App() {
             <details className="procedures-block">
               <summary>
                 <span className="material-symbols-outlined">account_tree</span>
-                Процедуры: {PROCEDURES.length} техник, у которых нет промпта — только шаги
+                Procedures: {PROCEDURES.length} techniques with procedural steps instead of prompts
               </summary>
               <div className="procedures-body">
                 <p className="pipeline-hint">
-                  Это не промпты, а операции над данными или моделью: отбор примеров, ансамбли, RL-оптимизация.
-                  Выполнять их нужно кодом или вручную — шаблон здесь был бы обманом.
+                  These are operations on data or models: example selection, ensembles, and RL optimization.
+                  Follow these steps in code or manually.
                 </p>
                 <div id="procedures-list" className="procedures-list"></div>
               </div>
@@ -525,11 +515,11 @@ function App() {
             <section id="model-settings" aria-labelledby="model-settings-heading">
               <h2 id="model-settings-heading">
                 <span className="material-symbols-outlined">memory</span>
-                Модель
+                Model
               </h2>
               <div className="llm-config-row">
                 <div className="llm-config-item">
-                  <label htmlFor="llm-provider">Провайдер</label>
+                  <label htmlFor="llm-provider">Provider</label>
                   <select id="llm-provider" defaultValue="ollama">
                     <option value="gemini">Gemini</option>
                     <option value="openai">OpenAI</option>
@@ -537,18 +527,18 @@ function App() {
                   </select>
                 </div>
                 <div className="llm-config-item">
-                  <label htmlFor="llm-model">Модель</label>
+                  <label htmlFor="llm-model">Model</label>
                   <select id="llm-model">
                   </select>
                   <div id="ollama-models-info" className="model-hint"></div>
                 </div>
                 <div className="llm-config-item" id="api-key-container">
                   <label htmlFor="llm-api-key">API Key</label>
-                  <input id="llm-api-key" type="password" placeholder="для Ollama не нужен" />
+                  <input id="llm-api-key" type="password" placeholder="Not needed for Ollama" />
                 </div>
               </div>
               <div className="model-actions">
-                <button id="llm-save-button" type="button">Сохранить</button>
+                <button id="llm-save-button" type="button">Save</button>
                 <span id="llm-save-status"></span>
               </div>
             </section>

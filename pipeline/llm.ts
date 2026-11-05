@@ -55,7 +55,7 @@ export function createLLM(opts: LLMOptions): LLM {
   const base = opts.baseUrl ?? (provider === 'ollama' ? 'http://localhost:11434' : '');
 
   if (provider === 'gemini') {
-    if (!apiKey) throw new Error('нужен apiKey для gemini');
+    if (!apiKey) throw new Error('An API key is required for gemini');
     return async (prompt, o = {}) => {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
       const data = (await postJson(url, {
@@ -67,13 +67,13 @@ export function createLLM(opts: LLMOptions): LLM {
         },
       })) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
       const out = data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? '';
-      if (!out) throw new Error('gemini вернул пустой ответ');
+      if (!out) throw new Error('gemini returned an empty response');
       return out;
     };
   }
 
   if (provider === 'openai') {
-    if (!apiKey) throw new Error('нужен apiKey для openai');
+    if (!apiKey) throw new Error('An API key is required for openai');
     return async (prompt, o = {}) => {
       const data = (await postJson(
         `${base || 'https://api.openai.com'}/v1/chat/completions`,
@@ -87,7 +87,7 @@ export function createLLM(opts: LLMOptions): LLM {
         { authorization: `Bearer ${apiKey}` },
       )) as { choices?: { message?: { content?: string } }[] };
       const out = data.choices?.[0]?.message?.content ?? '';
-      if (!out) throw new Error('openai вернул пустой ответ');
+      if (!out) throw new Error('openai returned an empty response');
       return out;
     };
   }
@@ -104,7 +104,7 @@ export function createLLM(opts: LLMOptions): LLM {
       },
     })) as { response?: string };
     const out = data.response ?? '';
-    if (!out) throw new Error('ollama вернул пустой ответ');
+    if (!out) throw new Error('ollama returned an empty response');
     return out;
   };
 }

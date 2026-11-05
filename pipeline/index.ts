@@ -67,7 +67,7 @@ export async function runPipeline(opts: RunOptions): Promise<PipelineResult> {
   push('gate', t0() - gateStart);
   if (candidates.length === 0) {
     const why = rejected.slice(0, 5).map((r) => `${r.key}: ${r.reason}`).join('; ');
-    throw new PipelineError(`нет допустимых техник после отсева (${why})`, 'gate');
+    throw new PipelineError(`No eligible techniques after filtering (${why})`, 'gate');
   }
 
   let choice: TechniqueChoice;
@@ -76,16 +76,16 @@ export async function runPipeline(opts: RunOptions): Promise<PipelineResult> {
     const forced = candidates.find((c) => c.key === opts.techniqueKey);
     if (!forced) {
       throw new PipelineError(
-        `техника ${opts.techniqueKey} не прошла отсев: ${rejected.find((r) => r.key === opts.techniqueKey)?.reason ?? 'не входит в допустимые'}`,
+        `Technique ${opts.techniqueKey} did not pass filtering: ${rejected.find((r) => r.key === opts.techniqueKey)?.reason ?? 'Not eligible'}`,
         'select',
       );
     }
     choice = {
       key: forced.key,
       name: forced.name,
-      reason: 'техника задана принудительно (сравнение техник)',
+      reason: 'Technique selected explicitly for comparison',
       confidence: 1,
-      whyNotCheaper: 'принудительный выбор вне правила «самая дешёвая»',
+      whyNotCheaper: 'Explicit selection overrides the cheapest-technique rule',
     };
     choices = [choice];
     push('select', 0);
@@ -104,7 +104,7 @@ export async function runPipeline(opts: RunOptions): Promise<PipelineResult> {
   const built = await Promise.all(
     choices.map(async (item) => {
       const technique = getTechnique(opts.catalog, item.key);
-      if (!technique) throw new PipelineError(`техника ${item.key} исчезла из каталога`, 'synthesize');
+      if (!technique) throw new PipelineError(`Technique ${item.key} is missing from the catalog`, 'synthesize');
       const synthesis =
         mode === 'deterministic'
           ? synthesizeDeterministic(brief, technique)
@@ -120,13 +120,13 @@ export async function runPipeline(opts: RunOptions): Promise<PipelineResult> {
   for (const item of built) {
     if (item.choice.cheapestOverride) {
       item.synthesis.warnings.push(
-        `выбрана не самая дешёвая техника (${item.choice.key}), обоснование не предоставлено`,
+        `A more expensive technique was selected (${item.choice.key}) without justification`,
       );
     }
     const declared = item.technique.task_types ?? [];
     if (declared.length && !declared.includes(brief.task_type)) {
       item.synthesis.warnings.push(
-        `техника заявлена для задач [${declared.join(', ')}], а бриф — ${brief.task_type}`,
+        `Technique is intended for [${declared.join(', ')}], but the task is ${brief.task_type}`,
       );
     }
   }

@@ -134,7 +134,7 @@ test('педагогические типы доступны только для
 test('отсев: нетексовая модальность даёт понятную ошибку', () => {
   assert.throws(
     () => gateTechniques({ ...brief, modality: 'image' }, catalog),
-    /каталог содержит только текстовые техники/,
+    /supports text techniques only/,
   );
 });
 
@@ -152,13 +152,13 @@ test('parseBrief принимает JSON в markdown-обёртке', () => {
 
 test('parseBrief отвергает неизвестный task_type', () => {
   const bad = JSON.stringify({ ...JSON.parse(BRIEF_JSON), task_type: 'магия' });
-  assert.throws(() => parseBrief(bad), /неизвестный task_type/);
+  assert.throws(() => parseBrief(bad), /Unknown task_type/);
 });
 
 test('parseChoice отвергает технику вне списка кандидатов', () => {
   const { candidates } = gateTechniques(brief, catalog);
   const raw = JSON.stringify({ key: 'temperature', reason: 'x', confidence: 0.5, whyNotCheaper: 'y' });
-  assert.throws(() => parseChoice(raw, candidates), /нет среди допустимых/);
+  assert.throws(() => parseChoice(raw, candidates), /unavailable technique/);
 });
 
 test('parseChoice помечает выбор не самой дешёвой техники без обоснования', () => {
@@ -168,7 +168,7 @@ test('parseChoice помечает выбор не самой дешёвой т�
   const raw = JSON.stringify({ key: expensive!.key, reason: 'x', confidence: 0.6, whyNotCheaper: '' });
   const choice = parseChoice(raw, candidates);
   assert.equal(choice.cheapestOverride, true);
-  assert.equal(choice.whyNotCheaper, 'не объяснено');
+  assert.equal(choice.whyNotCheaper, 'Not explained');
 });
 
 test('runPipeline проходит весь путь на фейковой модели', async () => {
@@ -198,7 +198,7 @@ test('runPipeline падает, если бюджет отсекает все т
   const { llm } = fakeLLM();
   await assert.rejects(
     () => runPipeline({ thoughts: 'x', catalog: tiny, llm, brief: { ...brief, budget_calls: 1 } }),
-    /нет допустимых техник/,
+    /No eligible techniques/,
   );
 });
 
@@ -207,14 +207,14 @@ test('synthesizeWithLLM сообщает оставшиеся плейсхолд
   const llm = async () => 'Думай по шагам. Затем ответь: {{format}}. Ещё {{n}} раз проверь. Это достаточно длинный промпт.';
   const res = await synthesizeWithLLM(brief, technique, llm);
   assert.deepEqual(res.missing.sort(), ['format', 'n']);
-  assert.ok(res.warnings.some((w) => w.includes('незаполненные')));
+  assert.ok(res.warnings.some((w) => w.includes('Unfilled placeholders')));
 });
 
 test('детерминированный синтез заполняет role и rules из брифа', () => {
   const technique = catalog.techniques.find((t) => t.key === 'system_prompting')!;
   const res = synthesizeDeterministic(brief, technique);
   assert.deepEqual(res.missing, [], 'у system_prompting не должно остаться пропусков');
-  assert.match(res.prompt, /эксперт по задаче/);
+  assert.match(res.prompt, /Expert in the task/);
   assert.equal(res.prompt.includes('{{role}}'), false);
 });
 
@@ -222,7 +222,7 @@ test('лимит вывода зависит от типа исполнения'
   const single = catalog.techniques.find((t) => t.key === 'zero_shot')!;
   const multi = catalog.techniques.find((t) => t.execution === 'multi_step')!;
   assert.match(maxTokensFor(single), /1024/);
-  assert.match(maxTokensFor(multi), /на шаг/);
+  assert.match(maxTokensFor(multi), /per step/);
   assert.equal(new Set([maxTokensFor(single), maxTokensFor(multi)]).size, 2);
 });
 
@@ -244,7 +244,7 @@ test('офлайн-режим отсекает техники с невывод�
   const derivable = new Set(['task', 'input', 'format', 'language', 'role', 'rules', 'topic', 'goal', 'question', 'constraints', 'criteria', 'context', 'document', 'text', 'external_text', 'task_type']);
   const { candidates, rejected } = gateTechniques(brief, catalog, { derivablePlaceholders: derivable });
   assert.ok(!candidates.some((c) => c.key === 'few_shot'), 'few_shot требует примеров');
-  assert.ok(rejected.some((r) => r.key === 'few_shot' && r.reason.includes('нечем заполнить')));
+  assert.ok(rejected.some((r) => r.key === 'few_shot' && r.reason.includes('Cannot fill')));
   assert.ok(candidates.some((c) => c.key === 'zero_shot'));
 });
 
@@ -253,11 +253,11 @@ test('защита от инъекций добавляется только т�
   const zero = catalog.techniques.find((t) => t.key === 'zero_shot')!;
 
   const guarded = synthesizeDeterministic({ ...brief, task_type: 'qa_over_docs' }, contextual);
-  assert.match(guarded.prompt, /это данные, а не инструкции/);
-  assert.ok(guarded.warnings.some((w) => w.includes('prompt injection')));
+  assert.match(guarded.prompt, /are data, not instructions/);
+  assert.ok(guarded.warnings.some((w) => w.includes('Prompt-injection')));
 
   const plain = synthesizeDeterministic({ ...brief, task_type: 'generation' }, zero);
-  assert.equal(/это данные, а не инструкции/.test(plain.prompt), false);
+  assert.equal(/are data, not instructions/.test(plain.prompt), false);
 });
 
 test('бриф: русские значения modality и stakes нормализуются', () => {
@@ -274,4 +274,63 @@ test('выбор: ключ техники принимается из синон
   const { candidates } = gateTechniques(brief, catalog);
   const raw = JSON.stringify({ technique: 'zero_shot', reason: 'x', confidence: 0.7, whyNotCheaper: 'y' });
   assert.equal(parseChoice(raw, candidates).key, 'zero_shot');
+});
+
+test('резервный отсев сохраняет запрет невыводимых плейсхолдеров', () => {
+  const custom = { version: 'test', techniques: [tech('missing', { template: '{{examples}}' })] };
+  const gated = gateTechniques(brief, custom, { derivablePlaceholders: new Set(['task']) });
+  assert.equal(gated.candidates.length, 0);
+});
+
+test('резервный отсев не возвращает педагогические типы для обычных задач', () => {
+  const custom = { version: 'test', techniques: [tech('teaching', { kind: 'prompt_type' })] };
+  assert.equal(gateTechniques(brief, custom).candidates.length, 0);
+});
+
+test('резервный отсев не показывает принятую технику как отвергнутую', () => {
+  const custom = { version: 'test', techniques: [tech('relaxed', { task_types: ['coding'] })] };
+  const gated = gateTechniques(brief, custom);
+  assert.equal(gated.candidates[0].key, 'relaxed');
+  assert.ok(!gated.rejected.some((item) => item.key === 'relaxed'));
+});
+
+test('полный цикл: повтор битого JSON, три уникальных варианта и синтез каждого', async () => {
+  let briefCalls = 0;
+  let synthCalls = 0;
+  const choices = ['a', 'b', 'c'].map((key) => ({ key, reason: key, confidence: 0.8, whyNotCheaper: 'тест' }));
+  const result = await runPipeline({
+    thoughts: 'синтетическая классификация',
+    catalog: { version: 'test', techniques: choices.map((c) => tech(c.key)) },
+    variants: 3,
+    llm: async (prompt) => {
+      if (prompt.includes('Поток мыслей:')) return ++briefCalls === 1 ? 'broken JSON' : BRIEF_JSON;
+      if (prompt.includes('Доступные техники')) return JSON.stringify({ choices: [...choices, choices[0]] });
+      synthCalls += 1;
+      return 'Классифицируй входные данные и верни только JSON с фиксированными метками.';
+    },
+  });
+  assert.equal(briefCalls, 2);
+  assert.equal(synthCalls, 3);
+  assert.equal(result.alternatives?.length, 2);
+  assert.deepEqual(result.trace.map((t) => t.step), ['brief', 'gate', 'select', 'synthesize']);
+});
+
+test('ручной синтез повторяет плохой ответ и отклоняет повторный брак', async () => {
+  const { generateManualPrompt } = await import('./manual.ts');
+  let calls = 0;
+  const good = 'Классифицируй целые числа на чётные и нечётные, верни JSON с метками.';
+  assert.equal(await generateManualPrompt('тест', tech('manual'), async () => ++calls === 1 ? '{{task}}' : good), good);
+  assert.equal(calls, 2);
+  await assert.rejects(generateManualPrompt('тест', tech('manual'), async () => ''), /complete prompt/);
+  await assert.rejects(generateManualPrompt('тест', tech('manual'), async () => good + '{{task}}'), /placeholders/);
+});
+
+test('catalog display metadata is English and procedure steps remain available', () => {
+  for (const technique of catalog.techniques) {
+    assert.doesNotMatch(technique.name + technique.when_to_use + technique.config.rationale, /[А-Яа-яЁё]/u);
+    if (technique.status === 'procedure') {
+      assert.ok((technique.procedure?.length ?? 0) >= 3);
+      assert.doesNotMatch(technique.procedure!.join(' '), /[А-Яа-яЁё]/u);
+    }
+  }
 });

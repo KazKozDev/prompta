@@ -1,4 +1,4 @@
-import type { Technique } from './types.ts';
+import type { LLM, Technique } from './types.ts';
 
 /** Промпт «преврати мысли в промпт по методике техники» для ручного режима.
  *
@@ -40,4 +40,14 @@ ${thoughts}
 /** Остались ли в промпте незаполненные заглушки. */
 export function hasPlaceholders(prompt: string): boolean {
   return /\{\{[^}]+\}\}/.test(prompt);
+}
+
+/** Общая проверка ручного синтеза для веба и десктопа. */
+export async function generateManualPrompt(thoughts: string, technique: Technique, llm: LLM): Promise<string> {
+  const request = buildManualPrompt(thoughts, technique);
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const prompt = (await llm(request + (attempt ? '\n\nПерепиши полный промпт: не менее 40 символов, без {{плейсхолдеров}}.' : ''), { temperature: 0.3 })).trim();
+    if (prompt.length >= 40 && !hasPlaceholders(prompt)) return prompt;
+  }
+  throw new Error('The model could not generate a complete prompt without placeholders');
 }

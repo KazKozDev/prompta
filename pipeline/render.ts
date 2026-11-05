@@ -18,9 +18,9 @@ export function renderPipelineResult(result: PipelineResult): string {
   const confidence = Math.round(choice.confidence * 100);
 
   const chips = [
-    ['тип', brief.task_type],
-    ['язык', brief.language],
-    ['цена ошибки', brief.stakes],
+    ['type', brief.task_type],
+    ['language', brief.language],
+    ['stakes', brief.stakes],
   ]
     .map(([label, value]) => `<span class="pipeline-chip">${label}: <b>${escapeHtml(value)}</b></span>`)
     .join('');
@@ -31,12 +31,18 @@ export function renderPipelineResult(result: PipelineResult): string {
       return `
       <div class="pipeline-alt">
         <div class="pipeline-alt-head">
-          <span class="pipeline-alt-title">Вариант ${index + 2}: ${escapeHtml(alt.choice.name)}</span>
+          <span class="pipeline-alt-title">Variant ${index + 2}: ${escapeHtml(alt.choice.name)}</span>
           <span class="pipeline-chip">${escapeHtml(alt.choice.key)}</span>
           <span class="pipeline-confidence">${Math.round(alt.choice.confidence * 100)}%</span>
         </div>
         <p class="pipeline-why">${escapeHtml(alt.choice.reason)}</p>
-        <pre class="pipeline-prompt">${escapeHtml(alt.synthesis.prompt)}</pre>
+        <div class="pipeline-prompt-wrap">
+          <div class="pipeline-prompt-bar">
+            <span>Prompt</span>
+            <button class="pipeline-copy" type="button" data-copy>Copy</button>
+          </div>
+          <pre class="pipeline-prompt">${escapeHtml(alt.synthesis.prompt)}</pre>
+        </div>
         <p class="pipeline-note">
           temperature ${alt.synthesis.config.temperature ?? '—'} · ${escapeHtml(alt.synthesis.config.max_tokens)}
         </p>
@@ -54,24 +60,24 @@ export function renderPipelineResult(result: PipelineResult): string {
     <div class="pipeline-card">
       <p class="pipeline-goal">${escapeHtml(brief.goal)}</p>
       <div class="pipeline-chips">${chips}</div>
-      <p class="pipeline-note"><b>Формат:</b> ${escapeHtml(brief.output_format)}</p>
-      ${brief.assumptions.length ? `<p class="pipeline-note">Допущения: ${brief.assumptions.map(escapeHtml).join('; ')}</p>` : ''}
+      <p class="pipeline-note"><b>Format:</b> ${escapeHtml(brief.output_format)}</p>
+      ${brief.assumptions.length ? `<p class="pipeline-note">Assumptions: ${brief.assumptions.map(escapeHtml).join('; ')}</p>` : ''}
 
       <div class="pipeline-technique">
         <div class="pipeline-technique-head">
           <span class="pipeline-technique-name">${escapeHtml(choice.name)}</span>
           <span class="pipeline-technique-key">${escapeHtml(choice.key)}</span>
-          <span class="pipeline-confidence">уверенность ${confidence}%</span>
+          <span class="pipeline-confidence">confidence ${confidence}%</span>
         </div>
         <div class="pipeline-bar"><span style="width: ${confidence}%"></span></div>
-        <p class="pipeline-why"><b>Почему:</b> ${escapeHtml(choice.reason)}</p>
-        <p class="pipeline-why"><b>Почему не дешевле:</b> ${escapeHtml(choice.whyNotCheaper)}</p>
+        <p class="pipeline-why"><b>Why:</b> ${escapeHtml(choice.reason)}</p>
+        <p class="pipeline-why"><b>Why not a cheaper method:</b> ${escapeHtml(choice.whyNotCheaper)}</p>
       </div>
 
       <div class="pipeline-prompt-wrap">
         <div class="pipeline-prompt-bar">
-          <span>Промпт</span>
-          <button class="pipeline-copy" type="button" data-copy>Копировать</button>
+          <span>Prompt</span>
+          <button class="pipeline-copy" type="button" data-copy>Copy</button>
         </div>
         <pre class="pipeline-prompt">${escapeHtml(synthesis.prompt)}</pre>
       </div>
@@ -92,7 +98,7 @@ export function renderPipelineResult(result: PipelineResult): string {
       </div>
       <p class="pipeline-note">${escapeHtml(cfg.rationale)}</p>
       ${warnings}
-      <p class="pipeline-footer">отсеяно до выбора: ${result.rejected.length} техник</p>
+      <p class="pipeline-footer">Techniques filtered out: ${result.rejected.length}</p>
       ${alternativeCards}
     </div>`;
 }

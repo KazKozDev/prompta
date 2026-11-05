@@ -64,7 +64,7 @@ export function parseChoice(raw: string, candidates: Technique[]): TechniqueChoi
     .find((v) => typeof v === 'string' && v.trim().length > 0) as string | undefined;
   if (!candidateKey) {
     throw new PipelineError(
-      'в ответе нет ключа техники (ожидалось поле key/technique/id/name)',
+      'Missing technique key (expected key/technique/id/name)',
       step,
     );
   }
@@ -78,10 +78,10 @@ export function parseChoice(raw: string, candidates: Technique[]): TechniqueChoi
 
   if (!found) {
     const allowed = candidates.map((c) => c.key).join(', ');
-    throw new PipelineError(`модель выбрала «${rawKey}», которой нет среди допустимых: ${allowed}`, step);
+    throw new PipelineError(`The model selected an unavailable technique "${rawKey}". Allowed: ${allowed}`, step);
   }
 
-  const reason = typeof obj.reason === 'string' && obj.reason.trim() ? obj.reason.trim() : 'причина не указана';
+  const reason = typeof obj.reason === 'string' && obj.reason.trim() ? obj.reason.trim() : 'No reason provided';
   const whyNotCheaper =
     typeof obj.whyNotCheaper === 'string' && obj.whyNotCheaper.trim() ? obj.whyNotCheaper.trim() : '';
 
@@ -93,7 +93,7 @@ export function parseChoice(raw: string, candidates: Technique[]): TechniqueChoi
     name: found.name,
     reason,
     confidence: clamp01(obj.confidence),
-    whyNotCheaper: whyNotCheaper || 'не объяснено',
+    whyNotCheaper: whyNotCheaper || 'Not explained',
     cheapestOverride: overrides || undefined,
   };
 }

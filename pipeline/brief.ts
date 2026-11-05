@@ -72,13 +72,13 @@ export function parseBrief(raw: string): TaskBrief {
   const step = 'brief';
   const obj = extractJson(raw, step) as Record<string, unknown>;
   if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
-    throw new PipelineError('ожидался JSON-объект', step);
+    throw new PipelineError('Expected a JSON object', step);
   }
 
   const taskType = requireString(obj, 'task_type', step);
   if (!(TASK_TYPES as readonly string[]).includes(taskType)) {
     throw new PipelineError(
-      `неизвестный task_type=${taskType}; допустимые: ${TASK_TYPES.join(', ')}`,
+      `Unknown task_type=${taskType}; allowed values: ${TASK_TYPES.join(', ')}`,
       step,
     );
   }
