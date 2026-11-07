@@ -1,0 +1,26 @@
+{
+  "date": "2026-11-05",
+  "scope": "Only the seven URLs in sources.json, not the entire OpenAI website. All section text and examples in the scoped sources are retained. General ChatGPT prompt-level guidance is active; workflow/API configuration and historical examples are not pasted into consumer prompts.",
+  "section_count": 167,
+  "rule_count": 52,
+  "active_rule_count": 49,
+  "active_prompt_rule_count": 41,
+  "ambiguities": [
+    {
+      "issue": "Rigid prompt templates versus natural outcome-first prompts",
+      "resolution": "Current ChatGPT Learn says to include only useful elements. Headings and examples are conditional rather than mandatory."
+    },
+    {
+      "issue": "Some meta-prompts expose reasoning before conclusions",
+      "resolution": "Prefer the reasoning best-practices guide; do not require hidden chain-of-thought in generic ChatGPT mode."
+    },
+    {
+      "issue": "API message roles and Structured Outputs versus the ChatGPT interface",
+      "resolution": "Preserve as workflow/API guidance; do not invent controls or schema guarantees in a paste-ready ChatGPT prompt."
+    },
+    {
+      "issue": "Older model capability and Markdown-switch claims in the reasoning guide",
+      "resolution": "Mark historical/API-specific advice reference-only; do not infer current ChatGPT capabilities."
+    }
+  ]
+}

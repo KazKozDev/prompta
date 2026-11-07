@@ -15,6 +15,7 @@ const TASK_TYPES = [
 ] as const;
 
 export const BRIEF_SCHEMA = `{
+  "topic": "короткая естественная тема, 2–6 слов на языке пользователя: Платформер на Pygame; не обрывок запроса и без вводных слов",
   "goal": "одно предложение: чего хочет пользователь",
   "task_type": ${TASK_TYPES.map((t) => `"${t}"`).join(' | ')},
   "input": "что именно модель получит на вход (текст, документы, код, пусто)",
@@ -90,7 +91,9 @@ export function parseBrief(raw: string): TaskBrief {
   const budgetCalls =
     typeof budget === 'number' && Number.isFinite(budget) && budget >= 1 ? Math.floor(budget) : null;
 
+  const topic = typeof obj.topic === 'string' ? obj.topic.trim().replace(/\s+/g, ' ') : '';
   return {
+    ...(topic && topic.length <= 80 ? { topic } : {}),
     goal: requireString(obj, 'goal', step),
     task_type: taskType,
     input: requireString(obj, 'input', step),

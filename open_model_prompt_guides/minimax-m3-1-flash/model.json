@@ -1,0 +1,50 @@
+{
+  "id": "minimax-m3-1-flash",
+  "name": "MiniMax M3.1 Flash",
+  "repo": "MiniMaxAI/MiniMax-M3.1-Flash",
+  "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash",
+  "revision": "ce7f4df87d2e05262f5775f373dac4772f134041",
+  "retrieved_at": "2026-11-05T22:21:54.746184+00:00",
+  "role": "Agentic and coding model",
+  "license": "other",
+  "gated": false,
+  "weight_files_present": true,
+  "guidance_kind": "Prompt-related model-card sections",
+  "dedicated_prompting_manual": "not established; model card and official template provided",
+  "files": [
+    {
+      "title": "README.md",
+      "snapshot": "minimax-m3-1-flash/README.md",
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/blob/ce7f4df87d2e05262f5775f373dac4772f134041/README.md",
+      "download_url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/ce7f4df87d2e05262f5775f373dac4772f134041/README.md",
+      "sha256": "c49a7cca92321066bc20e25ce720260242dcb112baf1d09c7c213899e39d2151",
+      "bytes": 23757
+    },
+    {
+      "title": "chat_template.jinja",
+      "snapshot": "minimax-m3-1-flash/chat_template.jinja",
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/blob/ce7f4df87d2e05262f5775f373dac4772f134041/chat_template.jinja",
+      "download_url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/ce7f4df87d2e05262f5775f373dac4772f134041/chat_template.jinja",
+      "sha256": "961e3f96b2c08d26555efdfeb3b384d5e81181bf0cfc04edbadc31c6e507b431",
+      "bytes": 11633
+    },
+    {
+      "title": "generation_config.json",
+      "snapshot": "minimax-m3-1-flash/generation_config.json",
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/blob/ce7f4df87d2e05262f5775f373dac4772f134041/generation_config.json",
+      "download_url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/ce7f4df87d2e05262f5775f373dac4772f134041/generation_config.json",
+      "sha256": "272d19efac5060ff8c9f76c7ed67909a5da1be466284ee4f1f1bd2a810c6fad2",
+      "bytes": 150
+    },
+    {
+      "title": "LICENSE",
+      "snapshot": "minimax-m3-1-flash/LICENSE",
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/blob/ce7f4df87d2e05262f5775f373dac4772f134041/LICENSE",
+      "download_url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/ce7f4df87d2e05262f5775f373dac4772f134041/LICENSE",
+      "sha256": "8c4978e3e0fe0349ff929cc8450463cba3039c4c9fc144d8bd5382ab00df247a",
+      "bytes": 3363
+    }
+  ],
+  "failures": [],
+  "generation_integration": "Main-screen dropdown: pinned README model-card recommendations only. Other archived documents remain reference material; generator model is unchanged."
+}

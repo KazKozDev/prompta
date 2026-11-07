@@ -1,0 +1,50 @@
+{
+  "id": "qwen3-8-flash-next",
+  "name": "Qwen3.8 Flash Next",
+  "repo": "Qwen/Qwen3.8-Flash-Next",
+  "url": "https://huggingface.co/Qwen/Qwen3.8-Flash-Next",
+  "revision": "7ecef55a2e549814c62143fcf8b5be457695e3b9",
+  "retrieved_at": "2026-11-05T22:21:56.833208+00:00",
+  "role": "Efficient general and agentic model",
+  "license": "other",
+  "gated": false,
+  "weight_files_present": true,
+  "guidance_kind": "Prompt-related model-card sections",
+  "dedicated_prompting_manual": "not established; model card and official template provided",
+  "files": [
+    {
+      "title": "README.md",
+      "snapshot": "qwen3-8-flash-next/README.md",
+      "url": "https://huggingface.co/Qwen/Qwen3.8-Flash-Next/blob/7ecef55a2e549814c62143fcf8b5be457695e3b9/README.md",
+      "download_url": "https://huggingface.co/Qwen/Qwen3.8-Flash-Next/resolve/7ecef55a2e549814c62143fcf8b5be457695e3b9/README.md",
+      "sha256": "5c151489c5de6ba51318e5e03d9ffb80622f118b37e7af550a6c174c5a9fe104",
+      "bytes": 65087
+    },
+    {
+      "title": "chat_template.jinja",
+      "snapshot": "qwen3-8-flash-next/chat_template.jinja",
+      "url": "https://huggingface.co/Qwen/Qwen3.8-Flash-Next/blob/7ecef55a2e549814c62143fcf8b5be457695e3b9/chat_template.jinja",
+      "download_url": "https://huggingface.co/Qwen/Qwen3.8-Flash-Next/resolve/7ecef55a2e549814c62143fcf8b5be457695e3b9/chat_template.jinja",
+      "sha256": "c3cf9e34abf4f9e36c2d72165aa9c132d3e2a725b6c2586aaa3a8af9d7a81041",
+      "bytes": 8952
+    },
+    {
+      "title": "generation_config.json",
+      "snapshot": "qwen3-8-flash-next/generation_config.json",
+      "url": "https://huggingface.co/Qwen/Qwen3.8-Flash-Next/blob/7ecef55a2e549814c62143fcf8b5be457695e3b9/generation_config.json",
+      "download_url": "https://huggingface.co/Qwen/Qwen3.8-Flash-Next/resolve/7ecef55a2e549814c62143fcf8b5be457695e3b9/generation_config.json",
+      "sha256": "e70c136c1b78ddc1fb0905bac8e733a4dc448d4f852a5dd75143fffc70be550e",
+      "bytes": 202
+    },
+    {
+      "title": "LICENSE",
+      "snapshot": "qwen3-8-flash-next/LICENSE",
+      "url": "https://huggingface.co/Qwen/Qwen3.8-Flash-Next/blob/7ecef55a2e549814c62143fcf8b5be457695e3b9/LICENSE",
+      "download_url": "https://huggingface.co/Qwen/Qwen3.8-Flash-Next/resolve/7ecef55a2e549814c62143fcf8b5be457695e3b9/LICENSE",
+      "sha256": "a0dc422560841fd68e06d974907f8b4c709bca44a67daad2b528437bdf676c08",
+      "bytes": 3235
+    }
+  ],
+  "failures": [],
+  "generation_integration": "Main-screen dropdown: pinned README model-card recommendations only. Other archived documents remain reference material; generator model is unchanged."
+}

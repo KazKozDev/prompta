@@ -1,3 +1,4 @@
+import { ONE_SHOT_INSTRUCTION } from './prompt-defaults.ts';
 import type { LLM, PromptConfig, Synthesis, TaskBrief, Technique } from './types.ts';
 import { PipelineError } from './types.ts';
 import { costRange } from './catalog.ts';
@@ -162,7 +163,7 @@ export function synthesizeDeterministic(brief: TaskBrief, technique: Technique):
 }
 
 /** Промпт стадии 3: модель доводит остов до готового промпта, не меняя структуру техники. */
-export function buildSynthesisPrompt(brief: TaskBrief, technique: Technique, draft: string): string {
+export function buildSynthesisPrompt(brief: TaskBrief, technique: Technique, draft: string, oneShot = false): string {
   return `Ты инженер промптов. Собери финальный промпт ПО МЕТОДИКЕ техники «${technique.name}» для задачи пользователя.
 
 Зачем эта техника (что промпт должен заставлять модель делать):
@@ -199,7 +200,8 @@ ${technique.when_not ? `- Чего избегать (техника вредит
    под эту задачу; contextual — «только по материалу» и ссылки на источники; ToT — ветвление и оценка.
 4. Промпт самодостаточен: вставил в модель — получил результат, дописывать нечего.
 5. Держи объём: не длиннее 400 слов. Лишняя вода замедляет работу и размывает технику.
-6. Не добавляй пояснений, мета-комментариев и вступлений. Выведи только текст промпта.`;
+6. Не добавляй пояснений, мета-комментариев и вступлений. Выведи только текст промпта.
+${oneShot ? ONE_SHOT_INSTRUCTION : ''}`;
 }
 
 /** Синтез через LLM: каркас + пример + бриф → готовый промпт. */
@@ -207,12 +209,13 @@ export async function synthesizeWithLLM(
   brief: TaskBrief,
   technique: Technique,
   llm: LLM,
+  oneShot = false,
 ): Promise<Synthesis> {
   if (!technique.template) {
     throw new PipelineError(`${technique.key}: No template (status=index-only)`, 'synthesize');
   }
   const draft = fillTemplate(technique.template, valuesFromBrief(brief));
-  const raw = await llm(buildSynthesisPrompt(brief, technique, draft.text), { temperature: 0.2 });
+  const raw = await llm(buildSynthesisPrompt(brief, technique, draft.text, oneShot), { temperature: 0.2 });
   let prompt = (raw ?? '').trim();
 
   if (!prompt) throw new PipelineError('The model returned an empty prompt', 'synthesize');

@@ -1,0 +1,68 @@
+{
+  "id": "mistral-large-4",
+  "name": "Mistral Large 4",
+  "repo": "mistralai/Mistral-Large-4-1T-A52B",
+  "url": "https://huggingface.co/mistralai/Mistral-Large-4-1T-A52B",
+  "revision": "af26e7869af601441d5cdf75a1272469ddc3d059",
+  "retrieved_at": "2026-11-05T22:21:55.540830+00:00",
+  "role": "Large general model",
+  "license": "other",
+  "gated": false,
+  "weight_files_present": true,
+  "guidance_kind": "Prompt-related model-card sections",
+  "dedicated_prompting_manual": "Family-wide guidance; model-specific parameters remain in the pinned model card.",
+  "files": [
+    {
+      "title": "README.md",
+      "snapshot": "mistral-large-4/README.md",
+      "url": "https://huggingface.co/mistralai/Mistral-Large-4-1T-A52B/blob/af26e7869af601441d5cdf75a1272469ddc3d059/README.md",
+      "download_url": "https://huggingface.co/mistralai/Mistral-Large-4-1T-A52B/resolve/af26e7869af601441d5cdf75a1272469ddc3d059/README.md",
+      "sha256": "498bf4121e75f5582ee276f8ad6c6d96eea78885c878819dd1551c2dd84dc92c",
+      "bytes": 19174
+    },
+    {
+      "title": "chat_template.jinja",
+      "snapshot": "mistral-large-4/chat_template.jinja",
+      "url": "https://huggingface.co/mistralai/Mistral-Large-4-1T-A52B/blob/af26e7869af601441d5cdf75a1272469ddc3d059/chat_template.jinja",
+      "download_url": "https://huggingface.co/mistralai/Mistral-Large-4-1T-A52B/resolve/af26e7869af601441d5cdf75a1272469ddc3d059/chat_template.jinja",
+      "sha256": "d98cb33c51a88da63c7929592fb6348b1f4c2efb1b936c18ab93bb4520e1c8fc",
+      "bytes": 14264
+    },
+    {
+      "title": "generation_config.json",
+      "snapshot": "mistral-large-4/generation_config.json",
+      "url": "https://huggingface.co/mistralai/Mistral-Large-4-1T-A52B/blob/af26e7869af601441d5cdf75a1272469ddc3d059/generation_config.json",
+      "download_url": "https://huggingface.co/mistralai/Mistral-Large-4-1T-A52B/resolve/af26e7869af601441d5cdf75a1272469ddc3d059/generation_config.json",
+      "sha256": "a148d24a7d4a88a3f85a000c9c805e4903598b07144e61aef9bb1ab1bc27c85c",
+      "bytes": 193
+    },
+    {
+      "title": "LICENSE",
+      "snapshot": "mistral-large-4/LICENSE",
+      "url": "https://huggingface.co/mistralai/Mistral-Large-4-1T-A52B/blob/af26e7869af601441d5cdf75a1272469ddc3d059/LICENSE",
+      "download_url": "https://huggingface.co/mistralai/Mistral-Large-4-1T-A52B/resolve/af26e7869af601441d5cdf75a1272469ddc3d059/LICENSE",
+      "sha256": "d242ebedb53ffd7e26c220e3305665ca47e4e5267fa62ff4cdeb3953b8353c78",
+      "bytes": 2632
+    },
+    {
+      "title": "Mistral prompting guide · original HTML",
+      "snapshot": "mistral-large-4/official-guide.html",
+      "url": "https://docs.mistral.ai/inference/prompting",
+      "download_url": "https://docs.mistral.ai/inference/prompting",
+      "sha256": "93d7757117fffff70c996ebab6ebfe52d4d9fecddbb76856069e39b587636da3",
+      "bytes": 833461,
+      "scope": "Family-wide guidance; model-specific parameters remain in the pinned model card."
+    },
+    {
+      "title": "Mistral prompting guide · readable text",
+      "snapshot": "mistral-large-4/official-guide.txt",
+      "url": "https://docs.mistral.ai/inference/prompting",
+      "download_url": "https://docs.mistral.ai/inference/prompting",
+      "sha256": "fec5fc039c68c76c070d4e98c9211e78c37a11a1e629e3f5e3af9f875e33bf3c",
+      "bytes": 18311,
+      "scope": "Family-wide guidance; model-specific parameters remain in the pinned model card."
+    }
+  ],
+  "failures": [],
+  "generation_integration": "Main-screen dropdown: pinned README model-card recommendations only. Other archived documents remain reference material; generator model is unchanged."
+}

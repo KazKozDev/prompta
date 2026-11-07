@@ -1,3 +1,4 @@
+import type { OfficialGuidance } from './official.ts';
 /** Контракты пайплайна «поток мыслей → промпт».
  *
  *  Все модули пайплайна — чистые функции: LLM передаётся как зависимость,
@@ -53,6 +54,8 @@ export interface Catalog {
 
 /** Разбор входного потока мыслей. Всё, что модель домыслила, — в `assumptions`. */
 export interface TaskBrief {
+  /** Short model-written topic for the result and history. */
+  topic?: string;
   goal: string;
   task_type: string;
   input: string;
@@ -101,6 +104,13 @@ export interface PipelineTrace {
 }
 
 export interface PipelineResult {
+  /** Additional standalone baseline, preceding all selected variants. */
+  zeroShotPrompt?: string;
+  claudeGuidance?: OfficialGuidance;
+  chatgptGuidance?: OfficialGuidance;
+  geminiGuidance?: OfficialGuidance;
+  grokGuidance?: OfficialGuidance;
+  openModelGuidance?: OfficialGuidance;
   brief: TaskBrief;
   choice: TechniqueChoice;
   synthesis: Synthesis;

@@ -1,0 +1,577 @@
+{
+  "sources": [
+    {
+      "id": "prompting",
+      "title": "Prompt design strategies",
+      "url": "https://aistudio.google.com/docs/prompting-strategies",
+      "requested_url": "https://ai.google.dev/gemini-api/docs/prompting-strategies",
+      "download_url": "https://aistudio.google.com/docs/prompting-strategies",
+      "snapshot": "snapshots/prompting.md",
+      "sha256": "ec17a18cbed700f9f6eadf66f22dcb5976fd022f89f361527e134407a2df497a",
+      "retrieved_at": "2026-11-05T01:43:50+00:00",
+      "scope": "general",
+      "sections": [
+        {
+          "title": "Prompt design strategies",
+          "url": "https://aistudio.google.com/docs/prompting-strategies#general-prompt",
+          "line": 6
+        },
+        {
+          "title": "Topic-specific prompt guides",
+          "url": "https://aistudio.google.com/docs/prompting-strategies#additional-prompt-guides",
+          "line": 21
+        },
+        {
+          "title": "Clear and specific instructions",
+          "url": "https://aistudio.google.com/docs/prompting-strategies#clear-and-specific-instructions",
+          "line": 33
+        },
+        {
+          "title": "Input",
+          "url": "https://aistudio.google.com/docs/prompting-strategies#input",
+          "line": 40
+        },
+        {
+          "title": "Question input",
+          "url": "https://aistudio.google.com/docs/prompting-strategies#question",
+          "line": 48
+        },
+        {
+          "title": "Task input",
+          "url": "https://aistudio.google.com/docs/prompting-strategies#task",
+          "line": 69
+        },
+        {
+          "title": "Entity input",
+          "url": "https://aistudio.google.com/docs/prompting-strategies#entity",
+          "line": 87
+        },
+        {
+          "title": "Partial input completion",
+          "url": "https://aistudio.google.com/docs/prompting-strategies#completion",
+          "line": 108
+        },
+        {
+          "title": "Constraints",
+          "url": "https://aistudio.google.com/docs/prompting-strategies#constraints",
+          "line": 183
+        },
+        {
+          "title": "Response format",
+          "url": "https://aistudio.google.com/docs/prompting-strategies#response-format",
+          "line": 211
+        },
+        {
+          "title": "Format responses with the completion strategy",
+          "url": "https://aistudio.google.com/docs/prompting-strategies#format-responses-with-the-completion-strategy",
+          "line": 232
+        },
+        {
+          "title": "Zero-shot vs few-shot prompts",
+          "url": "https://aistudio.google.com/docs/prompting-strategies#few-shot",
+          "line": 288
+        },
+        {
+          "title": "Optimal number of examples",
+          "url": "https://aistudio.google.com/docs/prompting-strategies#number-examples",
+          "line": 374
+        },
+        {
+          "title": "Consistent formatting",
+          "url": "https://aistudio.google.com/docs/prompting-strategies#consistent-formatting",
+          "line": 382
+        },
+        {
+          "title": "Add context",
+          "url": "https://aistudio.google.com/docs/prompting-strategies#context",
+          "line": 391
+        },
+        {
+          "title": "Break down prompts into components",
+          "url": "https://aistudio.google.com/docs/prompting-strategies#prompt-components",
+          "line": 468
+        },
+        {
+          "title": "Experiment with model parameters",
+          "url": "https://aistudio.google.com/docs/prompting-strategies#model-parameters",
+          "line": 490
+        },
+        {
+          "title": "Prompt iteration strategies",
+          "url": "https://aistudio.google.com/docs/prompting-strategies#iteration",
+          "line": 548
+        },
+        {
+          "title": "Fallback responses",
+          "url": "https://aistudio.google.com/docs/prompting-strategies#fallback-responses",
+          "line": 657
+        },
+        {
+          "title": "Grounding and code execution",
+          "url": "https://aistudio.google.com/docs/prompting-strategies#grounding-and-code-execution",
+          "line": 665
+        },
+        {
+          "title": "Gemini 3",
+          "url": "https://aistudio.google.com/docs/prompting-strategies#gemini-3",
+          "line": 678
+        },
+        {
+          "title": "Core prompting principles",
+          "url": "https://aistudio.google.com/docs/prompting-strategies#core-prompting-principles",
+          "line": 686
+        },
+        {
+          "title": "Gemini 3 Flash strategies",
+          "url": "https://aistudio.google.com/docs/prompting-strategies#gemini-3-flash-strategies",
+          "line": 719
+        },
+        {
+          "title": "Enhancing reasoning and planning",
+          "url": "https://aistudio.google.com/docs/prompting-strategies#enhancing-reasoning-and-planning",
+          "line": 757
+        },
+        {
+          "title": "Structured prompting examples",
+          "url": "https://aistudio.google.com/docs/prompting-strategies#structured-prompting-examples",
+          "line": 769
+        },
+        {
+          "title": "Example template combining best practices",
+          "url": "https://aistudio.google.com/docs/prompting-strategies#example-template-combining-best-practices",
+          "line": 809
+        },
+        {
+          "title": "Agentic workflows",
+          "url": "https://aistudio.google.com/docs/prompting-strategies#agentic-workflows",
+          "line": 858
+        },
+        {
+          "title": "Reasoning and strategy",
+          "url": "https://aistudio.google.com/docs/prompting-strategies#reasoning-and-strategy",
+          "line": 868
+        },
+        {
+          "title": "Execution and reliability",
+          "url": "https://aistudio.google.com/docs/prompting-strategies#execution-and-reliability",
+          "line": 876
+        },
+        {
+          "title": "Interaction and output",
+          "url": "https://aistudio.google.com/docs/prompting-strategies#interaction-and-output",
+          "line": 884
+        },
+        {
+          "title": "System instruction template",
+          "url": "https://aistudio.google.com/docs/prompting-strategies#agentic-si-template",
+          "line": 892
+        },
+        {
+          "title": "Next steps",
+          "url": "https://aistudio.google.com/docs/prompting-strategies#next-steps",
+          "line": 949
+        }
+      ]
+    },
+    {
+      "id": "thinking",
+      "title": "Gemini thinking",
+      "url": "https://aistudio.google.com/docs/thinking",
+      "requested_url": "https://aistudio.google.com/docs/thinking",
+      "download_url": "https://aistudio.google.com/docs/thinking.md",
+      "snapshot": "snapshots/thinking.md",
+      "sha256": "2c75bade5391920a5356d7e6d0d618b7ba5518139f26b5a3344756bd3cc34a87",
+      "retrieved_at": "2026-11-05T01:43:50+00:00",
+      "scope": "general",
+      "sections": [
+        {
+          "title": "Gemini thinking",
+          "url": "https://aistudio.google.com/docs/thinking#gemini-thinking",
+          "line": 6
+        },
+        {
+          "title": "Interactions with thinking",
+          "url": "https://aistudio.google.com/docs/thinking#interactions-with-thinking",
+          "line": 40
+        },
+        {
+          "title": "Thought summaries",
+          "url": "https://aistudio.google.com/docs/thinking#summaries",
+          "line": 157
+        },
+        {
+          "title": "Streaming with thinking",
+          "url": "https://aistudio.google.com/docs/thinking#streaming-with-thinking",
+          "line": 355
+        },
+        {
+          "title": "Controlling thinking",
+          "url": "https://aistudio.google.com/docs/thinking#thinking-levels",
+          "line": 636
+        },
+        {
+          "title": "Token limits and `max_output_tokens`",
+          "url": "https://aistudio.google.com/docs/thinking#token-limits",
+          "line": 802
+        },
+        {
+          "title": "Thought signatures",
+          "url": "https://aistudio.google.com/docs/thinking#signatures",
+          "line": 825
+        },
+        {
+          "title": "Stateful mode (Recommended)",
+          "url": "https://aistudio.google.com/docs/thinking#stateful-mode-recommended",
+          "line": 834
+        },
+        {
+          "title": "Stateless mode",
+          "url": "https://aistudio.google.com/docs/thinking#stateless-mode",
+          "line": 842
+        },
+        {
+          "title": "Pricing",
+          "url": "https://aistudio.google.com/docs/thinking#pricing",
+          "line": 858
+        },
+        {
+          "title": "Best practices",
+          "url": "https://aistudio.google.com/docs/thinking#best-practices",
+          "line": 985
+        },
+        {
+          "title": "What's next",
+          "url": "https://aistudio.google.com/docs/thinking#whats-next",
+          "line": 995
+        }
+      ]
+    },
+    {
+      "id": "structured-outputs",
+      "title": "Structured outputs",
+      "url": "https://aistudio.google.com/docs/structured-output",
+      "requested_url": "https://aistudio.google.com/docs/structured-output",
+      "download_url": "https://aistudio.google.com/docs/structured-output.md",
+      "snapshot": "snapshots/structured-outputs.md",
+      "sha256": "dd3e233667ff2485809fa7ba2b2eca7251dfe5490c71f22e10eab260a3fb1e09",
+      "retrieved_at": "2026-11-05T01:43:50+00:00",
+      "scope": "general",
+      "sections": [
+        {
+          "title": "Structured outputs",
+          "url": "https://aistudio.google.com/docs/structured-output#structured-outputs",
+          "line": 6
+        },
+        {
+          "title": "Structured output examples",
+          "url": "https://aistudio.google.com/docs/structured-output#structured-output-examples",
+          "line": 23
+        },
+        {
+          "title": "Recipe Extractor",
+          "url": "https://aistudio.google.com/docs/structured-output#recipe",
+          "line": 25
+        },
+        {
+          "title": "Content Moderation",
+          "url": "https://aistudio.google.com/docs/structured-output#feedback",
+          "line": 422
+        },
+        {
+          "title": "Recursive Structures",
+          "url": "https://aistudio.google.com/docs/structured-output#recursive",
+          "line": 775
+        },
+        {
+          "title": "Streaming results",
+          "url": "https://aistudio.google.com/docs/structured-output#streaming",
+          "line": 1065
+        },
+        {
+          "title": "Structured outputs with tools",
+          "url": "https://aistudio.google.com/docs/structured-output#tools",
+          "line": 1290
+        },
+        {
+          "title": "JSON schema support",
+          "url": "https://aistudio.google.com/docs/structured-output#json-schema-support",
+          "line": 1542
+        },
+        {
+          "title": "Type-specific properties",
+          "url": "https://aistudio.google.com/docs/structured-output#type-specific-properties",
+          "line": 1567
+        },
+        {
+          "title": "Structured outputs versus function calling",
+          "url": "https://aistudio.google.com/docs/structured-output#vs-function-calling",
+          "line": 1607
+        },
+        {
+          "title": "Best practices",
+          "url": "https://aistudio.google.com/docs/structured-output#best-practices",
+          "line": 1614
+        },
+        {
+          "title": "Limitations",
+          "url": "https://aistudio.google.com/docs/structured-output#limitations",
+          "line": 1624
+        },
+        {
+          "title": "Simplifying complex schemas",
+          "url": "https://aistudio.google.com/docs/structured-output#simplifying-complex-schemas",
+          "line": 1638
+        }
+      ]
+    },
+    {
+      "id": "safety",
+      "title": "Safety and factuality guidance",
+      "url": "https://aistudio.google.com/docs/safety-guidance",
+      "requested_url": "https://aistudio.google.com/docs/safety-guidance",
+      "download_url": "https://aistudio.google.com/docs/safety-guidance.md",
+      "snapshot": "snapshots/safety.md",
+      "sha256": "b955a83cdcdfc78b18a65587ccaddf060a7d84f1a919c84ad2e34c7ac2ad8ad7",
+      "retrieved_at": "2026-11-05T01:43:50+00:00",
+      "scope": "general",
+      "sections": [
+        {
+          "title": "Safety and factuality guidance",
+          "url": "https://aistudio.google.com/docs/safety-guidance#safety-and-factuality-guidance",
+          "line": 6
+        },
+        {
+          "title": "Understand the safety risks of your application",
+          "url": "https://aistudio.google.com/docs/safety-guidance#understand-the-safety-risks-of-your-application",
+          "line": 54
+        },
+        {
+          "title": "Advanced tips",
+          "url": "https://aistudio.google.com/docs/safety-guidance#advanced-tips",
+          "line": 80
+        },
+        {
+          "title": "Consider adjustments to mitigate safety and factuality risks",
+          "url": "https://aistudio.google.com/docs/safety-guidance#consider-adjustments-to-mitigate-safety-and-factuality-risks",
+          "line": 98
+        },
+        {
+          "title": "Perform safety testing appropriate to your use case",
+          "url": "https://aistudio.google.com/docs/safety-guidance#perform-safety-testing-appropriate-to-your-use-case",
+          "line": 186
+        },
+        {
+          "title": "Monitor for problems",
+          "url": "https://aistudio.google.com/docs/safety-guidance#monitor-for-problems",
+          "line": 277
+        },
+        {
+          "title": "Advanced tips",
+          "url": "https://aistudio.google.com/docs/safety-guidance#advanced-tips",
+          "line": 286
+        },
+        {
+          "title": "Next steps",
+          "url": "https://aistudio.google.com/docs/safety-guidance#next-steps",
+          "line": 296
+        }
+      ]
+    },
+    {
+      "id": "files",
+      "title": "Files API",
+      "url": "https://aistudio.google.com/docs/files",
+      "requested_url": "https://aistudio.google.com/docs/files",
+      "download_url": "https://aistudio.google.com/docs/files.md",
+      "snapshot": "snapshots/files.md",
+      "sha256": "6f0eb29fa616df91f498d3c2ebd40e2b8d16096ee94c4bebb4e1ba5c99c8f4f4",
+      "retrieved_at": "2026-11-05T01:43:50+00:00",
+      "scope": "general",
+      "sections": [
+        {
+          "title": "Files API",
+          "url": "https://aistudio.google.com/docs/files#files-api",
+          "line": 6
+        },
+        {
+          "title": "Upload a file",
+          "url": "https://aistudio.google.com/docs/files#upload-audio",
+          "line": 17
+        },
+        {
+          "title": "Get metadata for a file",
+          "url": "https://aistudio.google.com/docs/files#get-metadata",
+          "line": 232
+        },
+        {
+          "title": "List uploaded files",
+          "url": "https://aistudio.google.com/docs/files#list-uploaded",
+          "line": 350
+        },
+        {
+          "title": "Delete uploaded files",
+          "url": "https://aistudio.google.com/docs/files#delete-uploaded",
+          "line": 446
+        },
+        {
+          "title": "Usage information",
+          "url": "https://aistudio.google.com/docs/files#usage-info",
+          "line": 548
+        },
+        {
+          "title": "File prompting strategies",
+          "url": "https://aistudio.google.com/docs/files#prompt-guide",
+          "line": 559
+        },
+        {
+          "title": "Be specific in your instructions",
+          "url": "https://aistudio.google.com/docs/files#specific-instructions",
+          "line": 625
+        },
+        {
+          "title": "Add a few examples",
+          "url": "https://aistudio.google.com/docs/files#add-a-few-examples",
+          "line": 670
+        },
+        {
+          "title": "Break it down step-by-step",
+          "url": "https://aistudio.google.com/docs/files#break-it-down-step-by-step",
+          "line": 714
+        },
+        {
+          "title": "Specify the output format",
+          "url": "https://aistudio.google.com/docs/files#specify-the-output-format",
+          "line": 817
+        },
+        {
+          "title": "Put your image first for single-image prompts",
+          "url": "https://aistudio.google.com/docs/files#single-image-prompts",
+          "line": 876
+        },
+        {
+          "title": "Troubleshooting your multimodal prompt",
+          "url": "https://aistudio.google.com/docs/files#troubleshooting",
+          "line": 883
+        },
+        {
+          "title": "If the model is not drawing information from the relevant part of the image",
+          "url": "https://aistudio.google.com/docs/files#if-the-model-is-not-drawing-information-from-the-relevant-part-of-the-image",
+          "line": 888
+        },
+        {
+          "title": "If the model output is too generic and not tailored enough to the image input",
+          "url": "https://aistudio.google.com/docs/files#if-the-model-output-is-too-generic-and-not-tailored-enough-to-the-image-input",
+          "line": 921
+        },
+        {
+          "title": "Troubleshooting which part of the prompt failed",
+          "url": "https://aistudio.google.com/docs/files#troubleshooting-which-part-of-the-prompt-failed",
+          "line": 1024
+        },
+        {
+          "title": "What's next",
+          "url": "https://aistudio.google.com/docs/files#whats-next",
+          "line": 1063
+        }
+      ]
+    },
+    {
+      "id": "gemini-3-migration",
+      "title": "What's new in Gemini 3.6 Flash and 3.5 Flash-Lite",
+      "url": "https://aistudio.google.com/docs/whats-new-gemini-3.6",
+      "requested_url": "https://ai.google.dev/gemini-api/docs/gemini-3",
+      "download_url": "https://aistudio.google.com/docs/whats-new-gemini-3.6",
+      "snapshot": "snapshots/gemini-3-migration.md",
+      "sha256": "007349faa6cce2bebf5477df4caa6d8392e6ee31edea09c67cdf7e6fa7f18841",
+      "retrieved_at": "2026-11-05T01:43:50+00:00",
+      "scope": "reference-only",
+      "sections": [
+        {
+          "title": "What's new in Gemini 3.6 Flash and 3.5 Flash-Lite",
+          "url": "https://aistudio.google.com/docs/whats-new-gemini-3.6#whats-new-in-gemini-36-flash-and-35-flash-lite",
+          "line": 6
+        },
+        {
+          "title": "New models",
+          "url": "https://aistudio.google.com/docs/whats-new-gemini-3.6#new-models",
+          "line": 63
+        },
+        {
+          "title": "Quickstart",
+          "url": "https://aistudio.google.com/docs/whats-new-gemini-3.6#quickstart",
+          "line": 79
+        },
+        {
+          "title": "What's new in Gemini 3.6 Flash",
+          "url": "https://aistudio.google.com/docs/whats-new-gemini-3.6#whats-new-gemini-3-6-flash",
+          "line": 131
+        },
+        {
+          "title": "What's new in Gemini 3.5 Flash-Lite",
+          "url": "https://aistudio.google.com/docs/whats-new-gemini-3.6#whats-new-gemini-3-5-flash-lite",
+          "line": 143
+        },
+        {
+          "title": "Choosing the right Flash or Flash-Lite model",
+          "url": "https://aistudio.google.com/docs/whats-new-gemini-3.6#choosing-the-right-flash-model",
+          "line": 153
+        },
+        {
+          "title": "Antigravity agent support",
+          "url": "https://aistudio.google.com/docs/whats-new-gemini-3.6#updated-antigravity-agent",
+          "line": 164
+        },
+        {
+          "title": "API changes and parameter updates",
+          "url": "https://aistudio.google.com/docs/whats-new-gemini-3.6#api-changes-and-parameter-updates",
+          "line": 170
+        },
+        {
+          "title": "1. Sampling parameter deprecation (temperature, top_p, top_k)",
+          "url": "https://aistudio.google.com/docs/whats-new-gemini-3.6#sampling-parameter-deprecation",
+          "line": 179
+        },
+        {
+          "title": "2. Prefilled model turn validation",
+          "url": "https://aistudio.google.com/docs/whats-new-gemini-3.6#prefilled-model-turn-validation",
+          "line": 195
+        },
+        {
+          "title": "⚠️ Avoid",
+          "url": "https://aistudio.google.com/docs/whats-new-gemini-3.6#prefill-avoid",
+          "line": 199
+        },
+        {
+          "title": "✅ Recommended Migration (Interactions API)",
+          "url": "https://aistudio.google.com/docs/whats-new-gemini-3.6#prefill-recommended-migration",
+          "line": 214
+        },
+        {
+          "title": "Migration checklist",
+          "url": "https://aistudio.google.com/docs/whats-new-gemini-3.6#migration-checklist",
+          "line": 227
+        },
+        {
+          "title": "Migrate to gemini-3.6-flash",
+          "url": "https://aistudio.google.com/docs/whats-new-gemini-3.6#migrate-to-gemini-3-6-flash",
+          "line": 269
+        },
+        {
+          "title": "Migrate to gemini-3.5-flash-lite",
+          "url": "https://aistudio.google.com/docs/whats-new-gemini-3.6#migrate-to-gemini-3-5-flash-lite",
+          "line": 281
+        },
+        {
+          "title": "Other models",
+          "url": "https://aistudio.google.com/docs/whats-new-gemini-3.6#other-models",
+          "line": 291
+        },
+        {
+          "title": "What's next",
+          "url": "https://aistudio.google.com/docs/whats-new-gemini-3.6#whats-next",
+          "line": 297
+        }
+      ]
+    }
+  ]
+}

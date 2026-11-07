@@ -1,0 +1,768 @@
+{
+  "verified_at": "2026-11-05",
+  "selection_policy": "Dated curated set of 15 leading open-weight general/reasoning/coding models, balancing flagship capability, specialization and developer diversity. Not a universal benchmark rank. Ordering is editorial, not numerical performance ranking. Official model repository and weight-file presence are checked. Open-weight is not a claim that training data, code or licenses are fully open source.",
+  "selection_discovery": [
+    "https://artificialwatch.com/open-weights",
+    "https://benchlm.ai/best/open-source"
+  ],
+  "models": [
+    {
+      "id": "kimi-k3-1-pro",
+      "name": "Kimi K3.1 Pro",
+      "repo": "moonshotai/Kimi-K3.1-Pro",
+      "url": "https://huggingface.co/moonshotai/Kimi-K3.1-Pro",
+      "revision": "d9e99b0792a5e93b78ea9bea62a68167e36ddd9e",
+      "retrieved_at": "2026-11-05T22:21:54.712787+00:00",
+      "role": "Frontier general reasoning",
+      "license": "other",
+      "gated": false,
+      "weight_files_present": true,
+      "guidance_kind": "Prompt-related model-card sections",
+      "dedicated_prompting_manual": "not established; model card and official template provided",
+      "files": [
+        {
+          "title": "README.md",
+          "snapshot": "kimi-k3-1-pro/README.md",
+          "url": "https://huggingface.co/moonshotai/Kimi-K3.1-Pro/blob/d9e99b0792a5e93b78ea9bea62a68167e36ddd9e/README.md",
+          "download_url": "https://huggingface.co/moonshotai/Kimi-K3.1-Pro/resolve/d9e99b0792a5e93b78ea9bea62a68167e36ddd9e/README.md",
+          "sha256": "5daa13793292c65cf198b2f4997c69a21378a1688c40c8b3dbdf48a27dd15085",
+          "bytes": 47653
+        },
+        {
+          "title": "generation_config.json",
+          "snapshot": "kimi-k3-1-pro/generation_config.json",
+          "url": "https://huggingface.co/moonshotai/Kimi-K3.1-Pro/blob/d9e99b0792a5e93b78ea9bea62a68167e36ddd9e/generation_config.json",
+          "download_url": "https://huggingface.co/moonshotai/Kimi-K3.1-Pro/resolve/d9e99b0792a5e93b78ea9bea62a68167e36ddd9e/generation_config.json",
+          "sha256": "c6648c25e9705af7fba8847e243840d21b5cc63ddeb6297f750a7ddbb6a02836",
+          "bytes": 53
+        },
+        {
+          "title": "LICENSE",
+          "snapshot": "kimi-k3-1-pro/LICENSE",
+          "url": "https://huggingface.co/moonshotai/Kimi-K3.1-Pro/blob/d9e99b0792a5e93b78ea9bea62a68167e36ddd9e/LICENSE",
+          "download_url": "https://huggingface.co/moonshotai/Kimi-K3.1-Pro/resolve/d9e99b0792a5e93b78ea9bea62a68167e36ddd9e/LICENSE",
+          "sha256": "da05c356f773d22a0e1c6de390f280304d7cee6eb56fa161aa789d30dedba63b",
+          "bytes": 3077
+        }
+      ],
+      "failures": [],
+      "generation_integration": "Main-screen dropdown: pinned README model-card recommendations only. Other archived documents remain reference material; generator model is unchanged."
+    },
+    {
+      "id": "deepseek-v4-1-flash",
+      "name": "DeepSeek V4.1 Flash 1017",
+      "repo": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+      "url": "https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash-1017",
+      "revision": "1bae0e1088993b9b82de08f59de5be5a34e42170",
+      "retrieved_at": "2026-11-05T22:21:54.515296+00:00",
+      "role": "General reasoning, coding and agents",
+      "license": "mit",
+      "gated": false,
+      "weight_files_present": true,
+      "guidance_kind": "Prompt-related model-card sections",
+      "dedicated_prompting_manual": "not established; model card and official template provided",
+      "files": [
+        {
+          "title": "README.md",
+          "snapshot": "deepseek-v4-1-flash/README.md",
+          "url": "https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash-1017/blob/1bae0e1088993b9b82de08f59de5be5a34e42170/README.md",
+          "download_url": "https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash-1017/resolve/1bae0e1088993b9b82de08f59de5be5a34e42170/README.md",
+          "sha256": "b72b796e4f4c739eca5d0ad360a7679b39118ca7eb64891f7151a527b292c42a",
+          "bytes": 5231
+        },
+        {
+          "title": "LICENSE",
+          "snapshot": "deepseek-v4-1-flash/LICENSE",
+          "url": "https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash-1017/blob/1bae0e1088993b9b82de08f59de5be5a34e42170/LICENSE",
+          "download_url": "https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash-1017/resolve/1bae0e1088993b9b82de08f59de5be5a34e42170/LICENSE",
+          "sha256": "f2c6c602815669d292889e5be8c802f2ed950653b77999b1584e8e6aed25d040",
+          "bytes": 1084
+        }
+      ],
+      "failures": [],
+      "generation_integration": "Main-screen dropdown: pinned README model-card recommendations only. Other archived documents remain reference material; generator model is unchanged."
+    },
+    {
+      "id": "glm-5-3",
+      "name": "GLM-5.3",
+      "repo": "zai-org/GLM-5.3",
+      "url": "https://huggingface.co/zai-org/GLM-5.3",
+      "revision": "ba32f8c19c8738e2c57c71798c601d477a7bf844",
+      "retrieved_at": "2026-11-05T22:21:54.706211+00:00",
+      "role": "Frontier coding and agents",
+      "license": "other",
+      "gated": false,
+      "weight_files_present": true,
+      "guidance_kind": "Official model card; no dedicated prompting section located",
+      "dedicated_prompting_manual": "not established; model card and official template provided",
+      "files": [
+        {
+          "title": "README.md",
+          "snapshot": "glm-5-3/README.md",
+          "url": "https://huggingface.co/zai-org/GLM-5.3/blob/ba32f8c19c8738e2c57c71798c601d477a7bf844/README.md",
+          "download_url": "https://huggingface.co/zai-org/GLM-5.3/resolve/ba32f8c19c8738e2c57c71798c601d477a7bf844/README.md",
+          "sha256": "ed1c0a4563c437a32f8953d637a1db9bd831de1b24bd3062a5ace9e04340b1cf",
+          "bytes": 14209
+        },
+        {
+          "title": "chat_template.jinja",
+          "snapshot": "glm-5-3/chat_template.jinja",
+          "url": "https://huggingface.co/zai-org/GLM-5.3/blob/ba32f8c19c8738e2c57c71798c601d477a7bf844/chat_template.jinja",
+          "download_url": "https://huggingface.co/zai-org/GLM-5.3/resolve/ba32f8c19c8738e2c57c71798c601d477a7bf844/chat_template.jinja",
+          "sha256": "0e2b6268ac54f04d2bc1157e8cfb896cb66f25c0b5e319ea12e56014c3914f24",
+          "bytes": 10614
+        },
+        {
+          "title": "generation_config.json",
+          "snapshot": "glm-5-3/generation_config.json",
+          "url": "https://huggingface.co/zai-org/GLM-5.3/blob/ba32f8c19c8738e2c57c71798c601d477a7bf844/generation_config.json",
+          "download_url": "https://huggingface.co/zai-org/GLM-5.3/resolve/ba32f8c19c8738e2c57c71798c601d477a7bf844/generation_config.json",
+          "sha256": "ac76b43d8683d3b930126870fc8be73d8679308fe752fa1f381096d8354f6a55",
+          "bytes": 194
+        },
+        {
+          "title": "LICENSE",
+          "snapshot": "glm-5-3/LICENSE",
+          "url": "https://huggingface.co/zai-org/GLM-5.3/blob/ba32f8c19c8738e2c57c71798c601d477a7bf844/LICENSE",
+          "download_url": "https://huggingface.co/zai-org/GLM-5.3/resolve/ba32f8c19c8738e2c57c71798c601d477a7bf844/LICENSE",
+          "sha256": "96e1622099fc9d6b70c9760f007d99e66d7497eec636b63c60fe208401e9170c",
+          "bytes": 4263
+        }
+      ],
+      "failures": [],
+      "generation_integration": "Main-screen dropdown: pinned README model-card recommendations only. Other archived documents remain reference material; generator model is unchanged."
+    },
+    {
+      "id": "qwen3-8-max",
+      "name": "Qwen3.8 2.4T A95B",
+      "repo": "Qwen/Qwen3.8-2.4T-A95B",
+      "url": "https://huggingface.co/Qwen/Qwen3.8-2.4T-A95B",
+      "revision": "207bd685a7e3696cfaff12ded7c6a7ea0f88c996",
+      "retrieved_at": "2026-11-05T22:21:54.711814+00:00",
+      "role": "Large general reasoning model",
+      "license": "other",
+      "gated": false,
+      "weight_files_present": true,
+      "guidance_kind": "Prompt-related model-card sections",
+      "dedicated_prompting_manual": "not established; model card and official template provided",
+      "files": [
+        {
+          "title": "README.md",
+          "snapshot": "qwen3-8-max/README.md",
+          "url": "https://huggingface.co/Qwen/Qwen3.8-2.4T-A95B/blob/207bd685a7e3696cfaff12ded7c6a7ea0f88c996/README.md",
+          "download_url": "https://huggingface.co/Qwen/Qwen3.8-2.4T-A95B/resolve/207bd685a7e3696cfaff12ded7c6a7ea0f88c996/README.md",
+          "sha256": "7690c680c2d6eb284179ef5dd4db63260d248531cae9087b09b2c2200230f331",
+          "bytes": 35755
+        },
+        {
+          "title": "chat_template.jinja",
+          "snapshot": "qwen3-8-max/chat_template.jinja",
+          "url": "https://huggingface.co/Qwen/Qwen3.8-2.4T-A95B/blob/207bd685a7e3696cfaff12ded7c6a7ea0f88c996/chat_template.jinja",
+          "download_url": "https://huggingface.co/Qwen/Qwen3.8-2.4T-A95B/resolve/207bd685a7e3696cfaff12ded7c6a7ea0f88c996/chat_template.jinja",
+          "sha256": "40ce34a5bcbc0231462740761215bc31a83882a8b3a4b6aa1c6e869b95945e4e",
+          "bytes": 7495
+        },
+        {
+          "title": "generation_config.json",
+          "snapshot": "qwen3-8-max/generation_config.json",
+          "url": "https://huggingface.co/Qwen/Qwen3.8-2.4T-A95B/blob/207bd685a7e3696cfaff12ded7c6a7ea0f88c996/generation_config.json",
+          "download_url": "https://huggingface.co/Qwen/Qwen3.8-2.4T-A95B/resolve/207bd685a7e3696cfaff12ded7c6a7ea0f88c996/generation_config.json",
+          "sha256": "e70c136c1b78ddc1fb0905bac8e733a4dc448d4f852a5dd75143fffc70be550e",
+          "bytes": 202
+        },
+        {
+          "title": "LICENSE",
+          "snapshot": "qwen3-8-max/LICENSE",
+          "url": "https://huggingface.co/Qwen/Qwen3.8-2.4T-A95B/blob/207bd685a7e3696cfaff12ded7c6a7ea0f88c996/LICENSE",
+          "download_url": "https://huggingface.co/Qwen/Qwen3.8-2.4T-A95B/resolve/207bd685a7e3696cfaff12ded7c6a7ea0f88c996/LICENSE",
+          "sha256": "a136bc4137ef3d7a7a54963164a47270f73e497917728ea0f4407a0115db1290",
+          "bytes": 3390
+        }
+      ],
+      "failures": [],
+      "generation_integration": "Main-screen dropdown: pinned README model-card recommendations only. Other archived documents remain reference material; generator model is unchanged."
+    },
+    {
+      "id": "minimax-m3-1-flash",
+      "name": "MiniMax M3.1 Flash",
+      "repo": "MiniMaxAI/MiniMax-M3.1-Flash",
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash",
+      "revision": "ce7f4df87d2e05262f5775f373dac4772f134041",
+      "retrieved_at": "2026-11-05T22:21:54.746184+00:00",
+      "role": "Agentic and coding model",
+      "license": "other",
+      "gated": false,
+      "weight_files_present": true,
+      "guidance_kind": "Prompt-related model-card sections",
+      "dedicated_prompting_manual": "not established; model card and official template provided",
+      "files": [
+        {
+          "title": "README.md",
+          "snapshot": "minimax-m3-1-flash/README.md",
+          "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/blob/ce7f4df87d2e05262f5775f373dac4772f134041/README.md",
+          "download_url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/ce7f4df87d2e05262f5775f373dac4772f134041/README.md",
+          "sha256": "c49a7cca92321066bc20e25ce720260242dcb112baf1d09c7c213899e39d2151",
+          "bytes": 23757
+        },
+        {
+          "title": "chat_template.jinja",
+          "snapshot": "minimax-m3-1-flash/chat_template.jinja",
+          "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/blob/ce7f4df87d2e05262f5775f373dac4772f134041/chat_template.jinja",
+          "download_url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/ce7f4df87d2e05262f5775f373dac4772f134041/chat_template.jinja",
+          "sha256": "961e3f96b2c08d26555efdfeb3b384d5e81181bf0cfc04edbadc31c6e507b431",
+          "bytes": 11633
+        },
+        {
+          "title": "generation_config.json",
+          "snapshot": "minimax-m3-1-flash/generation_config.json",
+          "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/blob/ce7f4df87d2e05262f5775f373dac4772f134041/generation_config.json",
+          "download_url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/ce7f4df87d2e05262f5775f373dac4772f134041/generation_config.json",
+          "sha256": "272d19efac5060ff8c9f76c7ed67909a5da1be466284ee4f1f1bd2a810c6fad2",
+          "bytes": 150
+        },
+        {
+          "title": "LICENSE",
+          "snapshot": "minimax-m3-1-flash/LICENSE",
+          "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/blob/ce7f4df87d2e05262f5775f373dac4772f134041/LICENSE",
+          "download_url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/ce7f4df87d2e05262f5775f373dac4772f134041/LICENSE",
+          "sha256": "8c4978e3e0fe0349ff929cc8450463cba3039c4c9fc144d8bd5382ab00df247a",
+          "bytes": 3363
+        }
+      ],
+      "failures": [],
+      "generation_integration": "Main-screen dropdown: pinned README model-card recommendations only. Other archived documents remain reference material; generator model is unchanged."
+    },
+    {
+      "id": "mistral-large-4",
+      "name": "Mistral Large 4",
+      "repo": "mistralai/Mistral-Large-4-1T-A52B",
+      "url": "https://huggingface.co/mistralai/Mistral-Large-4-1T-A52B",
+      "revision": "af26e7869af601441d5cdf75a1272469ddc3d059",
+      "retrieved_at": "2026-11-05T22:21:55.540830+00:00",
+      "role": "Large general model",
+      "license": "other",
+      "gated": false,
+      "weight_files_present": true,
+      "guidance_kind": "Prompt-related model-card sections",
+      "dedicated_prompting_manual": "Family-wide guidance; model-specific parameters remain in the pinned model card.",
+      "files": [
+        {
+          "title": "README.md",
+          "snapshot": "mistral-large-4/README.md",
+          "url": "https://huggingface.co/mistralai/Mistral-Large-4-1T-A52B/blob/af26e7869af601441d5cdf75a1272469ddc3d059/README.md",
+          "download_url": "https://huggingface.co/mistralai/Mistral-Large-4-1T-A52B/resolve/af26e7869af601441d5cdf75a1272469ddc3d059/README.md",
+          "sha256": "498bf4121e75f5582ee276f8ad6c6d96eea78885c878819dd1551c2dd84dc92c",
+          "bytes": 19174
+        },
+        {
+          "title": "chat_template.jinja",
+          "snapshot": "mistral-large-4/chat_template.jinja",
+          "url": "https://huggingface.co/mistralai/Mistral-Large-4-1T-A52B/blob/af26e7869af601441d5cdf75a1272469ddc3d059/chat_template.jinja",
+          "download_url": "https://huggingface.co/mistralai/Mistral-Large-4-1T-A52B/resolve/af26e7869af601441d5cdf75a1272469ddc3d059/chat_template.jinja",
+          "sha256": "d98cb33c51a88da63c7929592fb6348b1f4c2efb1b936c18ab93bb4520e1c8fc",
+          "bytes": 14264
+        },
+        {
+          "title": "generation_config.json",
+          "snapshot": "mistral-large-4/generation_config.json",
+          "url": "https://huggingface.co/mistralai/Mistral-Large-4-1T-A52B/blob/af26e7869af601441d5cdf75a1272469ddc3d059/generation_config.json",
+          "download_url": "https://huggingface.co/mistralai/Mistral-Large-4-1T-A52B/resolve/af26e7869af601441d5cdf75a1272469ddc3d059/generation_config.json",
+          "sha256": "a148d24a7d4a88a3f85a000c9c805e4903598b07144e61aef9bb1ab1bc27c85c",
+          "bytes": 193
+        },
+        {
+          "title": "LICENSE",
+          "snapshot": "mistral-large-4/LICENSE",
+          "url": "https://huggingface.co/mistralai/Mistral-Large-4-1T-A52B/blob/af26e7869af601441d5cdf75a1272469ddc3d059/LICENSE",
+          "download_url": "https://huggingface.co/mistralai/Mistral-Large-4-1T-A52B/resolve/af26e7869af601441d5cdf75a1272469ddc3d059/LICENSE",
+          "sha256": "d242ebedb53ffd7e26c220e3305665ca47e4e5267fa62ff4cdeb3953b8353c78",
+          "bytes": 2632
+        },
+        {
+          "title": "Mistral prompting guide · original HTML",
+          "snapshot": "mistral-large-4/official-guide.html",
+          "url": "https://docs.mistral.ai/inference/prompting",
+          "download_url": "https://docs.mistral.ai/inference/prompting",
+          "sha256": "93d7757117fffff70c996ebab6ebfe52d4d9fecddbb76856069e39b587636da3",
+          "bytes": 833461,
+          "scope": "Family-wide guidance; model-specific parameters remain in the pinned model card."
+        },
+        {
+          "title": "Mistral prompting guide · readable text",
+          "snapshot": "mistral-large-4/official-guide.txt",
+          "url": "https://docs.mistral.ai/inference/prompting",
+          "download_url": "https://docs.mistral.ai/inference/prompting",
+          "sha256": "fec5fc039c68c76c070d4e98c9211e78c37a11a1e629e3f5e3af9f875e33bf3c",
+          "bytes": 18311,
+          "scope": "Family-wide guidance; model-specific parameters remain in the pinned model card."
+        }
+      ],
+      "failures": [],
+      "generation_integration": "Main-screen dropdown: pinned README model-card recommendations only. Other archived documents remain reference material; generator model is unchanged."
+    },
+    {
+      "id": "gemma-4-31b",
+      "name": "Gemma 4 31B IT",
+      "repo": "google/gemma-4-31B-it",
+      "url": "https://huggingface.co/google/gemma-4-31B-it",
+      "revision": "842da3794eaa0b77d5f08bae87a17459d91ff475",
+      "retrieved_at": "2026-11-05T22:21:55.509424+00:00",
+      "role": "Efficient general and multimodal model",
+      "license": "apache-2.0",
+      "gated": false,
+      "weight_files_present": true,
+      "guidance_kind": "Prompt-related model-card sections",
+      "dedicated_prompting_manual": "Gemma 4 family: control tokens and prompt formatting.",
+      "files": [
+        {
+          "title": "README.md",
+          "snapshot": "gemma-4-31b/README.md",
+          "url": "https://huggingface.co/google/gemma-4-31B-it/blob/842da3794eaa0b77d5f08bae87a17459d91ff475/README.md",
+          "download_url": "https://huggingface.co/google/gemma-4-31B-it/resolve/842da3794eaa0b77d5f08bae87a17459d91ff475/README.md",
+          "sha256": "e209f5c435b1e66055bd6d7c29185103ae8d2027a03a96b359335154f206b82b",
+          "bytes": 27963
+        },
+        {
+          "title": "chat_template.jinja",
+          "snapshot": "gemma-4-31b/chat_template.jinja",
+          "url": "https://huggingface.co/google/gemma-4-31B-it/blob/842da3794eaa0b77d5f08bae87a17459d91ff475/chat_template.jinja",
+          "download_url": "https://huggingface.co/google/gemma-4-31B-it/resolve/842da3794eaa0b77d5f08bae87a17459d91ff475/chat_template.jinja",
+          "sha256": "ae53464bf3be25802b3a5b37def7fd89667067d7577049b3b2d74c4d8de4c6d4",
+          "bytes": 18683
+        },
+        {
+          "title": "generation_config.json",
+          "snapshot": "gemma-4-31b/generation_config.json",
+          "url": "https://huggingface.co/google/gemma-4-31B-it/blob/842da3794eaa0b77d5f08bae87a17459d91ff475/generation_config.json",
+          "download_url": "https://huggingface.co/google/gemma-4-31B-it/resolve/842da3794eaa0b77d5f08bae87a17459d91ff475/generation_config.json",
+          "sha256": "d4226bbe3117d2d253ba4609720ba82c6c4ce4627a9a6ae05387c78983ac03de",
+          "bytes": 208
+        },
+        {
+          "title": "Gemma 4 prompt formatting · original HTML",
+          "snapshot": "gemma-4-31b/official-guide.html",
+          "url": "https://ai.google.dev/gemma/docs/core/prompt-formatting-gemma4",
+          "download_url": "https://ai.google.dev/gemma/docs/core/prompt-formatting-gemma4",
+          "sha256": "e74d27f63c4c7a76ce3f1844bb6423a6260ac18955452ee07b33d6340fadd314",
+          "bytes": 155709,
+          "scope": "Gemma 4 family: control tokens and prompt formatting."
+        },
+        {
+          "title": "Gemma 4 prompt formatting · readable text",
+          "snapshot": "gemma-4-31b/official-guide.txt",
+          "url": "https://ai.google.dev/gemma/docs/core/prompt-formatting-gemma4",
+          "download_url": "https://ai.google.dev/gemma/docs/core/prompt-formatting-gemma4",
+          "sha256": "f4a6554be37b81f6664c75b8c1d1c624b69027196b7c6c77a5152212d6e9591a",
+          "bytes": 14454,
+          "scope": "Gemma 4 family: control tokens and prompt formatting."
+        }
+      ],
+      "failures": [],
+      "generation_integration": "Main-screen dropdown: pinned README model-card recommendations only. Other archived documents remain reference material; generator model is unchanged."
+    },
+    {
+      "id": "nemotron-3-5-super",
+      "name": "Nemotron 3.5 Super VL 120B A12B",
+      "repo": "nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-BF16",
+      "url": "https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-BF16",
+      "revision": "fb0ee0bc6b3f70342afd8d84cb80dbadbaa8a1fe",
+      "retrieved_at": "2026-11-05T22:21:55.718075+00:00",
+      "role": "Multimodal reasoning and agents",
+      "license": "other",
+      "gated": false,
+      "weight_files_present": true,
+      "guidance_kind": "Prompt-related model-card sections",
+      "dedicated_prompting_manual": "not established; model card and official template provided",
+      "files": [
+        {
+          "title": "README.md",
+          "snapshot": "nemotron-3-5-super/README.md",
+          "url": "https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-BF16/blob/fb0ee0bc6b3f70342afd8d84cb80dbadbaa8a1fe/README.md",
+          "download_url": "https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-BF16/resolve/fb0ee0bc6b3f70342afd8d84cb80dbadbaa8a1fe/README.md",
+          "sha256": "5314d0e464ebb95a4e84a29736b0297a32a0c9eea814a65d8f1791e4cb3f91fb",
+          "bytes": 92182
+        },
+        {
+          "title": "chat_template.jinja",
+          "snapshot": "nemotron-3-5-super/chat_template.jinja",
+          "url": "https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-BF16/blob/fb0ee0bc6b3f70342afd8d84cb80dbadbaa8a1fe/chat_template.jinja",
+          "download_url": "https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-BF16/resolve/fb0ee0bc6b3f70342afd8d84cb80dbadbaa8a1fe/chat_template.jinja",
+          "sha256": "1369e90b19976f99ce2070eb21ade8fcb4af640f008e14e82af5c5e89a9cc816",
+          "bytes": 12927
+        },
+        {
+          "title": "generation_config.json",
+          "snapshot": "nemotron-3-5-super/generation_config.json",
+          "url": "https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-BF16/blob/fb0ee0bc6b3f70342afd8d84cb80dbadbaa8a1fe/generation_config.json",
+          "download_url": "https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-BF16/resolve/fb0ee0bc6b3f70342afd8d84cb80dbadbaa8a1fe/generation_config.json",
+          "sha256": "015bf4f765008e744f4d325f9320cfc2de35539f9cb972a505979471695a0feb",
+          "bytes": 210
+        }
+      ],
+      "failures": [],
+      "generation_integration": "Main-screen dropdown: pinned README model-card recommendations only. Other archived documents remain reference material; generator model is unchanged."
+    },
+    {
+      "id": "gpt-oss-120b",
+      "name": "gpt-oss-120b",
+      "repo": "openai/gpt-oss-120b",
+      "url": "https://huggingface.co/openai/gpt-oss-120b",
+      "revision": "b5c939de8f754692c1647ca79fbf85e8c1e70f8a",
+      "retrieved_at": "2026-11-05T22:21:55.742748+00:00",
+      "role": "Open-weight reasoning model",
+      "license": "apache-2.0",
+      "gated": false,
+      "weight_files_present": true,
+      "guidance_kind": "Prompt-related model-card sections",
+      "dedicated_prompting_manual": "Harmony message format used by gpt-oss.",
+      "files": [
+        {
+          "title": "README.md",
+          "snapshot": "gpt-oss-120b/README.md",
+          "url": "https://huggingface.co/openai/gpt-oss-120b/blob/b5c939de8f754692c1647ca79fbf85e8c1e70f8a/README.md",
+          "download_url": "https://huggingface.co/openai/gpt-oss-120b/resolve/b5c939de8f754692c1647ca79fbf85e8c1e70f8a/README.md",
+          "sha256": "92b0408cf5dce04e4c5e4e5f2be0361da710d3650baefd7d7519badd1c687919",
+          "bytes": 7111
+        },
+        {
+          "title": "chat_template.jinja",
+          "snapshot": "gpt-oss-120b/chat_template.jinja",
+          "url": "https://huggingface.co/openai/gpt-oss-120b/blob/b5c939de8f754692c1647ca79fbf85e8c1e70f8a/chat_template.jinja",
+          "download_url": "https://huggingface.co/openai/gpt-oss-120b/resolve/b5c939de8f754692c1647ca79fbf85e8c1e70f8a/chat_template.jinja",
+          "sha256": "a4c9919cbbd4acdd51ccffe22da049264b1b73e59055fa58811a99efbd7c8146",
+          "bytes": 16738
+        },
+        {
+          "title": "generation_config.json",
+          "snapshot": "gpt-oss-120b/generation_config.json",
+          "url": "https://huggingface.co/openai/gpt-oss-120b/blob/b5c939de8f754692c1647ca79fbf85e8c1e70f8a/generation_config.json",
+          "download_url": "https://huggingface.co/openai/gpt-oss-120b/resolve/b5c939de8f754692c1647ca79fbf85e8c1e70f8a/generation_config.json",
+          "sha256": "f9970ada892d2d1f72e3ed0a6535ccebadd11897318794ca671d8c7014c957da",
+          "bytes": 177
+        },
+        {
+          "title": "LICENSE",
+          "snapshot": "gpt-oss-120b/LICENSE",
+          "url": "https://huggingface.co/openai/gpt-oss-120b/blob/b5c939de8f754692c1647ca79fbf85e8c1e70f8a/LICENSE",
+          "download_url": "https://huggingface.co/openai/gpt-oss-120b/resolve/b5c939de8f754692c1647ca79fbf85e8c1e70f8a/LICENSE",
+          "sha256": "58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd",
+          "bytes": 11357
+        },
+        {
+          "title": "OpenAI Harmony format · original HTML",
+          "snapshot": "gpt-oss-120b/official-guide.html",
+          "url": "https://developers.openai.com/cookbook/articles/openai-harmony",
+          "download_url": "https://developers.openai.com/cookbook/articles/openai-harmony",
+          "sha256": "cc7ae8d0c71a313841e6654254892a4fae8666dfd4632cc711c8000f2a17431e",
+          "bytes": 461557,
+          "scope": "Harmony message format used by gpt-oss."
+        },
+        {
+          "title": "OpenAI Harmony format · readable text",
+          "snapshot": "gpt-oss-120b/official-guide.txt",
+          "url": "https://developers.openai.com/cookbook/articles/openai-harmony",
+          "download_url": "https://developers.openai.com/cookbook/articles/openai-harmony",
+          "sha256": "7f45df914d61c36d3ef5a668888f08fe87b08d5d61eb12ec8f33d8bc92820010",
+          "bytes": 37527,
+          "scope": "Harmony message format used by gpt-oss."
+        }
+      ],
+      "failures": [],
+      "generation_integration": "Main-screen dropdown: pinned README model-card recommendations only. Other archived documents remain reference material; generator model is unchanged."
+    },
+    {
+      "id": "mimo-v2-6-pro",
+      "name": "MiMo V2.6 Pro MOPD",
+      "repo": "XiaomiMiMo/MiMo-V2.6-Pro-MOPD",
+      "url": "https://huggingface.co/XiaomiMiMo/MiMo-V2.6-Pro-MOPD",
+      "revision": "da71ee15e76a8849bd1a9610195c452007a79678",
+      "retrieved_at": "2026-11-05T22:21:55.739002+00:00",
+      "role": "Large general and agentic model",
+      "license": "mit",
+      "gated": false,
+      "weight_files_present": true,
+      "guidance_kind": "Prompt-related model-card sections",
+      "dedicated_prompting_manual": "not established; model card and official template provided",
+      "files": [
+        {
+          "title": "README.md",
+          "snapshot": "mimo-v2-6-pro/README.md",
+          "url": "https://huggingface.co/XiaomiMiMo/MiMo-V2.6-Pro-MOPD/blob/da71ee15e76a8849bd1a9610195c452007a79678/README.md",
+          "download_url": "https://huggingface.co/XiaomiMiMo/MiMo-V2.6-Pro-MOPD/resolve/da71ee15e76a8849bd1a9610195c452007a79678/README.md",
+          "sha256": "a9bddb669274da67c62495ebbb47a0e251ccc4665f65a01bcf2fddc2cff7589a",
+          "bytes": 11168
+        },
+        {
+          "title": "chat_template.jinja",
+          "snapshot": "mimo-v2-6-pro/chat_template.jinja",
+          "url": "https://huggingface.co/XiaomiMiMo/MiMo-V2.6-Pro-MOPD/blob/da71ee15e76a8849bd1a9610195c452007a79678/chat_template.jinja",
+          "download_url": "https://huggingface.co/XiaomiMiMo/MiMo-V2.6-Pro-MOPD/resolve/da71ee15e76a8849bd1a9610195c452007a79678/chat_template.jinja",
+          "sha256": "11ea52e156de38a458e6b7720ad45915d65b97d4ec979a09f55e3c9bd1b4d059",
+          "bytes": 3867
+        },
+        {
+          "title": "generation_config.json",
+          "snapshot": "mimo-v2-6-pro/generation_config.json",
+          "url": "https://huggingface.co/XiaomiMiMo/MiMo-V2.6-Pro-MOPD/blob/da71ee15e76a8849bd1a9610195c452007a79678/generation_config.json",
+          "download_url": "https://huggingface.co/XiaomiMiMo/MiMo-V2.6-Pro-MOPD/resolve/da71ee15e76a8849bd1a9610195c452007a79678/generation_config.json",
+          "sha256": "eecf00d9701921271c904a916c425ba6db61bcd190902e200d0a322bfd5572dd",
+          "bytes": 195
+        }
+      ],
+      "failures": [],
+      "generation_integration": "Main-screen dropdown: pinned README model-card recommendations only. Other archived documents remain reference material; generator model is unchanged."
+    },
+    {
+      "id": "deepseek-v4-pro",
+      "name": "DeepSeek V4 Pro 0813",
+      "repo": "deepseek-ai/DeepSeek-V4-Pro-0813",
+      "url": "https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro-0813",
+      "revision": "72e1d3230f6c080a530b0a1d46f8eb4602340597",
+      "retrieved_at": "2026-11-05T22:21:56.522477+00:00",
+      "role": "Large reasoning model",
+      "license": "mit",
+      "gated": false,
+      "weight_files_present": true,
+      "guidance_kind": "Prompt-related model-card sections",
+      "dedicated_prompting_manual": "not established; model card and official template provided",
+      "files": [
+        {
+          "title": "README.md",
+          "snapshot": "deepseek-v4-pro/README.md",
+          "url": "https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro-0813/blob/72e1d3230f6c080a530b0a1d46f8eb4602340597/README.md",
+          "download_url": "https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro-0813/resolve/72e1d3230f6c080a530b0a1d46f8eb4602340597/README.md",
+          "sha256": "61755d88e95789fcd7a36f50892f97bba977a30fc99d0f2907ab787ed10b0e66",
+          "bytes": 7522
+        },
+        {
+          "title": "generation_config.json",
+          "snapshot": "deepseek-v4-pro/generation_config.json",
+          "url": "https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro-0813/blob/72e1d3230f6c080a530b0a1d46f8eb4602340597/generation_config.json",
+          "download_url": "https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro-0813/resolve/72e1d3230f6c080a530b0a1d46f8eb4602340597/generation_config.json",
+          "sha256": "5fccff80f55a4d455bbe516bdd552edf3e9623df95e99fbf2a3c3389fdf91af0",
+          "bytes": 170
+        },
+        {
+          "title": "LICENSE",
+          "snapshot": "deepseek-v4-pro/LICENSE",
+          "url": "https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro-0813/blob/72e1d3230f6c080a530b0a1d46f8eb4602340597/LICENSE",
+          "download_url": "https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro-0813/resolve/72e1d3230f6c080a530b0a1d46f8eb4602340597/LICENSE",
+          "sha256": "f2c6c602815669d292889e5be8c802f2ed950653b77999b1584e8e6aed25d040",
+          "bytes": 1084
+        }
+      ],
+      "failures": [],
+      "generation_integration": "Main-screen dropdown: pinned README model-card recommendations only. Other archived documents remain reference material; generator model is unchanged."
+    },
+    {
+      "id": "qwen3-coder-next",
+      "name": "Qwen3-Coder-Next",
+      "repo": "Qwen/Qwen3-Coder-Next",
+      "url": "https://huggingface.co/Qwen/Qwen3-Coder-Next",
+      "revision": "a7fbcb5c0e12d62a448eaa0e260346bf5dcc0feb",
+      "retrieved_at": "2026-11-05T22:21:56.306673+00:00",
+      "role": "Coding specialist",
+      "license": "apache-2.0",
+      "gated": false,
+      "weight_files_present": true,
+      "guidance_kind": "Prompt-related model-card sections",
+      "dedicated_prompting_manual": "not established; model card and official template provided",
+      "files": [
+        {
+          "title": "README.md",
+          "snapshot": "qwen3-coder-next/README.md",
+          "url": "https://huggingface.co/Qwen/Qwen3-Coder-Next/blob/a7fbcb5c0e12d62a448eaa0e260346bf5dcc0feb/README.md",
+          "download_url": "https://huggingface.co/Qwen/Qwen3-Coder-Next/resolve/a7fbcb5c0e12d62a448eaa0e260346bf5dcc0feb/README.md",
+          "sha256": "548db6d595e3bd88d7f6e7f4eae8e66ce8e6f980fd5ce52d7daf222e38559af6",
+          "bytes": 7600
+        },
+        {
+          "title": "chat_template.jinja",
+          "snapshot": "qwen3-coder-next/chat_template.jinja",
+          "url": "https://huggingface.co/Qwen/Qwen3-Coder-Next/blob/a7fbcb5c0e12d62a448eaa0e260346bf5dcc0feb/chat_template.jinja",
+          "download_url": "https://huggingface.co/Qwen/Qwen3-Coder-Next/resolve/a7fbcb5c0e12d62a448eaa0e260346bf5dcc0feb/chat_template.jinja",
+          "sha256": "c79a833039a43602150cce0902403d6e376c50930c1b2a139b2964e1f0c322a0",
+          "bytes": 6068
+        },
+        {
+          "title": "generation_config.json",
+          "snapshot": "qwen3-coder-next/generation_config.json",
+          "url": "https://huggingface.co/Qwen/Qwen3-Coder-Next/blob/a7fbcb5c0e12d62a448eaa0e260346bf5dcc0feb/generation_config.json",
+          "download_url": "https://huggingface.co/Qwen/Qwen3-Coder-Next/resolve/a7fbcb5c0e12d62a448eaa0e260346bf5dcc0feb/generation_config.json",
+          "sha256": "37a3c1ef63516ca489c575f0db1c0405ddc0c3dbaca9ed987344c966c37aeef5",
+          "bytes": 214
+        }
+      ],
+      "failures": [],
+      "generation_integration": "Main-screen dropdown: pinned README model-card recommendations only. Other archived documents remain reference material; generator model is unchanged."
+    },
+    {
+      "id": "glm-5-3-flash",
+      "name": "GLM-5.3 Flash",
+      "repo": "zai-org/GLM-5.3-Flash",
+      "url": "https://huggingface.co/zai-org/GLM-5.3-Flash",
+      "revision": "46a050bec13002ad29ee795c16e61cf4fa3c4a9c",
+      "retrieved_at": "2026-11-05T22:21:56.759053+00:00",
+      "role": "Fast coding and agentic model",
+      "license": "mit",
+      "gated": false,
+      "weight_files_present": true,
+      "guidance_kind": "Official model card; no dedicated prompting section located",
+      "dedicated_prompting_manual": "Provider API usage guide; hosted FlashX settings are not automatically equivalent to downloaded weights.",
+      "files": [
+        {
+          "title": "README.md",
+          "snapshot": "glm-5-3-flash/README.md",
+          "url": "https://huggingface.co/zai-org/GLM-5.3-Flash/blob/46a050bec13002ad29ee795c16e61cf4fa3c4a9c/README.md",
+          "download_url": "https://huggingface.co/zai-org/GLM-5.3-Flash/resolve/46a050bec13002ad29ee795c16e61cf4fa3c4a9c/README.md",
+          "sha256": "e6c5d41400e28f5a89418a0d15b09b9c113314a7553d40d7d4a8a72fcdb87d02",
+          "bytes": 8027
+        },
+        {
+          "title": "chat_template.jinja",
+          "snapshot": "glm-5-3-flash/chat_template.jinja",
+          "url": "https://huggingface.co/zai-org/GLM-5.3-Flash/blob/46a050bec13002ad29ee795c16e61cf4fa3c4a9c/chat_template.jinja",
+          "download_url": "https://huggingface.co/zai-org/GLM-5.3-Flash/resolve/46a050bec13002ad29ee795c16e61cf4fa3c4a9c/chat_template.jinja",
+          "sha256": "2614a3c896d53e265f564c23701173c0049f985dacfbae79fc4bcd9f5ba083f4",
+          "bytes": 10830
+        },
+        {
+          "title": "generation_config.json",
+          "snapshot": "glm-5-3-flash/generation_config.json",
+          "url": "https://huggingface.co/zai-org/GLM-5.3-Flash/blob/46a050bec13002ad29ee795c16e61cf4fa3c4a9c/generation_config.json",
+          "download_url": "https://huggingface.co/zai-org/GLM-5.3-Flash/resolve/46a050bec13002ad29ee795c16e61cf4fa3c4a9c/generation_config.json",
+          "sha256": "230c30609ecbbb9e6583bedde8e7bdda0c6eb8fe5fad0eaeb3d1b293d751cb4f",
+          "bytes": 194
+        },
+        {
+          "title": "LICENSE",
+          "snapshot": "glm-5-3-flash/LICENSE",
+          "url": "https://huggingface.co/zai-org/GLM-5.3-Flash/blob/46a050bec13002ad29ee795c16e61cf4fa3c4a9c/LICENSE",
+          "download_url": "https://huggingface.co/zai-org/GLM-5.3-Flash/resolve/46a050bec13002ad29ee795c16e61cf4fa3c4a9c/LICENSE",
+          "sha256": "30b85b6b9659f2e78aa259f8faf5d920a68dee7c9ced3fa6dba1f19f2bc4fca1",
+          "bytes": 1070
+        },
+        {
+          "title": "GLM 5.3 Flash usage guide · original HTML",
+          "snapshot": "glm-5-3-flash/official-guide.html",
+          "url": "https://docs.z.ai/guides/vlm/glm-5.3-flash",
+          "download_url": "https://docs.z.ai/guides/vlm/glm-5.3-flash",
+          "sha256": "aa1153d3ba9eff8e0ed06baba07b9b205f33866c339bdcef746b6e7b871603bd",
+          "bytes": 235136,
+          "scope": "Provider API usage guide; hosted FlashX settings are not automatically equivalent to downloaded weights."
+        },
+        {
+          "title": "GLM 5.3 Flash usage guide · readable text",
+          "snapshot": "glm-5-3-flash/official-guide.txt",
+          "url": "https://docs.z.ai/guides/vlm/glm-5.3-flash",
+          "download_url": "https://docs.z.ai/guides/vlm/glm-5.3-flash",
+          "sha256": "c56d1b1c166960db77165be98be998bb634bf5c7c44965b781feb3a8b2d018f0",
+          "bytes": 85825,
+          "scope": "Provider API usage guide; hosted FlashX settings are not automatically equivalent to downloaded weights."
+        }
+      ],
+      "failures": [],
+      "generation_integration": "Main-screen dropdown: pinned README model-card recommendations only. Other archived documents remain reference material; generator model is unchanged."
+    },
+    {
+      "id": "kimi-k2-7-code",
+      "name": "Kimi K2.7 Code",
+      "repo": "moonshotai/Kimi-K2.7-Code",
+      "url": "https://huggingface.co/moonshotai/Kimi-K2.7-Code",
+      "revision": "74797c9c62378b951a1f6fcf5c4631024e9b8bef",
+      "retrieved_at": "2026-11-05T22:21:56.819833+00:00",
+      "role": "Coding specialist",
+      "license": "other",
+      "gated": false,
+      "weight_files_present": true,
+      "guidance_kind": "Prompt-related model-card sections",
+      "dedicated_prompting_manual": "not established; model card and official template provided",
+      "files": [
+        {
+          "title": "README.md",
+          "snapshot": "kimi-k2-7-code/README.md",
+          "url": "https://huggingface.co/moonshotai/Kimi-K2.7-Code/blob/74797c9c62378b951a1f6fcf5c4631024e9b8bef/README.md",
+          "download_url": "https://huggingface.co/moonshotai/Kimi-K2.7-Code/resolve/74797c9c62378b951a1f6fcf5c4631024e9b8bef/README.md",
+          "sha256": "c78bbe5af19636b180eda956abf1f30a79027ec04d6642ebddc44edbc4470879",
+          "bytes": 15061
+        },
+        {
+          "title": "chat_template.jinja",
+          "snapshot": "kimi-k2-7-code/chat_template.jinja",
+          "url": "https://huggingface.co/moonshotai/Kimi-K2.7-Code/blob/74797c9c62378b951a1f6fcf5c4631024e9b8bef/chat_template.jinja",
+          "download_url": "https://huggingface.co/moonshotai/Kimi-K2.7-Code/resolve/74797c9c62378b951a1f6fcf5c4631024e9b8bef/chat_template.jinja",
+          "sha256": "8d21200dff7e85beaf51c8b110952e039ffd0779f615d64d63293d74773360f9",
+          "bytes": 2385
+        },
+        {
+          "title": "generation_config.json",
+          "snapshot": "kimi-k2-7-code/generation_config.json",
+          "url": "https://huggingface.co/moonshotai/Kimi-K2.7-Code/blob/74797c9c62378b951a1f6fcf5c4631024e9b8bef/generation_config.json",
+          "download_url": "https://huggingface.co/moonshotai/Kimi-K2.7-Code/resolve/74797c9c62378b951a1f6fcf5c4631024e9b8bef/generation_config.json",
+          "sha256": "b784cc6a9ecb551196b81cb6b1d2dcb18467b92adaab6992ae4cc455ad44d2ce",
+          "bytes": 91
+        },
+        {
+          "title": "LICENSE",
+          "snapshot": "kimi-k2-7-code/LICENSE",
+          "url": "https://huggingface.co/moonshotai/Kimi-K2.7-Code/blob/74797c9c62378b951a1f6fcf5c4631024e9b8bef/LICENSE",
+          "download_url": "https://huggingface.co/moonshotai/Kimi-K2.7-Code/resolve/74797c9c62378b951a1f6fcf5c4631024e9b8bef/LICENSE",
+          "sha256": "9cb73476cecdfabac7775bf7c225bd5f6017d5d678372917e4456964c0454f7a",
+          "bytes": 1470
+        }
+      ],
+      "failures": [],
+      "generation_integration": "Main-screen dropdown: pinned README model-card recommendations only. Other archived documents remain reference material; generator model is unchanged."
+    },
+    {
+      "id": "qwen3-8-flash-next",
+      "name": "Qwen3.8 Flash Next",
+      "repo": "Qwen/Qwen3.8-Flash-Next",
+      "url": "https://huggingface.co/Qwen/Qwen3.8-Flash-Next",
+      "revision": "7ecef55a2e549814c62143fcf8b5be457695e3b9",
+      "retrieved_at": "2026-11-05T22:21:56.833208+00:00",
+      "role": "Efficient general and agentic model",
+      "license": "other",
+      "gated": false,
+      "weight_files_present": true,
+      "guidance_kind": "Prompt-related model-card sections",
+      "dedicated_prompting_manual": "not established; model card and official template provided",
+      "files": [
+        {
+          "title": "README.md",
+          "snapshot": "qwen3-8-flash-next/README.md",
+          "url": "https://huggingface.co/Qwen/Qwen3.8-Flash-Next/blob/7ecef55a2e549814c62143fcf8b5be457695e3b9/README.md",
+          "download_url": "https://huggingface.co/Qwen/Qwen3.8-Flash-Next/resolve/7ecef55a2e549814c62143fcf8b5be457695e3b9/README.md",
+          "sha256": "5c151489c5de6ba51318e5e03d9ffb80622f118b37e7af550a6c174c5a9fe104",
+          "bytes": 65087
+        },
+        {
+          "title": "chat_template.jinja",
+          "snapshot": "qwen3-8-flash-next/chat_template.jinja",
+          "url": "https://huggingface.co/Qwen/Qwen3.8-Flash-Next/blob/7ecef55a2e549814c62143fcf8b5be457695e3b9/chat_template.jinja",
+          "download_url": "https://huggingface.co/Qwen/Qwen3.8-Flash-Next/resolve/7ecef55a2e549814c62143fcf8b5be457695e3b9/chat_template.jinja",
+          "sha256": "c3cf9e34abf4f9e36c2d72165aa9c132d3e2a725b6c2586aaa3a8af9d7a81041",
+          "bytes": 8952
+        },
+        {
+          "title": "generation_config.json",
+          "snapshot": "qwen3-8-flash-next/generation_config.json",
+          "url": "https://huggingface.co/Qwen/Qwen3.8-Flash-Next/blob/7ecef55a2e549814c62143fcf8b5be457695e3b9/generation_config.json",
+          "download_url": "https://huggingface.co/Qwen/Qwen3.8-Flash-Next/resolve/7ecef55a2e549814c62143fcf8b5be457695e3b9/generation_config.json",
+          "sha256": "e70c136c1b78ddc1fb0905bac8e733a4dc448d4f852a5dd75143fffc70be550e",
+          "bytes": 202
+        },
+        {
+          "title": "LICENSE",
+          "snapshot": "qwen3-8-flash-next/LICENSE",
+          "url": "https://huggingface.co/Qwen/Qwen3.8-Flash-Next/blob/7ecef55a2e549814c62143fcf8b5be457695e3b9/LICENSE",
+          "download_url": "https://huggingface.co/Qwen/Qwen3.8-Flash-Next/resolve/7ecef55a2e549814c62143fcf8b5be457695e3b9/LICENSE",
+          "sha256": "a0dc422560841fd68e06d974907f8b4c709bca44a67daad2b528437bdf676c08",
+          "bytes": 3235
+        }
+      ],
+      "failures": [],
+      "generation_integration": "Main-screen dropdown: pinned README model-card recommendations only. Other archived documents remain reference material; generator model is unchanged."
+    }
+  ]
+}

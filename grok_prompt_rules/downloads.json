@@ -1,0 +1,50 @@
+[
+  {
+    "id": "best-practices",
+    "url": "https://docs.x.ai/developers/model-capabilities/text/best-practices",
+    "download_url": "https://docs.x.ai/developers/model-capabilities/text/best-practices",
+    "snapshot": "snapshots/best-practices.md",
+    "sha256": "87ab397069fe8fef0ced9d89d32e3b7e9b69f76b5d276f6b902de036faeef2b6",
+    "retrieved_at": "2026-11-05T21:13:08.637948+00:00"
+  },
+  {
+    "id": "text",
+    "url": "https://docs.x.ai/developers/model-capabilities/text/generate-text",
+    "download_url": "https://docs.x.ai/developers/model-capabilities/text/generate-text",
+    "snapshot": "snapshots/text.md",
+    "sha256": "4fb5b21e895004eb3d21c26207da39451c94b5562a6f597b00ba307c362af258",
+    "retrieved_at": "2026-11-05T21:13:08.882021+00:00"
+  },
+  {
+    "id": "reasoning",
+    "url": "https://docs.x.ai/developers/model-capabilities/text/reasoning",
+    "download_url": "https://docs.x.ai/developers/model-capabilities/text/reasoning",
+    "snapshot": "snapshots/reasoning.md",
+    "sha256": "a2e64d53f9053b2eb08073b8ff47b47b76188080e0a788e1c983e76c5448394d",
+    "retrieved_at": "2026-11-05T21:13:09.115693+00:00"
+  },
+  {
+    "id": "structured-outputs",
+    "url": "https://docs.x.ai/developers/model-capabilities/text/structured-outputs",
+    "download_url": "https://docs.x.ai/developers/model-capabilities/text/structured-outputs",
+    "snapshot": "snapshots/structured-outputs.md",
+    "sha256": "5ee0c8f1e7e06f4b05d803f23acc7109dbfd7d5f56a88943d28122dcf2c1f907",
+    "retrieved_at": "2026-11-05T21:13:09.294250+00:00"
+  },
+  {
+    "id": "multi-agent",
+    "url": "https://docs.x.ai/developers/model-capabilities/text/multi-agent",
+    "download_url": "https://docs.x.ai/developers/model-capabilities/text/multi-agent",
+    "snapshot": "snapshots/multi-agent.md",
+    "sha256": "d830cd1460ad6c86c13c545627c1c57b22d60fe873a8c7201067251ba22a5543",
+    "retrieved_at": "2026-11-05T21:13:09.562241+00:00"
+  },
+  {
+    "id": "function-calling",
+    "url": "https://docs.x.ai/developers/tools/function-calling",
+    "download_url": "https://docs.x.ai/developers/tools/function-calling",
+    "snapshot": "snapshots/function-calling.md",
+    "sha256": "38b7952cd832aec2bf56ff8b81a326e386f6f0cc2aa0ce01c65f7fa91fa31307",
+    "retrieved_at": "2026-11-05T21:13:09.785191+00:00"
+  }
+]

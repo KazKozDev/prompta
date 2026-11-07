@@ -1,0 +1,42 @@
+{
+  "id": "kimi-k3-1-pro",
+  "name": "Kimi K3.1 Pro",
+  "repo": "moonshotai/Kimi-K3.1-Pro",
+  "url": "https://huggingface.co/moonshotai/Kimi-K3.1-Pro",
+  "revision": "d9e99b0792a5e93b78ea9bea62a68167e36ddd9e",
+  "retrieved_at": "2026-11-05T22:21:54.712787+00:00",
+  "role": "Frontier general reasoning",
+  "license": "other",
+  "gated": false,
+  "weight_files_present": true,
+  "guidance_kind": "Prompt-related model-card sections",
+  "dedicated_prompting_manual": "not established; model card and official template provided",
+  "files": [
+    {
+      "title": "README.md",
+      "snapshot": "kimi-k3-1-pro/README.md",
+      "url": "https://huggingface.co/moonshotai/Kimi-K3.1-Pro/blob/d9e99b0792a5e93b78ea9bea62a68167e36ddd9e/README.md",
+      "download_url": "https://huggingface.co/moonshotai/Kimi-K3.1-Pro/resolve/d9e99b0792a5e93b78ea9bea62a68167e36ddd9e/README.md",
+      "sha256": "5daa13793292c65cf198b2f4997c69a21378a1688c40c8b3dbdf48a27dd15085",
+      "bytes": 47653
+    },
+    {
+      "title": "generation_config.json",
+      "snapshot": "kimi-k3-1-pro/generation_config.json",
+      "url": "https://huggingface.co/moonshotai/Kimi-K3.1-Pro/blob/d9e99b0792a5e93b78ea9bea62a68167e36ddd9e/generation_config.json",
+      "download_url": "https://huggingface.co/moonshotai/Kimi-K3.1-Pro/resolve/d9e99b0792a5e93b78ea9bea62a68167e36ddd9e/generation_config.json",
+      "sha256": "c6648c25e9705af7fba8847e243840d21b5cc63ddeb6297f750a7ddbb6a02836",
+      "bytes": 53
+    },
+    {
+      "title": "LICENSE",
+      "snapshot": "kimi-k3-1-pro/LICENSE",
+      "url": "https://huggingface.co/moonshotai/Kimi-K3.1-Pro/blob/d9e99b0792a5e93b78ea9bea62a68167e36ddd9e/LICENSE",
+      "download_url": "https://huggingface.co/moonshotai/Kimi-K3.1-Pro/resolve/d9e99b0792a5e93b78ea9bea62a68167e36ddd9e/LICENSE",
+      "sha256": "da05c356f773d22a0e1c6de390f280304d7cee6eb56fa161aa789d30dedba63b",
+      "bytes": 3077
+    }
+  ],
+  "failures": [],
+  "generation_integration": "Main-screen dropdown: pinned README model-card recommendations only. Other archived documents remain reference material; generator model is unchanged."
+}

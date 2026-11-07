@@ -1,0 +1,42 @@
+{
+  "id": "nemotron-3-5-super",
+  "name": "Nemotron 3.5 Super VL 120B A12B",
+  "repo": "nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-BF16",
+  "url": "https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-BF16",
+  "revision": "fb0ee0bc6b3f70342afd8d84cb80dbadbaa8a1fe",
+  "retrieved_at": "2026-11-05T22:21:55.718075+00:00",
+  "role": "Multimodal reasoning and agents",
+  "license": "other",
+  "gated": false,
+  "weight_files_present": true,
+  "guidance_kind": "Prompt-related model-card sections",
+  "dedicated_prompting_manual": "not established; model card and official template provided",
+  "files": [
+    {
+      "title": "README.md",
+      "snapshot": "nemotron-3-5-super/README.md",
+      "url": "https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-BF16/blob/fb0ee0bc6b3f70342afd8d84cb80dbadbaa8a1fe/README.md",
+      "download_url": "https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-BF16/resolve/fb0ee0bc6b3f70342afd8d84cb80dbadbaa8a1fe/README.md",
+      "sha256": "5314d0e464ebb95a4e84a29736b0297a32a0c9eea814a65d8f1791e4cb3f91fb",
+      "bytes": 92182
+    },
+    {
+      "title": "chat_template.jinja",
+      "snapshot": "nemotron-3-5-super/chat_template.jinja",
+      "url": "https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-BF16/blob/fb0ee0bc6b3f70342afd8d84cb80dbadbaa8a1fe/chat_template.jinja",
+      "download_url": "https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-BF16/resolve/fb0ee0bc6b3f70342afd8d84cb80dbadbaa8a1fe/chat_template.jinja",
+      "sha256": "1369e90b19976f99ce2070eb21ade8fcb4af640f008e14e82af5c5e89a9cc816",
+      "bytes": 12927
+    },
+    {
+      "title": "generation_config.json",
+      "snapshot": "nemotron-3-5-super/generation_config.json",
+      "url": "https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-BF16/blob/fb0ee0bc6b3f70342afd8d84cb80dbadbaa8a1fe/generation_config.json",
+      "download_url": "https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-BF16/resolve/fb0ee0bc6b3f70342afd8d84cb80dbadbaa8a1fe/generation_config.json",
+      "sha256": "015bf4f765008e744f4d325f9320cfc2de35539f9cb972a505979471695a0feb",
+      "bytes": 210
+    }
+  ],
+  "failures": [],
+  "generation_integration": "Main-screen dropdown: pinned README model-card recommendations only. Other archived documents remain reference material; generator model is unchanged."
+}

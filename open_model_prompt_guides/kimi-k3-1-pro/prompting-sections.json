@@ -1,0 +1,21 @@
+{
+  "source_url": "https://huggingface.co/moonshotai/Kimi-K3.1-Pro/blob/d9e99b0792a5e93b78ea9bea62a68167e36ddd9e/README.md",
+  "source_sha256": "5daa13793292c65cf198b2f4997c69a21378a1688c40c8b3dbdf48a27dd15085",
+  "sections": [
+    {
+      "section": "Reasoning, knowledge, and multimodal benchmarks",
+      "line": 632,
+      "text": "#### Reasoning, knowledge, and multimodal benchmarks\n\n1. **GDP.pdf.** Each PDF is provided as page images resized to a longest edge of 1,152 pixels, interleaved with Docling-extracted text in page order. Responses are graded against each rubric criterion using Gemini-3.5-Flash Medium and the official judging prompt. The table reports the strict pass rate among fully scored responses. GLM-5.3 Max and DeepSeek-V4.1-Flash-1017 Max scores are cited from [Artificial Analysis](https://artificialanalysis.ai/).\n2. **HLE-Full and HLE-Diamond.** The full evaluation sets contain 2,500 and 1,000 questions, respectively. For scores marked `*`, accuracy is reported on the text-only subset.\n3. **Run counts.** GDP.pdf, ZeroBench, and ChartoGraphy are averaged over five runs; other multimodal benchmarks are averaged over four.\n4. **MMMU-Pro.** Evaluated using the official protocol, preserving the original input order and prepending images to the text input.\n5. **PerceptionBench.** An in-house benchmark focused on atomic visual perception capabilities.\n6. **Kimi Hallucination Benchmark.** Evaluates factual accuracy on an internal set of challenging, de-identified prompts drawn from practical work tasks. The table reports claim-level hallucination rates assessed by fact-checking agents.\n"
+    },
+    {
+      "section": "4. Deployment and Availability",
+      "line": 649,
+      "text": "## 4. Deployment and Availability\n\n> [!Note]\n> You can access Kimi K3.1 Pro's API on https://platform.kimi.ai by selecting `kimi-k3.1-pro`, and we provide OpenAI/Anthropic-compatible API for you.\n> Currently, Kimi K3.1 Pro is recommended to run on the following inference engines:\n\n- [vLLM](https://github.com/vllm-project/vllm) — see [recipes](https://recipes.vllm.ai/moonshotai/Kimi-K3.1-Pro)\n- [SGLang](https://github.com/sgl-project/sglang) — see [cookbook](https://docs.sglang.io/cookbook/autoregressive/Moonshotai/Kimi-K3.1-Pro)\n- [TokenSpeed](https://github.com/lightseekorg/tokenspeed) — see [recipes](https://lightseek.org/tokenspeed/recipes/models#kimi-k3-1-pro)\n\n---"
+    },
+    {
+      "section": "5. Model Usage",
+      "line": 660,
+      "text": "## 5. Model Usage\nThe thinking effort of Kimi K3.1 Pro is configured with the top-level `reasoning_effort` request field, which supports `\"low\"`, `\"high\"`, and `\"max\"` (default `\"max\"`).\n\nFor multi-turn conversations and tool calls, Kimi K3.1 Pro requires the complete assistant message returned by the API to be passed back to `messages` as-is — including `reasoning_content` and `tool_calls`, not just `content`:\n\n```python\nimport openai\n\ndef chat_with_preserved_thinking(client: openai.OpenAI, model_name: str):\n    messages = [\n        {\n            \"role\": \"user\",\n            \"content\": \"Tell me three random numbers.\"\n        },\n        {\n            \"role\": \"assistant\",\n            \"reasoning_content\": \"I'll start by listing five numbers: 473, 921, 235, 215, 222, and I'll tell you the first three.\",\n            \"content\": \"473, 921, 235\"\n        },\n        {\n            \"role\": \"user\",\n            \"content\": \"What are the other two numbers you have in mind?\"\n        }\n    ]\n\n    response = client.chat.completions.create(\n        model=model_name,\n        messages=messages,\n        stream=False,\n        max_tokens=4096,\n        reasoning_effort=\"max\",\n    )\n    # the assistant should mention 215 and 222 that appear in the prior reasoning content\n    print(f\"response: {response.choices[0].message.reasoning}\")\n    return response.choices[0].message.content\n```\nFor full guides and examples (vision input, structured output, partial mode, tool choice, dynamic tool loading, context caching), see the [Kimi K3.1 Pro Quickstart](https://platform.kimi.ai/docs/guide/kimi-k3-1-pro-quickstart) and [Thinking Effort](https://platform.kimi.ai/docs/guide/use-thinking-effort).\n\n"
+    }
+  ]
+}

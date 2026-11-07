@@ -1,0 +1,68 @@
+{
+  "id": "glm-5-3-flash",
+  "name": "GLM-5.3 Flash",
+  "repo": "zai-org/GLM-5.3-Flash",
+  "url": "https://huggingface.co/zai-org/GLM-5.3-Flash",
+  "revision": "46a050bec13002ad29ee795c16e61cf4fa3c4a9c",
+  "retrieved_at": "2026-11-05T22:21:56.759053+00:00",
+  "role": "Fast coding and agentic model",
+  "license": "mit",
+  "gated": false,
+  "weight_files_present": true,
+  "guidance_kind": "Official model card; no dedicated prompting section located",
+  "dedicated_prompting_manual": "Provider API usage guide; hosted FlashX settings are not automatically equivalent to downloaded weights.",
+  "files": [
+    {
+      "title": "README.md",
+      "snapshot": "glm-5-3-flash/README.md",
+      "url": "https://huggingface.co/zai-org/GLM-5.3-Flash/blob/46a050bec13002ad29ee795c16e61cf4fa3c4a9c/README.md",
+      "download_url": "https://huggingface.co/zai-org/GLM-5.3-Flash/resolve/46a050bec13002ad29ee795c16e61cf4fa3c4a9c/README.md",
+      "sha256": "e6c5d41400e28f5a89418a0d15b09b9c113314a7553d40d7d4a8a72fcdb87d02",
+      "bytes": 8027
+    },
+    {
+      "title": "chat_template.jinja",
+      "snapshot": "glm-5-3-flash/chat_template.jinja",
+      "url": "https://huggingface.co/zai-org/GLM-5.3-Flash/blob/46a050bec13002ad29ee795c16e61cf4fa3c4a9c/chat_template.jinja",
+      "download_url": "https://huggingface.co/zai-org/GLM-5.3-Flash/resolve/46a050bec13002ad29ee795c16e61cf4fa3c4a9c/chat_template.jinja",
+      "sha256": "2614a3c896d53e265f564c23701173c0049f985dacfbae79fc4bcd9f5ba083f4",
+      "bytes": 10830
+    },
+    {
+      "title": "generation_config.json",
+      "snapshot": "glm-5-3-flash/generation_config.json",
+      "url": "https://huggingface.co/zai-org/GLM-5.3-Flash/blob/46a050bec13002ad29ee795c16e61cf4fa3c4a9c/generation_config.json",
+      "download_url": "https://huggingface.co/zai-org/GLM-5.3-Flash/resolve/46a050bec13002ad29ee795c16e61cf4fa3c4a9c/generation_config.json",
+      "sha256": "230c30609ecbbb9e6583bedde8e7bdda0c6eb8fe5fad0eaeb3d1b293d751cb4f",
+      "bytes": 194
+    },
+    {
+      "title": "LICENSE",
+      "snapshot": "glm-5-3-flash/LICENSE",
+      "url": "https://huggingface.co/zai-org/GLM-5.3-Flash/blob/46a050bec13002ad29ee795c16e61cf4fa3c4a9c/LICENSE",
+      "download_url": "https://huggingface.co/zai-org/GLM-5.3-Flash/resolve/46a050bec13002ad29ee795c16e61cf4fa3c4a9c/LICENSE",
+      "sha256": "30b85b6b9659f2e78aa259f8faf5d920a68dee7c9ced3fa6dba1f19f2bc4fca1",
+      "bytes": 1070
+    },
+    {
+      "title": "GLM 5.3 Flash usage guide · original HTML",
+      "snapshot": "glm-5-3-flash/official-guide.html",
+      "url": "https://docs.z.ai/guides/vlm/glm-5.3-flash",
+      "download_url": "https://docs.z.ai/guides/vlm/glm-5.3-flash",
+      "sha256": "aa1153d3ba9eff8e0ed06baba07b9b205f33866c339bdcef746b6e7b871603bd",
+      "bytes": 235136,
+      "scope": "Provider API usage guide; hosted FlashX settings are not automatically equivalent to downloaded weights."
+    },
+    {
+      "title": "GLM 5.3 Flash usage guide · readable text",
+      "snapshot": "glm-5-3-flash/official-guide.txt",
+      "url": "https://docs.z.ai/guides/vlm/glm-5.3-flash",
+      "download_url": "https://docs.z.ai/guides/vlm/glm-5.3-flash",
+      "sha256": "c56d1b1c166960db77165be98be998bb634bf5c7c44965b781feb3a8b2d018f0",
+      "bytes": 85825,
+      "scope": "Provider API usage guide; hosted FlashX settings are not automatically equivalent to downloaded weights."
+    }
+  ],
+  "failures": [],
+  "generation_integration": "Main-screen dropdown: pinned README model-card recommendations only. Other archived documents remain reference material; generator model is unchanged."
+}

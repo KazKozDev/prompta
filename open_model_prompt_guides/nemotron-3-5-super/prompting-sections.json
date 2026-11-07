@@ -1,0 +1,41 @@
+{
+  "source_url": "https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-BF16/blob/fb0ee0bc6b3f70342afd8d84cb80dbadbaa8a1fe/README.md",
+  "source_sha256": "5314d0e464ebb95a4e84a29736b0297a32a0c9eea814a65d8f1791e4cb3f91fb",
+  "sections": [
+    {
+      "section": "Quick Start",
+      "line": 81,
+      "text": "## Quick Start\n\nFor efficient inference on DGX Spark or data center GPUs, see the [NVFP4 card](https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-NVFP4). The example below serves BF16 on **4× H100**.\n\nNemotron 3.5 Super VL has configurable reasoning levels: off, on (medium), and on. Selecting on (medium) will reduce the number of tokens generated compared to on, but may impact accuracy. You can learn about the reasoning budget [here](https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-BF16#text-and-reasoning)!\n\nUse Docker with NVIDIA GPU support and the `vllm/vllm-openai:nightly-3f1bcfd82bb2e93fcd364fc7a5491718453a77e2` or (`vllm/vllm-openai:v0.32.0`) image. If the model requires authentication, set `HF_TOKEN` in your shell before launching the container.\n\n```bash\nexport MODEL=nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-BF16\n```\n\n```bash\nvllm serve $MODEL \\\n  --served-model-name nemotron-3.5-super-vl \\\n  --tensor-parallel-size 4 \\\n  --trust-remote-code \\\n  --gpu-memory-utilization=0.85 \\\n  --allowed-local-media-path=/ \\\n  --max-num-seqs=32 \\\n  --limit-mm-per-prompt '{\"video\": 1, \"image\": 1}' \\\n  --video-pruning-rate 0.5 \\\n  --media-io-kwargs '{\"video\": {\"fps\": 2, \"num_frames\": 256}}' \\\n  --enable-auto-tool-choice \\\n  --tool-call-parser qwen3_coder \\\n  --reasoning-parser nemotron_v3 \\\n  --speculative_config.method mtp \\\n  --speculative_config.num_speculative_tokens 3\n```\n\nWait for the server to finish loading the model and compiling kernels, then check the endpoint:\n\n```bash\ncurl --fail http://localhost:8000/v1/models\n```\n\nAll vLLM and SGLang examples use port `8000` and the API model name `nemotron-3.5-super-vl`. See the [API Client](#api-client) for text, image, video, and tool-calling examples.\n"
+    },
+    {
+      "section": "Deployment Geography: Global",
+      "line": 183,
+      "text": "### Deployment Geography: Global\n"
+    },
+    {
+      "section": "Quick Start Guide",
+      "line": 270,
+      "text": "## Quick Start Guide\n"
+    },
+    {
+      "section": "Choose your deployment",
+      "line": 272,
+      "text": "### Choose your deployment\n\n| Hardware | Runtime | Configuration |\n|:---|:---|:---|\n| 4× H100 | vLLM; SGLang | Text, image, and video; TP4; MTP with 5 draft tokens |\n| 2× GB200 | vLLM; SGLang | Text, image, and video; TP2; MTP with 5 draft tokens |\n"
+    },
+    {
+      "section": "Text and reasoning",
+      "line": 399,
+      "text": "#### Text and reasoning\n\n```python\nfrom openai import OpenAI\n\nclient = OpenAI(base_url=\"http://localhost:8000/v1\", api_key=\"EMPTY\")\nmodel = \"nemotron-3.5-super-vl\"\n\nresponse = client.chat.completions.create(\n    model=model,\n    messages=[{\"role\": \"user\", \"content\": \"Explain why binary search takes logarithmic time.\"}],\n    temperature=1.0,\n    top_p=0.95,\n    max_tokens=16384,\n    extra_body={\"chat_template_kwargs\": {\"enable_thinking\": True}},\n)\nchoice = response.choices[0]\nif choice.finish_reason == \"length\":\n    raise RuntimeError(\"The response reached max_tokens; increase the output budget.\")\nprint(choice.message.content)\n```\n\nSet `enable_thinking` to `False` to disable reasoning. For medium reasoning effort, use `{\"enable_thinking\": True, \"medium_effort\": True}`. Reasoning tokens and the final answer share the `max_tokens` budget.\n"
+    },
+    {
+      "section": "Tool calling",
+      "line": 479,
+      "text": "#### Tool calling\n\nThe model requests a tool call; the application executes it and returns the result. This complete example uses a local inventory lookup.\n\n```python\nimport json\nfrom openai import OpenAI\n\nclient = OpenAI(base_url=\"http://localhost:8000/v1\", api_key=\"EMPTY\")\nmodel = \"nemotron-3.5-super-vl\"\ninventory = {\"keyboard\": 12, \"monitor\": 5}\ntools = [{\"type\": \"function\", \"function\": {\n    \"name\": \"get_inventory\",\n    \"description\": \"Return the inventory count for a product.\",\n    \"parameters\": {\n        \"type\": \"object\",\n        \"properties\": {\"product\": {\"type\": \"string\", \"enum\": [\"keyboard\", \"monitor\"]}},\n        \"required\": [\"product\"],\n        \"additionalProperties\": False,\n    },\n}}]\nmessages = [{\"role\": \"user\", \"content\": \"How many keyboards are in stock?\"}]\n\ndef complete(history, tool_choice=\"auto\"):\n    response = client.chat.completions.create(\n        model=model,\n        messages=history,\n        tools=tools,\n        tool_choice=tool_choice,\n        temperature=1.0,\n        top_p=0.95,\n        max_tokens=16384,\n        extra_body={\"chat_template_kwargs\": {\"enable_thinking\": True}},\n    )\n    choice = response.choices[0]\n    if choice.finish_reason == \"length\":\n        raise RuntimeError(\"The response was truncated; increase max_tokens.\")\n    return choice.message\n\nmessage = complete(messages)\nmessages.append(message.model_dump(exclude_none=True))\nif not message.tool_calls:\n    print(message.content)\nelse:\n    for call in message.tool_calls:\n        arguments = json.loads(call.function.arguments)\n        if (call.function.name != \"get_inventory\"\n                or not isinstance(arguments, dict)\n                or set(arguments) != {\"product\"}\n                or not isinstance(arguments[\"product\"], str)\n                or arguments[\"product\"] not in inventory):\n            raise ValueError(\"Invalid inventory tool call\")\n        product = arguments[\"product\"]\n        messages.append({\n            \"role\": \"tool\",\n            \"tool_call_id\": call.id,\n            \"content\": json.dumps({\"product\": product, \"count\": inventory[product]}),\n        })\n    print(complete(messages, tool_choice=\"none\").content)\n```\n"
+    },
+    {
+      "section": "Inference",
+      "line": 988,
+      "text": "## Inference\n\n* **Acceleration Engine:** PyTorch\n\n* **Test Hardware:**\n    * NVIDIA Hopper\n        * H100\n        * H200\n    * NVIDIA Grace Blackwell\n        * GB200\n        * GB300\n    * NVIDIA Blackwell\n        * B200\n        * B300\n\nThe deployment examples above provide configurations for NVIDIA Hopper and Blackwell systems. Choose the precision, context length, and concurrency appropriate for the application and available memory.\n"
+    }
+  ]
+}

@@ -1,3 +1,5 @@
+import { buildZeroShotPrompt } from './zero-shot.ts';
+import { isOfficialSourceUrl } from './official.ts';
 import type { PipelineResult } from './types.ts';
 
 /** Чистый рендер результата пайплайна в HTML — без React, чтобы можно было тестировать и превьюить. */
@@ -16,6 +18,9 @@ export function renderPipelineResult(result: PipelineResult): string {
   const { brief, choice, synthesis } = result;
   const cfg = synthesis.config;
   const confidence = Math.round(choice.confidence * 100);
+  const target = result.claudeGuidance ? 'claude' : result.chatgptGuidance ? 'chatgpt' : result.geminiGuidance ? 'gemini' : result.grokGuidance ? 'grok' : undefined;
+  const guidance = result.claudeGuidance ?? result.chatgptGuidance ?? result.geminiGuidance ?? result.grokGuidance;
+  const targetLabel = target === 'claude' ? 'Claude' : target === 'chatgpt' ? 'ChatGPT' : target === 'grok' ? 'Grok' : 'Gemini';
 
   const chips = [
     ['type', brief.task_type],
@@ -32,8 +37,7 @@ export function renderPipelineResult(result: PipelineResult): string {
       <div class="pipeline-alt">
         <div class="pipeline-alt-head">
           <span class="pipeline-alt-title">Variant ${index + 2}: ${escapeHtml(alt.choice.name)}</span>
-          <span class="pipeline-chip">${escapeHtml(alt.choice.key)}</span>
-          <span class="pipeline-confidence">${Math.round(alt.choice.confidence * 100)}%</span>
+          <span class="pipeline-confidence">${guidance ? 'Official sources' : `${Math.round(alt.choice.confidence * 100)}%`}</span>
         </div>
         <p class="pipeline-why">${escapeHtml(alt.choice.reason)}</p>
         <div class="pipeline-prompt-wrap">
@@ -51,6 +55,9 @@ export function renderPipelineResult(result: PipelineResult): string {
     })
     .join('');
 
+  const sources = guidance && target ? `<details class="pipeline-sources"><summary>${targetLabel} rules · ${escapeHtml(guidance.rule_set_version)} · checked ${escapeHtml(guidance.verified_at)}</summary>
+    ${guidance.variants.map((v, index) => `<p class="pipeline-note">Variant ${index + 1} rules: ${v.rule_ids.map(escapeHtml).join(', ')}</p>`).join('')}
+    <ul>${guidance.rules.filter((r) => isOfficialSourceUrl(r.source_url, target)).map((r) => `<li><a href="${escapeHtml(r.source_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(r.id)} · ${escapeHtml(r.source_section)}</a></li>`).join('')}</ul></details>` : '';
   const uniqueWarnings = [...new Set(synthesis.warnings)];
   const warnings = uniqueWarnings.length
     ? `<ul class="pipeline-warnings">${uniqueWarnings.map((w) => `<li>${escapeHtml(w)}</li>`).join('')}</ul>`
@@ -63,13 +70,19 @@ export function renderPipelineResult(result: PipelineResult): string {
       <p class="pipeline-note"><b>Format:</b> ${escapeHtml(brief.output_format)}</p>
       ${brief.assumptions.length ? `<p class="pipeline-note">Assumptions: ${brief.assumptions.map(escapeHtml).join('; ')}</p>` : ''}
 
+      <div class="pipeline-prompt-wrap">
+        <div class="pipeline-prompt-bar">
+          <span>Zero-shot · baseline prompt</span>
+          <button class="pipeline-copy" type="button" data-copy>Copy</button>
+        </div>
+        <pre class="pipeline-prompt">${escapeHtml(result.zeroShotPrompt ?? buildZeroShotPrompt('', brief))}</pre>
+      </div>
       <div class="pipeline-technique">
         <div class="pipeline-technique-head">
           <span class="pipeline-technique-name">${escapeHtml(choice.name)}</span>
-          <span class="pipeline-technique-key">${escapeHtml(choice.key)}</span>
-          <span class="pipeline-confidence">confidence ${confidence}%</span>
+          <span class="pipeline-confidence">${guidance ? 'Official sources' : `confidence ${confidence}%`}</span>
         </div>
-        <div class="pipeline-bar"><span style="width: ${confidence}%"></span></div>
+        ${guidance ? '' : `<div class="pipeline-bar"><span style="width: ${confidence}%"></span></div>`}
         <p class="pipeline-why"><b>Why:</b> ${escapeHtml(choice.reason)}</p>
         <p class="pipeline-why"><b>Why not a cheaper method:</b> ${escapeHtml(choice.whyNotCheaper)}</p>
       </div>
@@ -100,6 +113,7 @@ export function renderPipelineResult(result: PipelineResult): string {
       ${warnings}
       <p class="pipeline-footer">Techniques filtered out: ${result.rejected.length}</p>
       ${alternativeCards}
+      ${sources}
     </div>`;
 }
 

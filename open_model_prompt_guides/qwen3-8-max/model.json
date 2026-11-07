@@ -1,0 +1,50 @@
+{
+  "id": "qwen3-8-max",
+  "name": "Qwen3.8 2.4T A95B",
+  "repo": "Qwen/Qwen3.8-2.4T-A95B",
+  "url": "https://huggingface.co/Qwen/Qwen3.8-2.4T-A95B",
+  "revision": "207bd685a7e3696cfaff12ded7c6a7ea0f88c996",
+  "retrieved_at": "2026-11-05T22:21:54.711814+00:00",
+  "role": "Large general reasoning model",
+  "license": "other",
+  "gated": false,
+  "weight_files_present": true,
+  "guidance_kind": "Prompt-related model-card sections",
+  "dedicated_prompting_manual": "not established; model card and official template provided",
+  "files": [
+    {
+      "title": "README.md",
+      "snapshot": "qwen3-8-max/README.md",
+      "url": "https://huggingface.co/Qwen/Qwen3.8-2.4T-A95B/blob/207bd685a7e3696cfaff12ded7c6a7ea0f88c996/README.md",
+      "download_url": "https://huggingface.co/Qwen/Qwen3.8-2.4T-A95B/resolve/207bd685a7e3696cfaff12ded7c6a7ea0f88c996/README.md",
+      "sha256": "7690c680c2d6eb284179ef5dd4db63260d248531cae9087b09b2c2200230f331",
+      "bytes": 35755
+    },
+    {
+      "title": "chat_template.jinja",
+      "snapshot": "qwen3-8-max/chat_template.jinja",
+      "url": "https://huggingface.co/Qwen/Qwen3.8-2.4T-A95B/blob/207bd685a7e3696cfaff12ded7c6a7ea0f88c996/chat_template.jinja",
+      "download_url": "https://huggingface.co/Qwen/Qwen3.8-2.4T-A95B/resolve/207bd685a7e3696cfaff12ded7c6a7ea0f88c996/chat_template.jinja",
+      "sha256": "40ce34a5bcbc0231462740761215bc31a83882a8b3a4b6aa1c6e869b95945e4e",
+      "bytes": 7495
+    },
+    {
+      "title": "generation_config.json",
+      "snapshot": "qwen3-8-max/generation_config.json",
+      "url": "https://huggingface.co/Qwen/Qwen3.8-2.4T-A95B/blob/207bd685a7e3696cfaff12ded7c6a7ea0f88c996/generation_config.json",
+      "download_url": "https://huggingface.co/Qwen/Qwen3.8-2.4T-A95B/resolve/207bd685a7e3696cfaff12ded7c6a7ea0f88c996/generation_config.json",
+      "sha256": "e70c136c1b78ddc1fb0905bac8e733a4dc448d4f852a5dd75143fffc70be550e",
+      "bytes": 202
+    },
+    {
+      "title": "LICENSE",
+      "snapshot": "qwen3-8-max/LICENSE",
+      "url": "https://huggingface.co/Qwen/Qwen3.8-2.4T-A95B/blob/207bd685a7e3696cfaff12ded7c6a7ea0f88c996/LICENSE",
+      "download_url": "https://huggingface.co/Qwen/Qwen3.8-2.4T-A95B/resolve/207bd685a7e3696cfaff12ded7c6a7ea0f88c996/LICENSE",
+      "sha256": "a136bc4137ef3d7a7a54963164a47270f73e497917728ea0f4407a0115db1290",
+      "bytes": 3390
+    }
+  ],
+  "failures": [],
+  "generation_integration": "Main-screen dropdown: pinned README model-card recommendations only. Other archived documents remain reference material; generator model is unchanged."
+}

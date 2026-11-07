@@ -1,3 +1,4 @@
+import { buildZeroShotPrompt } from './zero-shot.ts';
 import type { Catalog, LLM, PipelineResult, PipelineTrace, TaskBrief, TechniqueChoice } from './types.ts';
 import { PipelineError } from './types.ts';
 import { buildBriefPrompt, parseBrief } from './brief.ts';
@@ -6,6 +7,14 @@ import { buildSelectionPrompt, parseChoices } from './select.ts';
 import { synthesizeDeterministic, synthesizeWithLLM, valuesFromBrief } from './synthesize.ts';
 
 export interface RunOptions {
+  oneShot?: boolean;
+  /** Completed pipeline stages, not an estimate of elapsed time. */
+  onProgress?: (percent: number, stage: string) => void;
+  claudeOnly?: boolean;
+  chatgptOnly?: boolean;
+  geminiOnly?: boolean;
+  grokOnly?: boolean;
+  openModel?: string;
   thoughts: string;
   catalog: Catalog;
   llm: LLM;
@@ -22,6 +31,36 @@ export interface RunOptions {
 
 /** Полный проход: мысли → бриф → отсев → выбор → синтез. */
 export async function runPipeline(opts: RunOptions): Promise<PipelineResult> {
+  if ([opts.claudeOnly, opts.chatgptOnly, opts.geminiOnly, opts.grokOnly, opts.openModel].filter(Boolean).length > 1) {
+    throw new PipelineError('Choose only one target: Claude, ChatGPT, Gemini, or Grok.', 'target');
+  }
+  if (opts.openModel) {
+    if (opts.mode === 'deterministic' || opts.techniqueKey) throw new PipelineError('Model-specific prompting requires synthesis without a generic technique.', 'target');
+    if (typeof window !== 'undefined') throw new PipelineError('Local model documentation is available in the desktop app.', 'target');
+    const modulePath = './open-model.ts';
+    const { runOpenModelPipeline } = await import(/* @vite-ignore */ modulePath);
+    return runOpenModelPipeline({ ...opts, openModel: opts.openModel });
+  }
+  if (opts.grokOnly) {
+    if (opts.mode === 'deterministic' || opts.techniqueKey) throw new PipelineError('Grok mode requires LLM synthesis and cannot use a generic technique.', 'target');
+    const { runGrokPipeline } = await import('./grok.ts');
+    return runGrokPipeline(opts);
+  }
+  if (opts.chatgptOnly || opts.geminiOnly) {
+    const label = opts.chatgptOnly ? 'ChatGPT' : 'Gemini';
+    if (opts.mode === 'deterministic' || opts.techniqueKey) throw new PipelineError(`${label} mode requires LLM synthesis and cannot use a generic technique.`, 'target');
+    if (opts.chatgptOnly) {
+      const { runChatGPTPipeline } = await import('./chatgpt.ts');
+      return runChatGPTPipeline(opts);
+    }
+    const { runGeminiPipeline } = await import('./gemini.ts');
+    return runGeminiPipeline(opts);
+  }
+  if (opts.claudeOnly) {
+    if (opts.mode === 'deterministic' || opts.techniqueKey) throw new PipelineError('Claude mode requires LLM synthesis and cannot use a generic technique.', 'claude');
+    const { runClaudePipeline } = await import('./claude.ts');
+    return runClaudePipeline(opts);
+  }
   const mode = opts.mode ?? 'llm';
   const trace: PipelineTrace[] = [];
   const t0 = () => performance.now();
@@ -58,6 +97,7 @@ export async function runPipeline(opts: RunOptions): Promise<PipelineResult> {
     push('brief', 0, {});
   }
 
+  opts.onProgress?.(20, 'Brief ready');
   const gateStart = t0();
   const { candidates, rejected } = gateTechniques(brief, opts.catalog, {
     budgetCalls: opts.budgetCalls,
@@ -70,6 +110,7 @@ export async function runPipeline(opts: RunOptions): Promise<PipelineResult> {
     throw new PipelineError(`No eligible techniques after filtering (${why})`, 'gate');
   }
 
+  opts.onProgress?.(30, 'Techniques filtered');
   let choice: TechniqueChoice;
   let choices: TechniqueChoice[] = [];
   if (opts.techniqueKey) {
@@ -91,7 +132,7 @@ export async function runPipeline(opts: RunOptions): Promise<PipelineResult> {
     push('select', 0);
   } else {
     const selectStart = t0();
-    const variants = Math.min(3, Math.max(1, opts.variants ?? 1));
+    const variants = Math.min(5, Math.max(1, opts.variants ?? 1));
     const selectPrompt = buildSelectionPrompt(brief, candidates, variants);
     const parsed = await askJson(selectPrompt, (raw) => parseChoices(raw, candidates));
     choices = parsed.value.slice(0, variants);
@@ -99,6 +140,8 @@ export async function runPipeline(opts: RunOptions): Promise<PipelineResult> {
     push('select', t0() - selectStart, { prompt: selectPrompt, raw: parsed.raw });
   }
 
+  opts.onProgress?.(40, 'Technique selected');
+  let completed = 0;
   const synthStart = t0();
   // Варианты независимы — собираем параллельно, чтобы 3 промпта не ждались по очереди.
   const built = await Promise.all(
@@ -108,7 +151,12 @@ export async function runPipeline(opts: RunOptions): Promise<PipelineResult> {
       const synthesis =
         mode === 'deterministic'
           ? synthesizeDeterministic(brief, technique)
-          : await synthesizeWithLLM(brief, technique, opts.llm);
+          : await synthesizeWithLLM(brief, technique, opts.llm, opts.oneShot);
+      if (mode === 'deterministic' && opts.oneShot) {
+        synthesis.warnings.push('The opening one-shot example requires LLM synthesis and is omitted in offline mode.');
+      }
+      completed += 1;
+      opts.onProgress?.(40 + Math.round(55 * completed / choices.length), `Variants ready: ${completed}/${choices.length}`);
       return { choice: item, technique, synthesis };
     }),
   );
@@ -137,6 +185,7 @@ export async function runPipeline(opts: RunOptions): Promise<PipelineResult> {
   }));
 
   return {
+    zeroShotPrompt: buildZeroShotPrompt(opts.thoughts, brief),
     brief,
     choice,
     synthesis,
@@ -155,6 +204,9 @@ export function formatResult(result: PipelineResult): string {
     `Тип: ${brief.task_type} | язык: ${brief.language} | цена ошибки: ${brief.stakes}`,
     `Формат: ${brief.output_format}`,
     brief.assumptions.length ? `Допущения: ${brief.assumptions.join('; ')}` : 'Допущения: нет',
+    '',
+    'Zero-shot · базовый промпт:',
+    result.zeroShotPrompt ?? buildZeroShotPrompt('', brief),
     '',
     `Техника: ${choice.name} (${choice.key}), уверенность ${(choice.confidence * 100).toFixed(0)}%`,
     `Почему: ${choice.reason}`,

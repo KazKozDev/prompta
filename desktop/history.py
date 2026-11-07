@@ -2,11 +2,23 @@
 from __future__ import annotations
 
 import json
+from contextlib import closing
 import sqlite3
 from datetime import datetime
 from pathlib import Path
 
 HISTORY_PATH = Path.home() / 'Library' / 'Application Support' / 'Prompta' / 'history.sqlite3'
+
+
+def history_topic(thoughts: str, payload: dict, fallback: str = "Saved prompt") -> str:
+    """Use the model's topic; preserve complete wording for older saved results."""
+    brief = payload.get('brief')
+    brief = brief if isinstance(brief, dict) else {}
+    for text in (brief.get('topic'), payload.get('topic'), brief.get('goal'), thoughts, fallback):
+        if isinstance(text, str) and text.strip():
+            return ' '.join(text.split())
+    return "Saved prompt"
+
 
 
 class HistoryStore:
@@ -26,7 +38,7 @@ class HistoryStore:
     def load(self) -> list[dict]:
         if not self.path.exists():
             return []
-        with self._connect() as connection:
+        with closing(sqlite3.connect(self.path.resolve().as_uri() + '?mode=ro', uri=True, timeout=5)) as connection:
             rows = connection.execute('SELECT id, label, kind, thoughts, payload, created_at FROM history ORDER BY id').fetchall()
         entries = []
         for row in rows:

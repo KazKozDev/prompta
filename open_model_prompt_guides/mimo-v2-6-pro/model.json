@@ -1,0 +1,42 @@
+{
+  "id": "mimo-v2-6-pro",
+  "name": "MiMo V2.6 Pro MOPD",
+  "repo": "XiaomiMiMo/MiMo-V2.6-Pro-MOPD",
+  "url": "https://huggingface.co/XiaomiMiMo/MiMo-V2.6-Pro-MOPD",
+  "revision": "da71ee15e76a8849bd1a9610195c452007a79678",
+  "retrieved_at": "2026-11-05T22:21:55.739002+00:00",
+  "role": "Large general and agentic model",
+  "license": "mit",
+  "gated": false,
+  "weight_files_present": true,
+  "guidance_kind": "Prompt-related model-card sections",
+  "dedicated_prompting_manual": "not established; model card and official template provided",
+  "files": [
+    {
+      "title": "README.md",
+      "snapshot": "mimo-v2-6-pro/README.md",
+      "url": "https://huggingface.co/XiaomiMiMo/MiMo-V2.6-Pro-MOPD/blob/da71ee15e76a8849bd1a9610195c452007a79678/README.md",
+      "download_url": "https://huggingface.co/XiaomiMiMo/MiMo-V2.6-Pro-MOPD/resolve/da71ee15e76a8849bd1a9610195c452007a79678/README.md",
+      "sha256": "a9bddb669274da67c62495ebbb47a0e251ccc4665f65a01bcf2fddc2cff7589a",
+      "bytes": 11168
+    },
+    {
+      "title": "chat_template.jinja",
+      "snapshot": "mimo-v2-6-pro/chat_template.jinja",
+      "url": "https://huggingface.co/XiaomiMiMo/MiMo-V2.6-Pro-MOPD/blob/da71ee15e76a8849bd1a9610195c452007a79678/chat_template.jinja",
+      "download_url": "https://huggingface.co/XiaomiMiMo/MiMo-V2.6-Pro-MOPD/resolve/da71ee15e76a8849bd1a9610195c452007a79678/chat_template.jinja",
+      "sha256": "11ea52e156de38a458e6b7720ad45915d65b97d4ec979a09f55e3c9bd1b4d059",
+      "bytes": 3867
+    },
+    {
+      "title": "generation_config.json",
+      "snapshot": "mimo-v2-6-pro/generation_config.json",
+      "url": "https://huggingface.co/XiaomiMiMo/MiMo-V2.6-Pro-MOPD/blob/da71ee15e76a8849bd1a9610195c452007a79678/generation_config.json",
+      "download_url": "https://huggingface.co/XiaomiMiMo/MiMo-V2.6-Pro-MOPD/resolve/da71ee15e76a8849bd1a9610195c452007a79678/generation_config.json",
+      "sha256": "eecf00d9701921271c904a916c425ba6db61bcd190902e200d0a322bfd5572dd",
+      "bytes": 195
+    }
+  ],
+  "failures": [],
+  "generation_integration": "Main-screen dropdown: pinned README model-card recommendations only. Other archived documents remain reference material; generator model is unchanged."
+}

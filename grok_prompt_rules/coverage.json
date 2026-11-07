@@ -1,0 +1,18 @@
+{
+  "scope": "Six explicitly listed official text/API guides, not the entire xAI website",
+  "sources": 6,
+  "sections": 84,
+  "rules": 24,
+  "exclusions": [
+    "Code examples are archived verbatim but not treated as universal instructions.",
+    "Multi-agent prompting is reference-only for the general Grok target.",
+    "API settings and evaluation workflows are not inserted as target prompt instructions.",
+    "No official universal uncertainty instruction was found in this corpus; Grok requires clear and output-schema instead of fabricating an uncertainty rule."
+  ],
+  "acceptance_criteria": [
+    "Each active rule resolves to a downloaded source hash and exact section.",
+    "Only prompt-level rules reach the generator.",
+    "Other provider bundles and generator selection remain unchanged.",
+    "The single-file llms-full.txt endpoint returned 404; official-manual.md combines the six downloaded official guides."
+  ]
+}

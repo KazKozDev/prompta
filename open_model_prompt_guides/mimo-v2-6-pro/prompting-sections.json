@@ -1,0 +1,21 @@
+{
+  "source_url": "https://huggingface.co/XiaomiMiMo/MiMo-V2.6-Pro-MOPD/blob/da71ee15e76a8849bd1a9610195c452007a79678/README.md",
+  "source_sha256": "a9bddb669274da67c62495ebbb47a0e251ccc4665f65a01bcf2fddc2cff7589a",
+  "sections": [
+    {
+      "section": "Tool-call repetition",
+      "line": 81,
+      "text": "### Tool-call repetition\n\nFollowing the release of MiMo-V2.6, tool-call repetition emerged as one of the most noticeable issues in agentic settings: the model would sometimes issue the same or highly similar tool calls repeatedly, consuming time and context without making progress. This checkpoint mitigates it.\n\n![Tool-call repetition rate on MiMo-V2.6-Pro before and after MOPD](assets/mimo-repetition-rate-pro-en.png)\n\n*Figure: response-level repetition rate on MiMo-V2.6-Pro, RL-stage versus this checkpoint, across context lengths and agent harnesses.*\n\nThe [technical blog](https://mimo.xiaomi.com/blog/mimo-v2-6-tool-call-repetition) has the full diagnosis. The fix is lightweight to train: a short specialized-teacher run that folds into the normal MOPD pass.\n\n"
+    },
+    {
+      "section": "4. Deployment",
+      "line": 153,
+      "text": "## 4. Deployment\n\nFor best performance, follow the [SGLang MiMo cookbook](https://docs.sglang.io/cookbook/autoregressive/Xiaomi/MiMo-V2.5). Docker image: `lmsysorg/sglang:latest`.\n"
+    },
+    {
+      "section": "Usage enquiries and complaints",
+      "line": 242,
+      "text": "### Usage enquiries and complaints\n\n[mimo-legal@xiaomi.com](mailto:mimo-legal@xiaomi.com). For information on submitting a complaint, please visit the https://mimo.xiaomi.com."
+    }
+  ]
+}

@@ -1,10 +1,11 @@
+import { ONE_SHOT_INSTRUCTION } from './prompt-defaults.ts';
 import type { LLM, Technique } from './types.ts';
 
 /** Промпт «преврати мысли в промпт по методике техники» для ручного режима.
  *
  *  Ключевое отличие от простой подстановки шаблона: модель обязана построить промпт
  *  по методике (каркас + пример + назначение техники) и не оставлять заглушек. */
-export function buildManualPrompt(thoughts: string, technique: Technique): string {
+export function buildManualPrompt(thoughts: string, technique: Technique, oneShot = false): string {
   return `Ты — инженер промптов. Преврати сырые мысли пользователя в готовый промпт, построенный ПО МЕТОДИКЕ техники «${technique.name}».
 
 Зачем эта техника нужна (что должен делать промпт):
@@ -34,7 +35,8 @@ ${thoughts}
    few-shot — 2–3 конкретных примера под задачу; ToT — ветвление, оценка и откат; ReAct — цикл Thought/Action/Observation;
    contextual — ограничение «только по материалу» и ссылки на источники.
 4. Если техника требует примеров (few-shot) — придумай их под задачу пользователя, а не абстрактные.
-5. Выведи только текст промпта. Без «Вот промпт:», без markdown-обёртки и пояснений.`;
+5. Выведи только текст промпта. Без «Вот промпт:», без markdown-обёртки и пояснений.
+${oneShot ? ONE_SHOT_INSTRUCTION : ''}`;
 }
 
 /** Остались ли в промпте незаполненные заглушки. */
@@ -43,8 +45,8 @@ export function hasPlaceholders(prompt: string): boolean {
 }
 
 /** Общая проверка ручного синтеза для веба и десктопа. */
-export async function generateManualPrompt(thoughts: string, technique: Technique, llm: LLM): Promise<string> {
-  const request = buildManualPrompt(thoughts, technique);
+export async function generateManualPrompt(thoughts: string, technique: Technique, llm: LLM, oneShot = false): Promise<string> {
+  const request = buildManualPrompt(thoughts, technique, oneShot);
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const prompt = (await llm(request + (attempt ? '\n\nПерепиши полный промпт: не менее 40 символов, без {{плейсхолдеров}}.' : ''), { temperature: 0.3 })).trim();
     if (prompt.length >= 40 && !hasPlaceholders(prompt)) return prompt;

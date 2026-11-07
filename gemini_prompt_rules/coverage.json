@@ -1,0 +1,26 @@
+{
+  "date": "2026-11-05",
+  "scope": "The six official Google documentation pages in sources.json, not all Google documentation. Original source text, examples, stable section anchors, and hashes are retained. ai.google.dev redirects to the official aistudio.google.com documentation.",
+  "section_count": 99,
+  "rule_count": 45,
+  "active_rule_count": 41,
+  "active_prompt_rule_count": 30,
+  "ambiguities": [
+    {
+      "issue": "Legacy temperature recipes versus sampling deprecations in newer models",
+      "resolution": "Keep model settings as workflow/API reference; never impose a universal temperature."
+    },
+    {
+      "issue": "Visible step-by-step example versus internal thinking guidance",
+      "resolution": "Treat the example as illustrative and do not require exposed internal reasoning."
+    },
+    {
+      "issue": "System-instruction priority versus long-context query placement",
+      "resolution": "Keep essential behavioral rules first and place the task-specific question after long context."
+    },
+    {
+      "issue": "Fixed year/cutoff in example system blocks",
+      "resolution": "Never insert an assumed current date, model identity, or knowledge cutoff from an example."
+    }
+  ]
+}

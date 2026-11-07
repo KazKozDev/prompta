@@ -1,0 +1,68 @@
+{
+  "id": "gpt-oss-120b",
+  "name": "gpt-oss-120b",
+  "repo": "openai/gpt-oss-120b",
+  "url": "https://huggingface.co/openai/gpt-oss-120b",
+  "revision": "b5c939de8f754692c1647ca79fbf85e8c1e70f8a",
+  "retrieved_at": "2026-11-05T22:21:55.742748+00:00",
+  "role": "Open-weight reasoning model",
+  "license": "apache-2.0",
+  "gated": false,
+  "weight_files_present": true,
+  "guidance_kind": "Prompt-related model-card sections",
+  "dedicated_prompting_manual": "Harmony message format used by gpt-oss.",
+  "files": [
+    {
+      "title": "README.md",
+      "snapshot": "gpt-oss-120b/README.md",
+      "url": "https://huggingface.co/openai/gpt-oss-120b/blob/b5c939de8f754692c1647ca79fbf85e8c1e70f8a/README.md",
+      "download_url": "https://huggingface.co/openai/gpt-oss-120b/resolve/b5c939de8f754692c1647ca79fbf85e8c1e70f8a/README.md",
+      "sha256": "92b0408cf5dce04e4c5e4e5f2be0361da710d3650baefd7d7519badd1c687919",
+      "bytes": 7111
+    },
+    {
+      "title": "chat_template.jinja",
+      "snapshot": "gpt-oss-120b/chat_template.jinja",
+      "url": "https://huggingface.co/openai/gpt-oss-120b/blob/b5c939de8f754692c1647ca79fbf85e8c1e70f8a/chat_template.jinja",
+      "download_url": "https://huggingface.co/openai/gpt-oss-120b/resolve/b5c939de8f754692c1647ca79fbf85e8c1e70f8a/chat_template.jinja",
+      "sha256": "a4c9919cbbd4acdd51ccffe22da049264b1b73e59055fa58811a99efbd7c8146",
+      "bytes": 16738
+    },
+    {
+      "title": "generation_config.json",
+      "snapshot": "gpt-oss-120b/generation_config.json",
+      "url": "https://huggingface.co/openai/gpt-oss-120b/blob/b5c939de8f754692c1647ca79fbf85e8c1e70f8a/generation_config.json",
+      "download_url": "https://huggingface.co/openai/gpt-oss-120b/resolve/b5c939de8f754692c1647ca79fbf85e8c1e70f8a/generation_config.json",
+      "sha256": "f9970ada892d2d1f72e3ed0a6535ccebadd11897318794ca671d8c7014c957da",
+      "bytes": 177
+    },
+    {
+      "title": "LICENSE",
+      "snapshot": "gpt-oss-120b/LICENSE",
+      "url": "https://huggingface.co/openai/gpt-oss-120b/blob/b5c939de8f754692c1647ca79fbf85e8c1e70f8a/LICENSE",
+      "download_url": "https://huggingface.co/openai/gpt-oss-120b/resolve/b5c939de8f754692c1647ca79fbf85e8c1e70f8a/LICENSE",
+      "sha256": "58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd",
+      "bytes": 11357
+    },
+    {
+      "title": "OpenAI Harmony format · original HTML",
+      "snapshot": "gpt-oss-120b/official-guide.html",
+      "url": "https://developers.openai.com/cookbook/articles/openai-harmony",
+      "download_url": "https://developers.openai.com/cookbook/articles/openai-harmony",
+      "sha256": "cc7ae8d0c71a313841e6654254892a4fae8666dfd4632cc711c8000f2a17431e",
+      "bytes": 461557,
+      "scope": "Harmony message format used by gpt-oss."
+    },
+    {
+      "title": "OpenAI Harmony format · readable text",
+      "snapshot": "gpt-oss-120b/official-guide.txt",
+      "url": "https://developers.openai.com/cookbook/articles/openai-harmony",
+      "download_url": "https://developers.openai.com/cookbook/articles/openai-harmony",
+      "sha256": "7f45df914d61c36d3ef5a668888f08fe87b08d5d61eb12ec8f33d8bc92820010",
+      "bytes": 37527,
+      "scope": "Harmony message format used by gpt-oss."
+    }
+  ],
+  "failures": [],
+  "generation_integration": "Main-screen dropdown: pinned README model-card recommendations only. Other archived documents remain reference material; generator model is unchanged."
+}

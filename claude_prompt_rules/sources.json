@@ -1,0 +1,979 @@
+{
+  "sources": [
+    {
+      "id": "overview",
+      "title": "Prompt engineering overview",
+      "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/overview",
+      "download_url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/overview.md",
+      "snapshot": "snapshots/overview.md",
+      "sha256": "0dcdf2155778c9ace8ab0f2db4a9515c0a0df9b04ee32f82108cd93a6b42e318",
+      "retrieved_at": "2026-11-05T01:13:40+00:00",
+      "sections": [
+        {
+          "title": "Before prompt engineering",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/overview#before-prompt-engineering",
+          "line": 7
+        },
+        {
+          "title": "When to prompt engineer",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/overview#when-to-prompt-engineer",
+          "line": 29
+        },
+        {
+          "title": "How to prompt engineer",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/overview#how-to-prompt-engineer",
+          "line": 35
+        },
+        {
+          "title": "Prompt engineering tutorial",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/overview#prompt-engineering-tutorial",
+          "line": 43
+        }
+      ],
+      "scope": "general"
+    },
+    {
+      "id": "best-practices",
+      "title": "Prompting best practices",
+      "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices",
+      "download_url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices.md",
+      "snapshot": "snapshots/best-practices.md",
+      "sha256": "fb1ad4a72da8e53178816660d42e7740bc6c3d351d2523341f4bb672bcbb2996",
+      "retrieved_at": "2026-11-05T01:13:40+00:00",
+      "sections": [
+        {
+          "title": "Model-specific guidance",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#model-specific-guidance",
+          "line": 17
+        },
+        {
+          "title": "General principles",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#general-principles",
+          "line": 32
+        },
+        {
+          "title": "Be clear and direct",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#be-clear-and-direct",
+          "line": 36
+        },
+        {
+          "title": "Add context to improve performance",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#add-context-to-improve-performance",
+          "line": 61
+        },
+        {
+          "title": "Use examples effectively",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#use-examples-effectively",
+          "line": 81
+        },
+        {
+          "title": "Structure prompts with XML tags",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#structure-prompts-with-xml-tags",
+          "line": 95
+        },
+        {
+          "title": "Give Claude a role",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#give-claude-a-role",
+          "line": 104
+        },
+        {
+          "title": "Long context prompting",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#long-context-prompting",
+          "line": 239
+        },
+        {
+          "title": "Model self-knowledge",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#model-self-knowledge",
+          "line": 303
+        },
+        {
+          "title": "Output and formatting",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#output-and-formatting",
+          "line": 318
+        },
+        {
+          "title": "Communication style and verbosity",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#communication-style-and-verbosity",
+          "line": 320
+        },
+        {
+          "title": "Control the format of responses",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#control-the-format-of-responses",
+          "line": 336
+        },
+        {
+          "title": "LaTeX output",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#latex-output",
+          "line": 381
+        },
+        {
+          "title": "Document creation",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#document-creation",
+          "line": 391
+        },
+        {
+          "title": "Migrating away from prefilled responses",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#migrating-away-from-prefilled-responses",
+          "line": 402
+        },
+        {
+          "title": "Tool use",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#tool-use",
+          "line": 438
+        },
+        {
+          "title": "Tool usage",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#tool-usage",
+          "line": 440
+        },
+        {
+          "title": "Optimize parallel tool calling",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#optimize-parallel-tool-calling",
+          "line": 490
+        },
+        {
+          "title": "Thinking and reasoning",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#thinking-and-reasoning",
+          "line": 520
+        },
+        {
+          "title": "Overthinking and excessive thoroughness",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#overthinking-and-excessive-thoroughness",
+          "line": 522
+        },
+        {
+          "title": "Leverage thinking and interleaved thinking capabilities",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#leverage-thinking-and-interleaved-thinking-capabilities",
+          "line": 541
+        },
+        {
+          "title": "Agentic systems",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#agentic-systems",
+          "line": 791
+        },
+        {
+          "title": "Long-horizon reasoning and state tracking",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#long-horizon-reasoning-and-state-tracking",
+          "line": 793
+        },
+        {
+          "title": "Context awareness and multiwindow workflows",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#context-awareness-and-multiwindow-workflows",
+          "line": 797
+        },
+        {
+          "title": "Workflows across multiple context windows",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#workflows-across-multiple-context-windows",
+          "line": 817
+        },
+        {
+          "title": "State management best practices",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#state-management-best-practices",
+          "line": 844
+        },
+        {
+          "title": "Balancing autonomy and safety",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#balancing-autonomy-and-safety",
+          "line": 876
+        },
+        {
+          "title": "Research and information gathering",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#research-and-information-gathering",
+          "line": 897
+        },
+        {
+          "title": "Subagent orchestration",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#subagent-orchestration",
+          "line": 917
+        },
+        {
+          "title": "Chain complex prompts",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#chain-complex-prompts",
+          "line": 936
+        },
+        {
+          "title": "Reduce file creation in agentic coding",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#reduce-file-creation-in-agentic-coding",
+          "line": 942
+        },
+        {
+          "title": "Overeagerness",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#overeagerness",
+          "line": 953
+        },
+        {
+          "title": "Avoid focusing on passing tests and hardcoding",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#avoid-focusing-on-passing-tests-and-hardcoding",
+          "line": 979
+        },
+        {
+          "title": "Minimizing hallucinations in agentic coding",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#minimizing-hallucinations-in-agentic-coding",
+          "line": 999
+        },
+        {
+          "title": "Capability-specific tips",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#capability-specific-tips",
+          "line": 1013
+        },
+        {
+          "title": "Improved vision capabilities",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#improved-vision-capabilities",
+          "line": 1015
+        },
+        {
+          "title": "Frontend design",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#frontend-design",
+          "line": 1021
+        },
+        {
+          "title": "Medication dosing",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#medication-dosing",
+          "line": 1069
+        },
+        {
+          "title": "Migration considerations",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#migration-considerations",
+          "line": 1114
+        },
+        {
+          "title": "Migrating to Claude Sonnet 5.5",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#migrating-to-claude-sonnet-55",
+          "line": 1134
+        },
+        {
+          "title": "Next steps",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#next-steps",
+          "line": 1138
+        }
+      ],
+      "scope": "general"
+    },
+    {
+      "id": "hallucinations",
+      "title": "Reduce hallucinations",
+      "url": "https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/reduce-hallucinations",
+      "download_url": "https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/reduce-hallucinations.md",
+      "snapshot": "snapshots/hallucinations.md",
+      "sha256": "08281e8b3f1445aa7e98a473be7decb39f277072c4b89bc4778ebb106b9a2f26",
+      "retrieved_at": "2026-11-05T01:13:40+00:00",
+      "sections": [
+        {
+          "title": "Basic hallucination minimization strategies",
+          "url": "https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/reduce-hallucinations#basic-hallucination-minimization-strategies",
+          "line": 9
+        },
+        {
+          "title": "Advanced techniques",
+          "url": "https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/reduce-hallucinations#advanced-techniques",
+          "line": 55
+        }
+      ],
+      "scope": "general"
+    },
+    {
+      "id": "consistency",
+      "title": "Increase output consistency",
+      "url": "https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/increase-consistency",
+      "download_url": "https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/increase-consistency.md",
+      "snapshot": "snapshots/consistency.md",
+      "sha256": "b7dbb60aa4ca4a63e18da36403d6a626de8204d664a63092707ccc6ab23afd3f",
+      "retrieved_at": "2026-11-05T01:13:40+00:00",
+      "sections": [
+        {
+          "title": "Specify the output format you want",
+          "url": "https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/increase-consistency#specify-the-output-format-you-want",
+          "line": 17
+        },
+        {
+          "title": "Prefill Claude’s response",
+          "url": "https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/increase-consistency#prefill-claudes-response",
+          "line": 58
+        },
+        {
+          "title": "Constrain with examples",
+          "url": "https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/increase-consistency#constrain-with-examples",
+          "line": 163
+        },
+        {
+          "title": "Use retrieval for contextual consistency",
+          "url": "https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/increase-consistency#use-retrieval-for-contextual-consistency",
+          "line": 250
+        },
+        {
+          "title": "Chain prompts for complex tasks",
+          "url": "https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/increase-consistency#chain-prompts-for-complex-tasks",
+          "line": 317
+        },
+        {
+          "title": "Keep Claude in character",
+          "url": "https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/increase-consistency#keep-claude-in-character",
+          "line": 321
+        }
+      ],
+      "scope": "general"
+    },
+    {
+      "id": "injection",
+      "title": "Mitigate jailbreaks and prompt injections",
+      "url": "https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/mitigate-jailbreaks",
+      "download_url": "https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/mitigate-jailbreaks.md",
+      "snapshot": "snapshots/injection.md",
+      "sha256": "6cc36ea7cd1429c61fae7b5fc922ef2b0a5da82f1ce631f04b806c7c4c6e596e",
+      "retrieved_at": "2026-11-05T01:13:40+00:00",
+      "sections": [
+        {
+          "title": "Jailbreaks and direct prompt injection",
+          "url": "https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/mitigate-jailbreaks#jailbreaks-and-direct-prompt-injection",
+          "line": 14
+        },
+        {
+          "title": "Indirect prompt injection",
+          "url": "https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/mitigate-jailbreaks#indirect-prompt-injection",
+          "line": 71
+        },
+        {
+          "title": "Continuous monitoring",
+          "url": "https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/mitigate-jailbreaks#continuous-monitoring",
+          "line": 169
+        },
+        {
+          "title": "Advanced: Chain safeguards",
+          "url": "https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/mitigate-jailbreaks#advanced-chain-safeguards",
+          "line": 173
+        }
+      ],
+      "scope": "general"
+    },
+    {
+      "id": "prompt-leak",
+      "title": "Reduce prompt leak",
+      "url": "https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/reduce-prompt-leak",
+      "download_url": "https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/reduce-prompt-leak.md",
+      "snapshot": "snapshots/prompt-leak.md",
+      "sha256": "b38c1a5f62540b6190a50f9d7312df04ca788cafdddc8af2fe1a047416de851e",
+      "retrieved_at": "2026-11-05T01:13:40+00:00",
+      "sections": [
+        {
+          "title": "Before you try to reduce prompt leak",
+          "url": "https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/reduce-prompt-leak#before-you-try-to-reduce-prompt-leak",
+          "line": 9
+        },
+        {
+          "title": "Strategies to reduce prompt leak",
+          "url": "https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/reduce-prompt-leak#strategies-to-reduce-prompt-leak",
+          "line": 21
+        }
+      ],
+      "scope": "general"
+    },
+    {
+      "id": "evaluations",
+      "title": "Define success criteria and build evaluations",
+      "url": "https://platform.claude.com/docs/en/test-and-evaluate/develop-tests",
+      "download_url": "https://platform.claude.com/docs/en/test-and-evaluate/develop-tests.md",
+      "snapshot": "snapshots/evaluations.md",
+      "sha256": "f66a681003fd9df053f0a72f1fd00684d82e55f37509fcbf0f5f5115d746a97f",
+      "retrieved_at": "2026-11-05T01:13:40+00:00",
+      "sections": [
+        {
+          "title": "Define your success criteria",
+          "url": "https://platform.claude.com/docs/en/test-and-evaluate/develop-tests#define-your-success-criteria",
+          "line": 13
+        },
+        {
+          "title": "Common success criteria",
+          "url": "https://platform.claude.com/docs/en/test-and-evaluate/develop-tests#common-success-criteria",
+          "line": 60
+        },
+        {
+          "title": "Build evaluations",
+          "url": "https://platform.claude.com/docs/en/test-and-evaluate/develop-tests#build-evaluations",
+          "line": 111
+        },
+        {
+          "title": "Eval design principles",
+          "url": "https://platform.claude.com/docs/en/test-and-evaluate/develop-tests#eval-design-principles",
+          "line": 113
+        },
+        {
+          "title": "Example evals",
+          "url": "https://platform.claude.com/docs/en/test-and-evaluate/develop-tests#example-evals",
+          "line": 125
+        },
+        {
+          "title": "Grade your evaluations",
+          "url": "https://platform.claude.com/docs/en/test-and-evaluate/develop-tests#grade-your-evaluations",
+          "line": 3224
+        },
+        {
+          "title": "Tips for LLM-based grading",
+          "url": "https://platform.claude.com/docs/en/test-and-evaluate/develop-tests#tips-for-llm-based-grading",
+          "line": 3237
+        },
+        {
+          "title": "Next steps",
+          "url": "https://platform.claude.com/docs/en/test-and-evaluate/develop-tests#next-steps",
+          "line": 3710
+        }
+      ],
+      "scope": "general"
+    },
+    {
+      "id": "fable-5-1",
+      "title": "Prompting Claude Fable 5.1",
+      "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1",
+      "download_url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1.md",
+      "snapshot": "snapshots/fable-5-1.md",
+      "sha256": "8f323d95472724ec2eb3032be174471bbda1433452138a47c332522a43feab33",
+      "retrieved_at": "2026-11-05T01:13:40+00:00",
+      "sections": [
+        {
+          "title": "Consider all effort levels",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1#consider-all-effort-levels",
+          "line": 34
+        },
+        {
+          "title": "Ask for user-facing progress updates",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1#ask-for-user-facing-progress-updates",
+          "line": 42
+        },
+        {
+          "title": "Batch independent tool calls in agent loops",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1#batch-independent-tool-calls-in-agent-loops",
+          "line": 62
+        },
+        {
+          "title": "Keep the conversation history append-only",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1#keep-the-conversation-history-append-only",
+          "line": 749
+        },
+        {
+          "title": "Writing density",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1#writing-density",
+          "line": 757
+        },
+        {
+          "title": "Formatting in chat",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1#formatting-in-chat",
+          "line": 771
+        },
+        {
+          "title": "Quoting retrieved sources",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1#quoting-retrieved-sources",
+          "line": 779
+        },
+        {
+          "title": "Finish the whole task",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1#finish-the-whole-task",
+          "line": 797
+        },
+        {
+          "title": "Tell the model what to preserve in compaction summaries",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1#tell-the-model-what-to-preserve-in-compaction-summaries",
+          "line": 826
+        },
+        {
+          "title": "Keep changes and tests to what the task asks for",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1#keep-changes-and-tests-to-what-the-task-asks-for",
+          "line": 834
+        },
+        {
+          "title": "Search triggering at low effort",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1#search-triggering-at-low-effort",
+          "line": 842
+        },
+        {
+          "title": "Reduce safeguard false positives",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1#reduce-safeguard-false-positives",
+          "line": 852
+        },
+        {
+          "title": "Prefer targeted edits over whole-file rewrites",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1#prefer-targeted-edits-over-whole-file-rewrites",
+          "line": 860
+        },
+        {
+          "title": "Leave room for long outputs at xhigh and max effort",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1#leave-room-for-long-outputs-at-xhigh-and-max-effort",
+          "line": 868
+        },
+        {
+          "title": "Let the lead agent keep working while subagents run",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1#let-the-lead-agent-keep-working-while-subagents-run",
+          "line": 881
+        },
+        {
+          "title": "Give vision work tools to crop and zoom",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1#give-vision-work-tools-to-crop-and-zoom",
+          "line": 891
+        }
+      ],
+      "scope": "model-specific"
+    },
+    {
+      "id": "fable-5",
+      "title": "Prompting Claude Fable 5",
+      "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5",
+      "download_url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5.md",
+      "snapshot": "snapshots/fable-5.md",
+      "sha256": "d809aae83b41969254007894c700664d8e5ecc107e3377b01d142924616e33c8",
+      "retrieved_at": "2026-11-05T01:13:40+00:00",
+      "sections": [
+        {
+          "title": "Capability improvements",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5#capability-improvements",
+          "line": 19
+        },
+        {
+          "title": "Longer turns by default",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5#longer-turns-by-default",
+          "line": 33
+        },
+        {
+          "title": "Consider all effort levels",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5#consider-all-effort-levels",
+          "line": 41
+        },
+        {
+          "title": "Strong instruction following",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5#strong-instruction-following",
+          "line": 51
+        },
+        {
+          "title": "Ground progress claims during long runs",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5#ground-progress-claims-during-long-runs",
+          "line": 67
+        },
+        {
+          "title": "State the boundaries",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5#state-the-boundaries",
+          "line": 75
+        },
+        {
+          "title": "Parallel subagents",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5#parallel-subagents",
+          "line": 83
+        },
+        {
+          "title": "Construct a memory system",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5#construct-a-memory-system",
+          "line": 91
+        },
+        {
+          "title": "Rare cases of early stopping",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5#rare-cases-of-early-stopping",
+          "line": 105
+        },
+        {
+          "title": "Rare cases of context-budget concern",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5#rare-cases-of-context-budget-concern",
+          "line": 113
+        },
+        {
+          "title": "Give the reason, not only the request",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5#give-the-reason-not-only-the-request",
+          "line": 121
+        },
+        {
+          "title": "Readability when communicating with the user",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5#readability-when-communicating-with-the-user",
+          "line": 129
+        },
+        {
+          "title": "Create a send-to-user tool",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5#create-a-send-to-user-tool",
+          "line": 141
+        },
+        {
+          "title": "Recommended scaffolding changes",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5#recommended-scaffolding-changes",
+          "line": 170
+        }
+      ],
+      "scope": "model-specific"
+    },
+    {
+      "id": "opus-5-5",
+      "title": "Prompting Claude Opus 5.5",
+      "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5-5",
+      "download_url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5-5.md",
+      "snapshot": "snapshots/opus-5-5.md",
+      "sha256": "0203e04ee828c0ad41c99a814aeaf45f2e2e76ffec7a88da7b724a86ba01d9ea",
+      "retrieved_at": "2026-11-05T01:13:40+00:00",
+      "sections": [
+        {
+          "title": "Capabilities relevant to prompting",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5-5#capabilities-relevant-to-prompting",
+          "line": 27
+        },
+        {
+          "title": "Calibrate effort",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5-5#calibrate-effort",
+          "line": 36
+        },
+        {
+          "title": "Prompts written for thinking disabled",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5-5#prompts-written-for-thinking-disabled",
+          "line": 48
+        },
+        {
+          "title": "Unattended agentic runs",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5-5#unattended-agentic-runs",
+          "line": 57
+        },
+        {
+          "title": "Safeguard refusals",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5-5#safeguard-refusals",
+          "line": 77
+        },
+        {
+          "title": "User-facing progress updates",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5-5#user-facing-progress-updates",
+          "line": 87
+        },
+        {
+          "title": "Explore context in multiapp workflows",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5-5#explore-context-in-multiapp-workflows",
+          "line": 103
+        },
+        {
+          "title": "Time signals for multiagent harnesses",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5-5#time-signals-for-multiagent-harnesses",
+          "line": 113
+        },
+        {
+          "title": "Thinking instructions in chat system prompts",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5-5#thinking-instructions-in-chat-system-prompts",
+          "line": 123
+        },
+        {
+          "title": "Mark pasted text in user messages",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5-5#mark-pasted-text-in-user-messages",
+          "line": 135
+        },
+        {
+          "title": "Tools for complex visual inputs",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5-5#tools-for-complex-visual-inputs",
+          "line": 155
+        },
+        {
+          "title": "Frontend design defaults",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5-5#frontend-design-defaults",
+          "line": 159
+        }
+      ],
+      "scope": "model-specific"
+    },
+    {
+      "id": "opus-5",
+      "title": "Prompting Claude Opus 5",
+      "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5",
+      "download_url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5.md",
+      "snapshot": "snapshots/opus-5.md",
+      "sha256": "b34cb10619cc7b2ba2b6a195210673055c6fb84e1c5d1141ffd26a863f6514a0",
+      "retrieved_at": "2026-11-05T01:13:40+00:00",
+      "sections": [
+        {
+          "title": "Capability improvements",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5#capability-improvements",
+          "line": 11
+        },
+        {
+          "title": "Response length and verbosity",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5#response-length-and-verbosity",
+          "line": 23
+        },
+        {
+          "title": "User-facing progress updates",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5#user-facing-progress-updates",
+          "line": 41
+        },
+        {
+          "title": "Written deliverable length",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5#written-deliverable-length",
+          "line": 51
+        },
+        {
+          "title": "Task scope and over-verification",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5#task-scope-and-over-verification",
+          "line": 59
+        },
+        {
+          "title": "Controlling subagent spawning",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5#controlling-subagent-spawning",
+          "line": 69
+        },
+        {
+          "title": "Self-correction",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5#self-correction",
+          "line": 79
+        },
+        {
+          "title": "Running with thinking disabled",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5#running-with-thinking-disabled",
+          "line": 89
+        },
+        {
+          "title": "Reasoning in the response",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5#reasoning-in-the-response",
+          "line": 105
+        }
+      ],
+      "scope": "model-specific"
+    },
+    {
+      "id": "opus-4-8",
+      "title": "Prompting Claude Opus 4.8",
+      "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-4-8",
+      "download_url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-4-8.md",
+      "snapshot": "snapshots/opus-4-8.md",
+      "sha256": "e0b9e6d9eb54b13798ed8ca5b37b7b6763655032cbf11a04fa1a399aac6ec9a7",
+      "retrieved_at": "2026-11-05T01:13:40+00:00",
+      "sections": [
+        {
+          "title": "Response length and verbosity",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-4-8#response-length-and-verbosity",
+          "line": 15
+        },
+        {
+          "title": "Calibrating effort and thinking depth",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-4-8#calibrating-effort-and-thinking-depth",
+          "line": 27
+        },
+        {
+          "title": "Tool use triggering",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-4-8#tool-use-triggering",
+          "line": 59
+        },
+        {
+          "title": "User-facing progress updates",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-4-8#user-facing-progress-updates",
+          "line": 63
+        },
+        {
+          "title": "More literal instruction following",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-4-8#more-literal-instruction-following",
+          "line": 67
+        },
+        {
+          "title": "Tone and writing style",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-4-8#tone-and-writing-style",
+          "line": 71
+        },
+        {
+          "title": "Controlling subagent spawning",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-4-8#controlling-subagent-spawning",
+          "line": 81
+        },
+        {
+          "title": "Design and frontend defaults",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-4-8#design-and-frontend-defaults",
+          "line": 91
+        },
+        {
+          "title": "Interactive coding products",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-4-8#interactive-coding-products",
+          "line": 136
+        },
+        {
+          "title": "Code review harnesses",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-4-8#code-review-harnesses",
+          "line": 142
+        },
+        {
+          "title": "Computer use",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-4-8#computer-use",
+          "line": 158
+        }
+      ],
+      "scope": "model-specific"
+    },
+    {
+      "id": "sonnet-5-5",
+      "title": "Prompting Claude Sonnet 5.5",
+      "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5-5",
+      "download_url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5-5.md",
+      "snapshot": "snapshots/sonnet-5-5.md",
+      "sha256": "0826ae2afb34141ee8abda47c9044ec7ecd5f5c6511c1d2516066b20eb6b8d18",
+      "retrieved_at": "2026-11-05T01:13:40+00:00",
+      "sections": [
+        {
+          "title": "Calibrate effort",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5-5#calibrate-effort",
+          "line": 27
+        },
+        {
+          "title": "Steer initiative and scope",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5-5#steer-initiative-and-scope",
+          "line": 41
+        },
+        {
+          "title": "Running without up-front thinking",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5-5#running-without-up-front-thinking",
+          "line": 71
+        },
+        {
+          "title": "Reasoning tasks with JSON output",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5-5#reasoning-tasks-with-json-output",
+          "line": 80
+        },
+        {
+          "title": "User-facing progress updates",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5-5#user-facing-progress-updates",
+          "line": 105
+        },
+        {
+          "title": "Tool use in chat and knowledge work",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5-5#tool-use-in-chat-and-knowledge-work",
+          "line": 121
+        },
+        {
+          "title": "Mid-turn user messages",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5-5#mid-turn-user-messages",
+          "line": 133
+        },
+        {
+          "title": "Verification on coding tasks",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5-5#verification-on-coding-tasks",
+          "line": 144
+        },
+        {
+          "title": "Tolerant tool-call handling",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5-5#tolerant-tool-call-handling",
+          "line": 154
+        },
+        {
+          "title": "Tools for complex visual inputs",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5-5#tools-for-complex-visual-inputs",
+          "line": 161
+        },
+        {
+          "title": "Safeguard refusals",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5-5#safeguard-refusals",
+          "line": 165
+        }
+      ],
+      "scope": "model-specific"
+    },
+    {
+      "id": "sonnet-5",
+      "title": "Prompting Claude Sonnet 5",
+      "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5",
+      "download_url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5.md",
+      "snapshot": "snapshots/sonnet-5.md",
+      "sha256": "a4ea39b6f0a7fc3b23a8883434d2a55f7f6bafeeddb0f669566ebc0fe289e644",
+      "retrieved_at": "2026-11-05T01:13:40+00:00",
+      "sections": [
+        {
+          "title": "Response length and verbosity",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5#response-length-and-verbosity",
+          "line": 11
+        },
+        {
+          "title": "Calibrating effort and thinking depth",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5#calibrating-effort-and-thinking-depth",
+          "line": 23
+        },
+        {
+          "title": "Tool use triggering",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5#tool-use-triggering",
+          "line": 59
+        },
+        {
+          "title": "User-facing progress updates",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5#user-facing-progress-updates",
+          "line": 63
+        },
+        {
+          "title": "More literal instruction following",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5#more-literal-instruction-following",
+          "line": 67
+        },
+        {
+          "title": "Tone and writing style",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5#tone-and-writing-style",
+          "line": 71
+        },
+        {
+          "title": "Design and frontend defaults",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5#design-and-frontend-defaults",
+          "line": 83
+        },
+        {
+          "title": "Interactive coding products",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5#interactive-coding-products",
+          "line": 128
+        },
+        {
+          "title": "Code review harnesses",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5#code-review-harnesses",
+          "line": 134
+        },
+        {
+          "title": "Computer use",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5#computer-use",
+          "line": 150
+        }
+      ],
+      "scope": "model-specific"
+    },
+    {
+      "id": "haiku-5-5",
+      "title": "Prompting Claude Haiku 5.5",
+      "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-haiku-5-5",
+      "download_url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-haiku-5-5.md",
+      "snapshot": "snapshots/haiku-5-5.md",
+      "sha256": "69d8bf18169f27ac8f14fb7f805495a03e4cd7800de5dcfc527982a9fde9a1bf",
+      "retrieved_at": "2026-11-05T01:13:40+00:00",
+      "sections": [
+        {
+          "title": "Use effort to control thinking",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-haiku-5-5#use-effort-to-control-thinking",
+          "line": 27
+        },
+        {
+          "title": "Accurate search results",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-haiku-5-5#accurate-search-results",
+          "line": 43
+        },
+        {
+          "title": "Use adaptive thinking with JSON output and your own tools",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-haiku-5-5#use-adaptive-thinking-with-json-output-and-your-own-tools",
+          "line": 65
+        },
+        {
+          "title": "Prevent early stopping in long agent prompts",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-haiku-5-5#prevent-early-stopping-in-long-agent-prompts",
+          "line": 81
+        },
+        {
+          "title": "Tell coding agents to verify their changes",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-haiku-5-5#tell-coding-agents-to-verify-their-changes",
+          "line": 92
+        },
+        {
+          "title": "Mid-turn user messages",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-haiku-5-5#mid-turn-user-messages",
+          "line": 102
+        },
+        {
+          "title": "Keep chatbots to their system prompt",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-haiku-5-5#keep-chatbots-to-their-system-prompt",
+          "line": 110
+        },
+        {
+          "title": "Keep reasoning out of user-facing text",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-haiku-5-5#keep-reasoning-out-of-user-facing-text",
+          "line": 122
+        },
+        {
+          "title": "Safeguard refusals",
+          "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-haiku-5-5#safeguard-refusals",
+          "line": 126
+        }
+      ],
+      "scope": "model-specific"
+    }
+  ]
+}

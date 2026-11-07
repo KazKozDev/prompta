@@ -5,3 +5,6 @@ release/
 .DS_Store
 .env.local
 __pycache__/
+
+.venv-whisper/
+.whisper-models/

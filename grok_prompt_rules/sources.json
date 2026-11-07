@@ -1,0 +1,496 @@
+{
+  "sources": [
+    {
+      "id": "best-practices",
+      "url": "https://docs.x.ai/developers/model-capabilities/text/best-practices",
+      "download_url": "https://docs.x.ai/developers/model-capabilities/text/best-practices",
+      "snapshot": "snapshots/best-practices.md",
+      "sha256": "87ab397069fe8fef0ced9d89d32e3b7e9b69f76b5d276f6b902de036faeef2b6",
+      "retrieved_at": "2026-11-05T21:13:08.637948+00:00",
+      "title": "Best Practices Guide",
+      "scope": "general",
+      "sections": [
+        {
+          "title": "Best Practices Guide",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/best-practices#best-practices-guide",
+          "line": 3
+        },
+        {
+          "title": "Use the Responses API",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/best-practices#use-the-responses-api",
+          "line": 19
+        },
+        {
+          "title": "Send encrypted reasoning back with every turn",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/best-practices#send-encrypted-reasoning-back-with-every-turn",
+          "line": 29
+        },
+        {
+          "title": "Keep reasoning in agent loops",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/best-practices#keep-reasoning-in-agent-loops",
+          "line": 179
+        },
+        {
+          "title": "Use prompt caching to lower cost",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/best-practices#use-prompt-caching-to-lower-cost",
+          "line": 234
+        },
+        {
+          "title": "Configure requests for reasoning models",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/best-practices#configure-requests-for-reasoning-models",
+          "line": 247
+        },
+        {
+          "title": "Reasoning effort",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/best-practices#reasoning-effort",
+          "line": 251
+        },
+        {
+          "title": "Streaming and timeouts",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/best-practices#streaming-and-timeouts",
+          "line": 255
+        },
+        {
+          "title": "Output length",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/best-practices#output-length",
+          "line": 261
+        },
+        {
+          "title": "Sampling parameters",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/best-practices#sampling-parameters",
+          "line": 265
+        },
+        {
+          "title": "Errors, retries, and rate limits",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/best-practices#errors-retries-and-rate-limits",
+          "line": 275
+        },
+        {
+          "title": "Evaluate Grok models",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/best-practices#evaluate-grok-models",
+          "line": 279
+        },
+        {
+          "title": "Design the eval",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/best-practices#design-the-eval",
+          "line": 283
+        },
+        {
+          "title": "Run, measure, and compare",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/best-practices#run-measure-and-compare",
+          "line": 301
+        },
+        {
+          "title": "Related",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/best-practices#related",
+          "line": 316
+        }
+      ]
+    },
+    {
+      "id": "text",
+      "url": "https://docs.x.ai/developers/model-capabilities/text/generate-text",
+      "download_url": "https://docs.x.ai/developers/model-capabilities/text/generate-text",
+      "snapshot": "snapshots/text.md",
+      "sha256": "4fb5b21e895004eb3d21c26207da39451c94b5562a6f597b00ba307c362af258",
+      "retrieved_at": "2026-11-05T21:13:08.882021+00:00",
+      "title": "Generate Text",
+      "scope": "general",
+      "sections": [
+        {
+          "title": "Generate Text",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/generate-text#generate-text",
+          "line": 3
+        },
+        {
+          "title": "Prerequisites",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/generate-text#prerequisites",
+          "line": 14
+        },
+        {
+          "title": "Creating a new model response",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/generate-text#creating-a-new-model-response",
+          "line": 22
+        },
+        {
+          "title": "Disable storing previous request/response on server",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/generate-text#disable-storing-previous-requestresponse-on-server",
+          "line": 140
+        },
+        {
+          "title": "Returning encrypted thinking content",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/generate-text#returning-encrypted-thinking-content",
+          "line": 234
+        },
+        {
+          "title": "Chaining the conversation",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/generate-text#chaining-the-conversation",
+          "line": 315
+        },
+        {
+          "title": "Adding encrypted thinking content",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/generate-text#adding-encrypted-thinking-content",
+          "line": 493
+        },
+        {
+          "title": "Retrieving a previous model response",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/generate-text#retrieving-a-previous-model-response",
+          "line": 702
+        },
+        {
+          "title": "Delete a model response",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/generate-text#delete-a-model-response",
+          "line": 776
+        }
+      ]
+    },
+    {
+      "id": "reasoning",
+      "url": "https://docs.x.ai/developers/model-capabilities/text/reasoning",
+      "download_url": "https://docs.x.ai/developers/model-capabilities/text/reasoning",
+      "snapshot": "snapshots/reasoning.md",
+      "sha256": "a2e64d53f9053b2eb08073b8ff47b47b76188080e0a788e1c983e76c5448394d",
+      "retrieved_at": "2026-11-05T21:13:09.115693+00:00",
+      "title": "Reasoning",
+      "scope": "general",
+      "sections": [
+        {
+          "title": "Reasoning",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/reasoning#reasoning",
+          "line": 3
+        },
+        {
+          "title": "Key Features",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/reasoning#key-features",
+          "line": 5
+        },
+        {
+          "title": "Encrypted Reasoning Content",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/reasoning#encrypted-reasoning-content",
+          "line": 11
+        },
+        {
+          "title": "The `reasoning_effort` parameter",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/reasoning#the-reasoning_effort-parameter",
+          "line": 24
+        },
+        {
+          "title": "Effort levels",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/reasoning#effort-levels",
+          "line": 32
+        },
+        {
+          "title": "Setting reasoning effort",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/reasoning#setting-reasoning-effort",
+          "line": 45
+        },
+        {
+          "title": "Multi-agent model",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/reasoning#multi-agent-model",
+          "line": 137
+        },
+        {
+          "title": "Summary table",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/reasoning#summary-table",
+          "line": 141
+        },
+        {
+          "title": "Summarized Reasoning Content",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/reasoning#summarized-reasoning-content",
+          "line": 150
+        },
+        {
+          "title": "Sample Output",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/reasoning#sample-output",
+          "line": 247
+        }
+      ]
+    },
+    {
+      "id": "structured-outputs",
+      "url": "https://docs.x.ai/developers/model-capabilities/text/structured-outputs",
+      "download_url": "https://docs.x.ai/developers/model-capabilities/text/structured-outputs",
+      "snapshot": "snapshots/structured-outputs.md",
+      "sha256": "5ee0c8f1e7e06f4b05d803f23acc7109dbfd7d5f56a88943d28122dcf2c1f907",
+      "retrieved_at": "2026-11-05T21:13:09.294250+00:00",
+      "title": "Structured Outputs",
+      "scope": "general",
+      "sections": [
+        {
+          "title": "Structured Outputs",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/structured-outputs#structured-outputs",
+          "line": 3
+        },
+        {
+          "title": "JSON Schema support",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/structured-outputs#json-schema-support",
+          "line": 27
+        },
+        {
+          "title": "Supported types",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/structured-outputs#supported-types",
+          "line": 31
+        },
+        {
+          "title": "String formats",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/structured-outputs#string-formats",
+          "line": 53
+        },
+        {
+          "title": "Constraint limits",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/structured-outputs#constraint-limits",
+          "line": 61
+        },
+        {
+          "title": "Best-effort keywords",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/structured-outputs#best-effort-keywords",
+          "line": 74
+        },
+        {
+          "title": "Rejected schemas",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/structured-outputs#rejected-schemas",
+          "line": 87
+        },
+        {
+          "title": "Regex support (`pattern`)",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/structured-outputs#regex-support-pattern",
+          "line": 96
+        },
+        {
+          "title": "Example: Invoice Parsing",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/structured-outputs#example-invoice-parsing",
+          "line": 125
+        },
+        {
+          "title": "Step 1: Defining the Schema",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/structured-outputs#step-1-defining-the-schema",
+          "line": 138
+        },
+        {
+          "title": "Step 2: Prepare The Prompts",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/structured-outputs#step-2-prepare-the-prompts",
+          "line": 203
+        },
+        {
+          "title": "System Prompt",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/structured-outputs#system-prompt",
+          "line": 205
+        },
+        {
+          "title": "Example Invoice Text",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/structured-outputs#example-invoice-text",
+          "line": 213
+        },
+        {
+          "title": "Step 3: The Final Code",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/structured-outputs#step-3-the-final-code",
+          "line": 225
+        },
+        {
+          "title": "Step 4: Type-safe Output",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/structured-outputs#step-4-type-safe-output",
+          "line": 471
+        },
+        {
+          "title": "Structured Outputs with Tools",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/structured-outputs#structured-outputs-with-tools",
+          "line": 495
+        },
+        {
+          "title": "Example: Agentic Tools with Structured Output",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/structured-outputs#example-agentic-tools-with-structured-output",
+          "line": 508
+        },
+        {
+          "title": "Example: Client-side Tools with Structured Output",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/structured-outputs#example-client-side-tools-with-structured-output",
+          "line": 631
+        },
+        {
+          "title": "Alternative: Using `response_format` with `sample()` or `stream()`",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/structured-outputs#alternative-using-response_format-with-sample-or-stream",
+          "line": 875
+        },
+        {
+          "title": "How It Works",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/structured-outputs#how-it-works",
+          "line": 879
+        },
+        {
+          "title": "Key Differences",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/structured-outputs#key-differences",
+          "line": 889
+        },
+        {
+          "title": "When to Use Each Approach",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/structured-outputs#when-to-use-each-approach",
+          "line": 896
+        },
+        {
+          "title": "Example Using `response_format`",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/structured-outputs#example-using-response_format",
+          "line": 905
+        },
+        {
+          "title": "Streaming with Structured Outputs",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/structured-outputs#streaming-with-structured-outputs",
+          "line": 982
+        }
+      ]
+    },
+    {
+      "id": "multi-agent",
+      "url": "https://docs.x.ai/developers/model-capabilities/text/multi-agent",
+      "download_url": "https://docs.x.ai/developers/model-capabilities/text/multi-agent",
+      "snapshot": "snapshots/multi-agent.md",
+      "sha256": "d830cd1460ad6c86c13c545627c1c57b22d60fe873a8c7201067251ba22a5543",
+      "retrieved_at": "2026-11-05T21:13:09.562241+00:00",
+      "title": "Multi Agent",
+      "scope": "model-specific",
+      "sections": [
+        {
+          "title": "Multi Agent",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/multi-agent#multi-agent",
+          "line": 3
+        },
+        {
+          "title": "Overview",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/multi-agent#overview",
+          "line": 11
+        },
+        {
+          "title": "Getting Started",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/multi-agent#getting-started",
+          "line": 20
+        },
+        {
+          "title": "How Multi-agent Works",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/multi-agent#how-multi-agent-works",
+          "line": 142
+        },
+        {
+          "title": "Supported Models",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/multi-agent#supported-models",
+          "line": 146
+        },
+        {
+          "title": "Built-in Tools Support",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/multi-agent#built-in-tools-support",
+          "line": 150
+        },
+        {
+          "title": "Output Behavior",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/multi-agent#output-behavior",
+          "line": 160
+        },
+        {
+          "title": "Configuration",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/multi-agent#configuration",
+          "line": 164
+        },
+        {
+          "title": "4-Agent Setup",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/multi-agent#4-agent-setup",
+          "line": 177
+        },
+        {
+          "title": "16-Agent Setup",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/multi-agent#16-agent-setup",
+          "line": 274
+        },
+        {
+          "title": "Common Patterns",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/multi-agent#common-patterns",
+          "line": 376
+        },
+        {
+          "title": "Without Built-in Tools",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/multi-agent#without-built-in-tools",
+          "line": 378
+        },
+        {
+          "title": "Multi-turn Conversation",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/multi-agent#multi-turn-conversation",
+          "line": 482
+        },
+        {
+          "title": "Pricing",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/multi-agent#pricing",
+          "line": 488
+        },
+        {
+          "title": "Prompting Guide",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/multi-agent#prompting-guide",
+          "line": 496
+        },
+        {
+          "title": "Limitations",
+          "url": "https://docs.x.ai/developers/model-capabilities/text/multi-agent#limitations",
+          "line": 543
+        }
+      ]
+    },
+    {
+      "id": "function-calling",
+      "url": "https://docs.x.ai/developers/tools/function-calling",
+      "download_url": "https://docs.x.ai/developers/tools/function-calling",
+      "snapshot": "snapshots/function-calling.md",
+      "sha256": "38b7952cd832aec2bf56ff8b81a326e386f6f0cc2aa0ce01c65f7fa91fa31307",
+      "retrieved_at": "2026-11-05T21:13:09.785191+00:00",
+      "title": "Function Calling",
+      "scope": "general",
+      "sections": [
+        {
+          "title": "Function Calling",
+          "url": "https://docs.x.ai/developers/tools/function-calling#function-calling",
+          "line": 3
+        },
+        {
+          "title": "Quick Start",
+          "url": "https://docs.x.ai/developers/tools/function-calling#quick-start",
+          "line": 17
+        },
+        {
+          "title": "Defining Tools with Pydantic",
+          "url": "https://docs.x.ai/developers/tools/function-calling#defining-tools-with-pydantic",
+          "line": 174
+        },
+        {
+          "title": "Handling Tool Calls",
+          "url": "https://docs.x.ai/developers/tools/function-calling#handling-tool-calls",
+          "line": 232
+        },
+        {
+          "title": "Combining with Built-in Tools",
+          "url": "https://docs.x.ai/developers/tools/function-calling#combining-with-built-in-tools",
+          "line": 303
+        },
+        {
+          "title": "Tool Choice",
+          "url": "https://docs.x.ai/developers/tools/function-calling#tool-choice",
+          "line": 359
+        },
+        {
+          "title": "Parallel Function Calling",
+          "url": "https://docs.x.ai/developers/tools/function-calling#parallel-function-calling",
+          "line": 370
+        },
+        {
+          "title": "Tool Schema Reference",
+          "url": "https://docs.x.ai/developers/tools/function-calling#tool-schema-reference",
+          "line": 383
+        },
+        {
+          "title": "Parameter Schema",
+          "url": "https://docs.x.ai/developers/tools/function-calling#parameter-schema",
+          "line": 391
+        },
+        {
+          "title": "Complete Vercel AI SDK Example",
+          "url": "https://docs.x.ai/developers/tools/function-calling#complete-vercel-ai-sdk-example",
+          "line": 440
+        }
+      ]
+    }
+  ]
+}

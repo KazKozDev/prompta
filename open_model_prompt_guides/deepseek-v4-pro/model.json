@@ -1,0 +1,42 @@
+{
+  "id": "deepseek-v4-pro",
+  "name": "DeepSeek V4 Pro 0813",
+  "repo": "deepseek-ai/DeepSeek-V4-Pro-0813",
+  "url": "https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro-0813",
+  "revision": "72e1d3230f6c080a530b0a1d46f8eb4602340597",
+  "retrieved_at": "2026-11-05T22:21:56.522477+00:00",
+  "role": "Large reasoning model",
+  "license": "mit",
+  "gated": false,
+  "weight_files_present": true,
+  "guidance_kind": "Prompt-related model-card sections",
+  "dedicated_prompting_manual": "not established; model card and official template provided",
+  "files": [
+    {
+      "title": "README.md",
+      "snapshot": "deepseek-v4-pro/README.md",
+      "url": "https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro-0813/blob/72e1d3230f6c080a530b0a1d46f8eb4602340597/README.md",
+      "download_url": "https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro-0813/resolve/72e1d3230f6c080a530b0a1d46f8eb4602340597/README.md",
+      "sha256": "61755d88e95789fcd7a36f50892f97bba977a30fc99d0f2907ab787ed10b0e66",
+      "bytes": 7522
+    },
+    {
+      "title": "generation_config.json",
+      "snapshot": "deepseek-v4-pro/generation_config.json",
+      "url": "https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro-0813/blob/72e1d3230f6c080a530b0a1d46f8eb4602340597/generation_config.json",
+      "download_url": "https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro-0813/resolve/72e1d3230f6c080a530b0a1d46f8eb4602340597/generation_config.json",
+      "sha256": "5fccff80f55a4d455bbe516bdd552edf3e9623df95e99fbf2a3c3389fdf91af0",
+      "bytes": 170
+    },
+    {
+      "title": "LICENSE",
+      "snapshot": "deepseek-v4-pro/LICENSE",
+      "url": "https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro-0813/blob/72e1d3230f6c080a530b0a1d46f8eb4602340597/LICENSE",
+      "download_url": "https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro-0813/resolve/72e1d3230f6c080a530b0a1d46f8eb4602340597/LICENSE",
+      "sha256": "f2c6c602815669d292889e5be8c802f2ed950653b77999b1584e8e6aed25d040",
+      "bytes": 1084
+    }
+  ],
+  "failures": [],
+  "generation_integration": "Main-screen dropdown: pinned README model-card recommendations only. Other archived documents remain reference material; generator model is unchanged."
+}

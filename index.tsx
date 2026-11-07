@@ -148,7 +148,7 @@ async function saveLLMConfig() {
   if (statusSpan) {
     if (success) {
       statusSpan.textContent = 'Settings saved!';
-      statusSpan.style.color = '#007bff';
+      statusSpan.style.color = '#7c6110';
     } else {
       statusSpan.textContent = 'Error saving settings.';
       statusSpan.style.color = '#d9534f';
@@ -245,6 +245,10 @@ async function handleManualGenerate(): Promise<void> {
   const status = document.getElementById('manual-status');
   const button = document.getElementById('manual-generate') as HTMLButtonElement | null;
   if (!out || !status || !button) return;
+  if (['claude', 'chatgpt', 'gemini', 'grok'].some((target) => (document.getElementById(`pipeline-${target}`) as HTMLInputElement | null)?.checked)) {
+    status.textContent = 'Official target modes use the main Build prompt button and source rules, not manual techniques.';
+    return;
+  }
 
   const selected = Array.from(
     document.querySelectorAll<HTMLInputElement>('#manual-techniques input:checked'),
@@ -319,6 +323,7 @@ async function handlePipelineRun() {
   const deterministic =
     (document.getElementById('pipeline-deterministic') as HTMLInputElement | null)?.checked ?? false;
 
+  const selectedTarget = ['claude', 'chatgpt', 'gemini', 'grok'].find((target) => (document.getElementById(`pipeline-${target}`) as HTMLInputElement | null)?.checked);
   button.disabled = true;
   statusEl.classList.remove('is-error');
   statusEl.textContent = 'Brief → technique selection → synthesis…';
@@ -331,9 +336,13 @@ async function handlePipelineRun() {
     });
     const result = await runPipeline({
       thoughts,
+      claudeOnly: selectedTarget === 'claude',
+      chatgptOnly: selectedTarget === 'chatgpt',
+      geminiOnly: selectedTarget === 'gemini',
+      grokOnly: selectedTarget === 'grok',
       catalog,
       llm,
-      mode: deterministic ? 'deterministic' : 'llm',
+      mode: deterministic && !selectedTarget ? 'deterministic' : 'llm',
       variants: 3,
     });
     out.innerHTML = renderPipelineResult(result);
@@ -402,6 +411,14 @@ function App() {
       if (pipelineButton) {
         pipelineButton.addEventListener('click', handlePipelineRun);
       }
+      const targetToggles = ['claude', 'chatgpt', 'gemini', 'grok'].map((key) => document.getElementById(`pipeline-${key}`) as HTMLInputElement | null);
+      for (const toggle of targetToggles) {
+        toggle?.addEventListener('change', () => {
+          if (toggle.checked) targetToggles.forEach((other) => { if (other && other !== toggle) other.checked = false; });
+          const deterministicToggle = document.getElementById('pipeline-deterministic') as HTMLInputElement | null;
+          if (deterministicToggle) deterministicToggle.disabled = targetToggles.some((other) => other?.checked);
+        });
+      }
       const pipelineOutput = document.getElementById('pipeline-output');
       if (pipelineOutput) {
         pipelineOutput.addEventListener('click', async (event) => {
@@ -455,10 +472,24 @@ function App() {
                   />
                   <div className="pipeline-controls">
                     <button id="pipeline-run" className="pipeline-primary" type="button">Build prompt</button>
-                    <label className="pipeline-toggle">
-                      <input type="checkbox" id="pipeline-deterministic" />
-                      <span>Skip LLM synthesis</span>
+                    <div className="pipeline-targets">
+                    <label className="pipeline-toggle" title="Use saved official Anthropic guidance only; the generator model stays unchanged.">
+                      <input type="checkbox" id="pipeline-claude" />
+                      <span>For Claude</span>
                     </label>
+                    <label className="pipeline-toggle" title="Use saved official OpenAI guidance only; the generator model stays unchanged.">
+                      <input type="checkbox" id="pipeline-chatgpt" />
+                      <span>For ChatGPT</span>
+                    </label>
+                    <label className="pipeline-toggle" title="Use saved official Google guidance only; the generator model stays unchanged.">
+                      <input type="checkbox" id="pipeline-gemini" />
+                      <span>For Gemini</span>
+                    </label>
+                    <label className="pipeline-toggle">
+                      <input type="checkbox" id="pipeline-grok" />
+                      <span>For Grok</span>
+                    </label>
+                    </div>
                   </div>
                   <p id="pipeline-status" className="pipeline-status" aria-live="polite"></p>
                 </div>

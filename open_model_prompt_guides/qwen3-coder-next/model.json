@@ -1,0 +1,42 @@
+{
+  "id": "qwen3-coder-next",
+  "name": "Qwen3-Coder-Next",
+  "repo": "Qwen/Qwen3-Coder-Next",
+  "url": "https://huggingface.co/Qwen/Qwen3-Coder-Next",
+  "revision": "a7fbcb5c0e12d62a448eaa0e260346bf5dcc0feb",
+  "retrieved_at": "2026-11-05T22:21:56.306673+00:00",
+  "role": "Coding specialist",
+  "license": "apache-2.0",
+  "gated": false,
+  "weight_files_present": true,
+  "guidance_kind": "Prompt-related model-card sections",
+  "dedicated_prompting_manual": "not established; model card and official template provided",
+  "files": [
+    {
+      "title": "README.md",
+      "snapshot": "qwen3-coder-next/README.md",
+      "url": "https://huggingface.co/Qwen/Qwen3-Coder-Next/blob/a7fbcb5c0e12d62a448eaa0e260346bf5dcc0feb/README.md",
+      "download_url": "https://huggingface.co/Qwen/Qwen3-Coder-Next/resolve/a7fbcb5c0e12d62a448eaa0e260346bf5dcc0feb/README.md",
+      "sha256": "548db6d595e3bd88d7f6e7f4eae8e66ce8e6f980fd5ce52d7daf222e38559af6",
+      "bytes": 7600
+    },
+    {
+      "title": "chat_template.jinja",
+      "snapshot": "qwen3-coder-next/chat_template.jinja",
+      "url": "https://huggingface.co/Qwen/Qwen3-Coder-Next/blob/a7fbcb5c0e12d62a448eaa0e260346bf5dcc0feb/chat_template.jinja",
+      "download_url": "https://huggingface.co/Qwen/Qwen3-Coder-Next/resolve/a7fbcb5c0e12d62a448eaa0e260346bf5dcc0feb/chat_template.jinja",
+      "sha256": "c79a833039a43602150cce0902403d6e376c50930c1b2a139b2964e1f0c322a0",
+      "bytes": 6068
+    },
+    {
+      "title": "generation_config.json",
+      "snapshot": "qwen3-coder-next/generation_config.json",
+      "url": "https://huggingface.co/Qwen/Qwen3-Coder-Next/blob/a7fbcb5c0e12d62a448eaa0e260346bf5dcc0feb/generation_config.json",
+      "download_url": "https://huggingface.co/Qwen/Qwen3-Coder-Next/resolve/a7fbcb5c0e12d62a448eaa0e260346bf5dcc0feb/generation_config.json",
+      "sha256": "37a3c1ef63516ca489c575f0db1c0405ddc0c3dbaca9ed987344c966c37aeef5",
+      "bytes": 214
+    }
+  ],
+  "failures": [],
+  "generation_integration": "Main-screen dropdown: pinned README model-card recommendations only. Other archived documents remain reference material; generator model is unchanged."
+}

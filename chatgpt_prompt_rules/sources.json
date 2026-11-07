@@ -1,0 +1,923 @@
+{
+  "sources": [
+    {
+      "id": "chatgpt-prompting",
+      "title": "Prompting",
+      "url": "https://learn.chatgpt.com/docs/prompting",
+      "download_url": "https://learn.chatgpt.com/docs/prompting.md",
+      "snapshot": "snapshots/chatgpt-prompting.md",
+      "sha256": "c43142cb5c847afb5a2292abe9260667e9001563dceb4e48c0550809e10306f2",
+      "retrieved_at": "2026-11-05T01:38:52+00:00",
+      "scope": "general",
+      "sections": [
+        {
+          "title": "Prompting",
+          "url": "https://learn.chatgpt.com/docs/prompting#prompting",
+          "line": 1
+        },
+        {
+          "title": "Prompting overview",
+          "url": "https://learn.chatgpt.com/docs/prompting#prompts",
+          "line": 7
+        },
+        {
+          "title": "Describe the result you need",
+          "url": "https://learn.chatgpt.com/docs/prompting#describe-the-result-you-need",
+          "line": 26
+        },
+        {
+          "title": "Add useful context",
+          "url": "https://learn.chatgpt.com/docs/prompting#context",
+          "line": 42
+        },
+        {
+          "title": "Use connected sources",
+          "url": "https://learn.chatgpt.com/docs/prompting#use-connected-sources",
+          "line": 57
+        },
+        {
+          "title": "Use plugins",
+          "url": "https://learn.chatgpt.com/docs/prompting#use-plugins",
+          "line": 70
+        },
+        {
+          "title": "Personalize ChatGPT",
+          "url": "https://learn.chatgpt.com/docs/prompting#personalize-chatgpt",
+          "line": 87
+        },
+        {
+          "title": "Set boundaries that prevent real problems",
+          "url": "https://learn.chatgpt.com/docs/prompting#set-boundaries-that-prevent-real-problems",
+          "line": 102
+        },
+        {
+          "title": "Make the result ready to use",
+          "url": "https://learn.chatgpt.com/docs/prompting#make-the-result-ready-to-use",
+          "line": 117
+        },
+        {
+          "title": "Improve the result with follow-up messages",
+          "url": "https://learn.chatgpt.com/docs/prompting#improve-the-result-with-follow-up-messages",
+          "line": 133
+        },
+        {
+          "title": "Steering and queuing",
+          "url": "https://learn.chatgpt.com/docs/prompting#steering-and-queuing",
+          "line": 146
+        },
+        {
+          "title": "Put the pieces together",
+          "url": "https://learn.chatgpt.com/docs/prompting#put-the-pieces-together",
+          "line": 167
+        },
+        {
+          "title": "Use voice dictation",
+          "url": "https://learn.chatgpt.com/docs/prompting#use-voice-dictation",
+          "line": 188
+        },
+        {
+          "title": "Prompting examples for Chat",
+          "url": "https://learn.chatgpt.com/docs/prompting#chats",
+          "line": 205
+        },
+        {
+          "title": "Understand a topic",
+          "url": "https://learn.chatgpt.com/docs/prompting#understand-a-topic",
+          "line": 210
+        },
+        {
+          "title": "Draft and refine writing",
+          "url": "https://learn.chatgpt.com/docs/prompting#draft-and-refine-writing",
+          "line": 217
+        },
+        {
+          "title": "Compare options",
+          "url": "https://learn.chatgpt.com/docs/prompting#compare-options",
+          "line": 224
+        },
+        {
+          "title": "Make a practical plan",
+          "url": "https://learn.chatgpt.com/docs/prompting#make-a-practical-plan",
+          "line": 232
+        },
+        {
+          "title": "Prompting for ChatGPT Work",
+          "url": "https://learn.chatgpt.com/docs/prompting#prompting-in-work-mode",
+          "line": 242
+        },
+        {
+          "title": "Use ChatGPT Work efficiently",
+          "url": "https://learn.chatgpt.com/docs/prompting#use-work-mode-efficiently",
+          "line": 255
+        },
+        {
+          "title": "Turn source material into finished files",
+          "url": "https://learn.chatgpt.com/docs/prompting#turn-source-material-into-finished-files",
+          "line": 273
+        },
+        {
+          "title": "Research a decision",
+          "url": "https://learn.chatgpt.com/docs/prompting#research-a-decision",
+          "line": 284
+        },
+        {
+          "title": "Coordinate a launch",
+          "url": "https://learn.chatgpt.com/docs/prompting#coordinate-a-launch",
+          "line": 293
+        },
+        {
+          "title": "Prompting Codex",
+          "url": "https://learn.chatgpt.com/docs/prompting#use-editor-context",
+          "line": 308
+        },
+        {
+          "title": "How to read these examples",
+          "url": "https://learn.chatgpt.com/docs/prompting#how-to-read-these-examples",
+          "line": 323
+        },
+        {
+          "title": "Explain a codebase",
+          "url": "https://learn.chatgpt.com/docs/prompting#explain-a-codebase",
+          "line": 338
+        },
+        {
+          "title": "IDE extension workflow (fastest for local exploration)",
+          "url": "https://learn.chatgpt.com/docs/prompting#ide-extension-workflow-fastest-for-local-exploration",
+          "line": 342
+        },
+        {
+          "title": "CLI workflow (good when you want a transcript + shell commands)",
+          "url": "https://learn.chatgpt.com/docs/prompting#cli-workflow-good-when-you-want-a-transcript--shell-commands",
+          "line": 369
+        },
+        {
+          "title": "Fix a bug",
+          "url": "https://learn.chatgpt.com/docs/prompting#fix-a-bug",
+          "line": 391
+        },
+        {
+          "title": "CLI workflow (tight loop with reproduction and verification)",
+          "url": "https://learn.chatgpt.com/docs/prompting#cli-workflow-tight-loop-with-reproduction-and-verification",
+          "line": 395
+        },
+        {
+          "title": "IDE extension workflow",
+          "url": "https://learn.chatgpt.com/docs/prompting#ide-extension-workflow",
+          "line": 440
+        },
+        {
+          "title": "Write a test",
+          "url": "https://learn.chatgpt.com/docs/prompting#write-a-test",
+          "line": 453
+        },
+        {
+          "title": "IDE extension workflow (selection-based)",
+          "url": "https://learn.chatgpt.com/docs/prompting#ide-extension-workflow-selection-based",
+          "line": 457
+        },
+        {
+          "title": "CLI workflow (path + line range described in prompt)",
+          "url": "https://learn.chatgpt.com/docs/prompting#cli-workflow-path--line-range-described-in-prompt",
+          "line": 475
+        },
+        {
+          "title": "Prototype from a screenshot",
+          "url": "https://learn.chatgpt.com/docs/prompting#prototype-from-a-screenshot",
+          "line": 493
+        },
+        {
+          "title": "CLI workflow (image + prompt)",
+          "url": "https://learn.chatgpt.com/docs/prompting#cli-workflow-image--prompt",
+          "line": 497
+        },
+        {
+          "title": "IDE extension workflow (image + existing files)",
+          "url": "https://learn.chatgpt.com/docs/prompting#ide-extension-workflow-image--existing-files",
+          "line": 540
+        },
+        {
+          "title": "Iterate on UI with live updates",
+          "url": "https://learn.chatgpt.com/docs/prompting#iterate-on-ui-with-live-updates",
+          "line": 554
+        },
+        {
+          "title": "CLI workflow (run Vite, then iterate with small prompts)",
+          "url": "https://learn.chatgpt.com/docs/prompting#cli-workflow-run-vite-then-iterate-with-small-prompts",
+          "line": 558
+        },
+        {
+          "title": "Delegate refactor to the cloud",
+          "url": "https://learn.chatgpt.com/docs/prompting#delegate-refactor-to-the-cloud",
+          "line": 606
+        },
+        {
+          "title": "Local planning (IDE)",
+          "url": "https://learn.chatgpt.com/docs/prompting#local-planning-ide",
+          "line": 610
+        },
+        {
+          "title": "Cloud delegation (IDE → Cloud)",
+          "url": "https://learn.chatgpt.com/docs/prompting#cloud-delegation-ide--cloud",
+          "line": 645
+        },
+        {
+          "title": "Do a local code review",
+          "url": "https://learn.chatgpt.com/docs/prompting#do-a-local-code-review",
+          "line": 669
+        },
+        {
+          "title": "CLI workflow (review your working tree)",
+          "url": "https://learn.chatgpt.com/docs/prompting#cli-workflow-review-your-working-tree",
+          "line": 673
+        },
+        {
+          "title": "Review a GitHub pull request",
+          "url": "https://learn.chatgpt.com/docs/prompting#review-a-github-pull-request",
+          "line": 701
+        },
+        {
+          "title": "GitHub workflow (comment-driven)",
+          "url": "https://learn.chatgpt.com/docs/prompting#github-workflow-comment-driven",
+          "line": 707
+        },
+        {
+          "title": "Update documentation",
+          "url": "https://learn.chatgpt.com/docs/prompting#update-documentation",
+          "line": 726
+        },
+        {
+          "title": "IDE or CLI workflow (local edits + local validation)",
+          "url": "https://learn.chatgpt.com/docs/prompting#ide-or-cli-workflow-local-edits--local-validation",
+          "line": 730
+        }
+      ]
+    },
+    {
+      "id": "prompt-engineering",
+      "title": "Prompt engineering",
+      "url": "https://developers.openai.com/api/docs/guides/prompt-engineering",
+      "download_url": "https://developers.openai.com/api/docs/guides/prompt-engineering.md",
+      "snapshot": "snapshots/prompt-engineering.md",
+      "sha256": "79c72a47f0b129a3b5408f37890e455eeb9bafaff523b4b79b8829c8d318d28d",
+      "retrieved_at": "2026-11-05T01:38:51+00:00",
+      "scope": "general",
+      "sections": [
+        {
+          "title": "Prompt engineering",
+          "url": "https://developers.openai.com/api/docs/guides/prompt-engineering#prompt-engineering",
+          "line": 1
+        },
+        {
+          "title": "Choosing a model",
+          "url": "https://developers.openai.com/api/docs/guides/prompt-engineering#choosing-a-model",
+          "line": 163
+        },
+        {
+          "title": "Prompt engineering",
+          "url": "https://developers.openai.com/api/docs/guides/prompt-engineering#prompt-engineering-1",
+          "line": 173
+        },
+        {
+          "title": "Message roles and instruction following",
+          "url": "https://developers.openai.com/api/docs/guides/prompt-engineering#message-roles-and-instruction-following",
+          "line": 186
+        },
+        {
+          "title": "Version prompts in code",
+          "url": "https://developers.openai.com/api/docs/guides/prompt-engineering#version-prompts-in-code",
+          "line": 547
+        },
+        {
+          "title": "Message formatting with Markdown and XML",
+          "url": "https://developers.openai.com/api/docs/guides/prompt-engineering#message-formatting-with-markdown-and-xml",
+          "line": 567
+        },
+        {
+          "title": "Save on cost and latency with prompt caching",
+          "url": "https://developers.openai.com/api/docs/guides/prompt-engineering#save-on-cost-and-latency-with-prompt-caching",
+          "line": 760
+        },
+        {
+          "title": "Few-shot learning",
+          "url": "https://developers.openai.com/api/docs/guides/prompt-engineering#few-shot-learning",
+          "line": 764
+        },
+        {
+          "title": "Include relevant context information",
+          "url": "https://developers.openai.com/api/docs/guides/prompt-engineering#include-relevant-context-information",
+          "line": 810
+        },
+        {
+          "title": "Planning for the context window",
+          "url": "https://developers.openai.com/api/docs/guides/prompt-engineering#planning-for-the-context-window",
+          "line": 819
+        },
+        {
+          "title": "Prompting current models",
+          "url": "https://developers.openai.com/api/docs/guides/prompt-engineering#prompting-current-models",
+          "line": 828
+        },
+        {
+          "title": "Prompting best practices for the latest model",
+          "url": "https://developers.openai.com/api/docs/guides/prompt-engineering#prompting-best-practices-for-the-latest-model",
+          "line": 840
+        },
+        {
+          "title": "Coding",
+          "url": "https://developers.openai.com/api/docs/guides/prompt-engineering#coding",
+          "line": 846
+        },
+        {
+          "title": "Coding",
+          "url": "https://developers.openai.com/api/docs/guides/prompt-engineering#coding-1",
+          "line": 850
+        },
+        {
+          "title": "Front-end engineering",
+          "url": "https://developers.openai.com/api/docs/guides/prompt-engineering#front-end-engineering",
+          "line": 874
+        },
+        {
+          "title": "Agentic tasks",
+          "url": "https://developers.openai.com/api/docs/guides/prompt-engineering#agentic-tasks",
+          "line": 919
+        },
+        {
+          "title": "Prompting reasoning models",
+          "url": "https://developers.openai.com/api/docs/guides/prompt-engineering#prompting-reasoning-models",
+          "line": 963
+        },
+        {
+          "title": "Next steps",
+          "url": "https://developers.openai.com/api/docs/guides/prompt-engineering#next-steps",
+          "line": 974
+        },
+        {
+          "title": "Other resources",
+          "url": "https://developers.openai.com/api/docs/guides/prompt-engineering#other-resources",
+          "line": 996
+        }
+      ]
+    },
+    {
+      "id": "reasoning",
+      "title": "Reasoning best practices",
+      "url": "https://developers.openai.com/api/docs/guides/reasoning-best-practices",
+      "download_url": "https://developers.openai.com/api/docs/guides/reasoning-best-practices.md",
+      "snapshot": "snapshots/reasoning.md",
+      "sha256": "00d3f8ee705eb2340513512da669b45aa534ea8c8412e65470cf576aa59baa76",
+      "retrieved_at": "2026-11-05T01:38:52+00:00",
+      "scope": "general",
+      "sections": [
+        {
+          "title": "Reasoning best practices",
+          "url": "https://developers.openai.com/api/docs/guides/reasoning-best-practices#reasoning-best-practices",
+          "line": 1
+        },
+        {
+          "title": "Reasoning models vs. GPT models",
+          "url": "https://developers.openai.com/api/docs/guides/reasoning-best-practices#reasoning-models-vs-gpt-models",
+          "line": 15
+        },
+        {
+          "title": "How to choose",
+          "url": "https://developers.openai.com/api/docs/guides/reasoning-best-practices#how-to-choose",
+          "line": 23
+        },
+        {
+          "title": "When to use our reasoning models",
+          "url": "https://developers.openai.com/api/docs/guides/reasoning-best-practices#when-to-use-our-reasoning-models",
+          "line": 46
+        },
+        {
+          "title": "1. Navigating ambiguous tasks",
+          "url": "https://developers.openai.com/api/docs/guides/reasoning-best-practices#1-navigating-ambiguous-tasks",
+          "line": 52
+        },
+        {
+          "title": "2. Finding a needle in a haystack",
+          "url": "https://developers.openai.com/api/docs/guides/reasoning-best-practices#2-finding-a-needle-in-a-haystack",
+          "line": 60
+        },
+        {
+          "title": "3. Finding relationships and nuance across a large dataset",
+          "url": "https://developers.openai.com/api/docs/guides/reasoning-best-practices#3-finding-relationships-and-nuance-across-a-large-dataset",
+          "line": 68
+        },
+        {
+          "title": "4. Multistep agentic planning",
+          "url": "https://developers.openai.com/api/docs/guides/reasoning-best-practices#4-multistep-agentic-planning",
+          "line": 82
+        },
+        {
+          "title": "5. Visual reasoning",
+          "url": "https://developers.openai.com/api/docs/guides/reasoning-best-practices#5-visual-reasoning",
+          "line": 94
+        },
+        {
+          "title": "6. Reviewing, debugging, and improving code quality",
+          "url": "https://developers.openai.com/api/docs/guides/reasoning-best-practices#6-reviewing-debugging-and-improving-code-quality",
+          "line": 106
+        },
+        {
+          "title": "7. Evaluation and benchmarking for other model responses",
+          "url": "https://developers.openai.com/api/docs/guides/reasoning-best-practices#7-evaluation-and-benchmarking-for-other-model-responses",
+          "line": 120
+        },
+        {
+          "title": "How to prompt reasoning models effectively",
+          "url": "https://developers.openai.com/api/docs/guides/reasoning-best-practices#how-to-prompt-reasoning-models-effectively",
+          "line": 128
+        },
+        {
+          "title": "How to keep costs low and accuracy high",
+          "url": "https://developers.openai.com/api/docs/guides/reasoning-best-practices#how-to-keep-costs-low-and-accuracy-high",
+          "line": 141
+        },
+        {
+          "title": "Other resources",
+          "url": "https://developers.openai.com/api/docs/guides/reasoning-best-practices#other-resources",
+          "line": 149
+        }
+      ]
+    },
+    {
+      "id": "prompting",
+      "title": "Prompting",
+      "url": "https://developers.openai.com/api/docs/guides/prompting",
+      "download_url": "https://developers.openai.com/api/docs/guides/prompting.md",
+      "snapshot": "snapshots/prompting.md",
+      "sha256": "87257ecc56e3e15ce7199533ac55debcfb2b96c06ca3f7ea67a8508425917916",
+      "retrieved_at": "2026-11-05T01:38:52+00:00",
+      "scope": "general",
+      "sections": [
+        {
+          "title": "Prompting",
+          "url": "https://developers.openai.com/api/docs/guides/prompting#prompting",
+          "line": 1
+        },
+        {
+          "title": "Overview",
+          "url": "https://developers.openai.com/api/docs/guides/prompting#overview",
+          "line": 7
+        },
+        {
+          "title": "Prompting tools and techniques",
+          "url": "https://developers.openai.com/api/docs/guides/prompting#prompting-tools-and-techniques",
+          "line": 11
+        },
+        {
+          "title": "Refine your prompt",
+          "url": "https://developers.openai.com/api/docs/guides/prompting#refine-your-prompt",
+          "line": 16
+        },
+        {
+          "title": "Prompts in your application",
+          "url": "https://developers.openai.com/api/docs/guides/prompting#prompts-in-your-application",
+          "line": 23
+        },
+        {
+          "title": "Next steps",
+          "url": "https://developers.openai.com/api/docs/guides/prompting#next-steps",
+          "line": 43
+        }
+      ]
+    },
+    {
+      "id": "enterprise-guide",
+      "title": "**ChatGPT Enterprise: Practical prompt engineering for everyday work**",
+      "url": "https://developers.openai.com/cookbook/examples/chatgpt/chatgpt_prompt_guide/chatgpt_prompt_guide",
+      "download_url": "https://developers.openai.com/cookbook/examples/chatgpt/chatgpt_prompt_guide/chatgpt_prompt_guide.md",
+      "snapshot": "snapshots/enterprise-guide.md",
+      "sha256": "a49e2d13a313c62c913c001c60d61d61e11d80b444252c913ef5805adb65f2b4",
+      "retrieved_at": "2026-11-05T01:38:52+00:00",
+      "scope": "general",
+      "sections": [
+        {
+          "title": "**ChatGPT Enterprise: Practical prompt engineering for everyday work**",
+          "url": "https://developers.openai.com/cookbook/examples/chatgpt/chatgpt_prompt_guide/chatgpt_prompt_guide#chatgpt-enterprise-practical-prompt-engineering-for-everyday-work",
+          "line": 1
+        },
+        {
+          "title": "**Table of Contents**",
+          "url": "https://developers.openai.com/cookbook/examples/chatgpt/chatgpt_prompt_guide/chatgpt_prompt_guide#table-of-contents",
+          "line": 32
+        },
+        {
+          "title": "1. Introduction",
+          "url": "https://developers.openai.com/cookbook/examples/chatgpt/chatgpt_prompt_guide/chatgpt_prompt_guide#1-introduction",
+          "line": 42
+        },
+        {
+          "title": "2. Mindset",
+          "url": "https://developers.openai.com/cookbook/examples/chatgpt/chatgpt_prompt_guide/chatgpt_prompt_guide#2-mindset",
+          "line": 51
+        },
+        {
+          "title": "3. Scope the problem",
+          "url": "https://developers.openai.com/cookbook/examples/chatgpt/chatgpt_prompt_guide/chatgpt_prompt_guide#3-scope-the-problem",
+          "line": 69
+        },
+        {
+          "title": "A. Before you write anything, think carefully",
+          "url": "https://developers.openai.com/cookbook/examples/chatgpt/chatgpt_prompt_guide/chatgpt_prompt_guide#a-before-you-write-anything-think-carefully",
+          "line": 73
+        },
+        {
+          "title": "B. Scope the problem to what a prompt can do",
+          "url": "https://developers.openai.com/cookbook/examples/chatgpt/chatgpt_prompt_guide/chatgpt_prompt_guide#b-scope-the-problem-to-what-a-prompt-can-do",
+          "line": 85
+        },
+        {
+          "title": "4. Write the prompt clearly",
+          "url": "https://developers.openai.com/cookbook/examples/chatgpt/chatgpt_prompt_guide/chatgpt_prompt_guide#4-write-the-prompt-clearly",
+          "line": 96
+        },
+        {
+          "title": "Context",
+          "url": "https://developers.openai.com/cookbook/examples/chatgpt/chatgpt_prompt_guide/chatgpt_prompt_guide#context",
+          "line": 116
+        },
+        {
+          "title": "Instructions",
+          "url": "https://developers.openai.com/cookbook/examples/chatgpt/chatgpt_prompt_guide/chatgpt_prompt_guide#instructions",
+          "line": 126
+        },
+        {
+          "title": "Additional Information",
+          "url": "https://developers.openai.com/cookbook/examples/chatgpt/chatgpt_prompt_guide/chatgpt_prompt_guide#additional-information",
+          "line": 136
+        },
+        {
+          "title": "5. Use ChatGPT to help you prompt (meta-prompting)",
+          "url": "https://developers.openai.com/cookbook/examples/chatgpt/chatgpt_prompt_guide/chatgpt_prompt_guide#5-use-chatgpt-to-help-you-prompt-meta-prompting",
+          "line": 153
+        },
+        {
+          "title": "6. Improve accuracy",
+          "url": "https://developers.openai.com/cookbook/examples/chatgpt/chatgpt_prompt_guide/chatgpt_prompt_guide#6-improve-accuracy",
+          "line": 177
+        },
+        {
+          "title": "7. Conclusion",
+          "url": "https://developers.openai.com/cookbook/examples/chatgpt/chatgpt_prompt_guide/chatgpt_prompt_guide#7-conclusion",
+          "line": 203
+        },
+        {
+          "title": "Prompting 101 Examples",
+          "url": "https://developers.openai.com/cookbook/examples/chatgpt/chatgpt_prompt_guide/chatgpt_prompt_guide#prompting-101-examples",
+          "line": 214
+        },
+        {
+          "title": "Okay prompt (task)",
+          "url": "https://developers.openai.com/cookbook/examples/chatgpt/chatgpt_prompt_guide/chatgpt_prompt_guide#okay-prompt-task",
+          "line": 218
+        },
+        {
+          "title": "Good prompt (+ context / persona)",
+          "url": "https://developers.openai.com/cookbook/examples/chatgpt/chatgpt_prompt_guide/chatgpt_prompt_guide#good-prompt--context--persona",
+          "line": 223
+        },
+        {
+          "title": "Excellent prompt (+ output)",
+          "url": "https://developers.openai.com/cookbook/examples/chatgpt/chatgpt_prompt_guide/chatgpt_prompt_guide#excellent-prompt--output",
+          "line": 228
+        },
+        {
+          "title": "1. Summarize a Document",
+          "url": "https://developers.openai.com/cookbook/examples/chatgpt/chatgpt_prompt_guide/chatgpt_prompt_guide#1-summarize-a-document",
+          "line": 235
+        },
+        {
+          "title": "1. Okay prompt",
+          "url": "https://developers.openai.com/cookbook/examples/chatgpt/chatgpt_prompt_guide/chatgpt_prompt_guide#1-okay-prompt",
+          "line": 237
+        },
+        {
+          "title": "2. Good prompt",
+          "url": "https://developers.openai.com/cookbook/examples/chatgpt/chatgpt_prompt_guide/chatgpt_prompt_guide#2-good-prompt",
+          "line": 242
+        },
+        {
+          "title": "3. Excellent prompt",
+          "url": "https://developers.openai.com/cookbook/examples/chatgpt/chatgpt_prompt_guide/chatgpt_prompt_guide#3-excellent-prompt",
+          "line": 264
+        },
+        {
+          "title": "2. Search for (Apps)",
+          "url": "https://developers.openai.com/cookbook/examples/chatgpt/chatgpt_prompt_guide/chatgpt_prompt_guide#2-search-for-apps",
+          "line": 317
+        },
+        {
+          "title": "1. Okay prompt",
+          "url": "https://developers.openai.com/cookbook/examples/chatgpt/chatgpt_prompt_guide/chatgpt_prompt_guide#1-okay-prompt-1",
+          "line": 319
+        },
+        {
+          "title": "2. Good prompt",
+          "url": "https://developers.openai.com/cookbook/examples/chatgpt/chatgpt_prompt_guide/chatgpt_prompt_guide#2-good-prompt-1",
+          "line": 324
+        },
+        {
+          "title": "3. Excellent prompt",
+          "url": "https://developers.openai.com/cookbook/examples/chatgpt/chatgpt_prompt_guide/chatgpt_prompt_guide#3-excellent-prompt-1",
+          "line": 348
+        },
+        {
+          "title": "3. Adopt a Persona",
+          "url": "https://developers.openai.com/cookbook/examples/chatgpt/chatgpt_prompt_guide/chatgpt_prompt_guide#3-adopt-a-persona",
+          "line": 398
+        },
+        {
+          "title": "1. Okay prompt",
+          "url": "https://developers.openai.com/cookbook/examples/chatgpt/chatgpt_prompt_guide/chatgpt_prompt_guide#1-okay-prompt-2",
+          "line": 400
+        },
+        {
+          "title": "2. Good prompt",
+          "url": "https://developers.openai.com/cookbook/examples/chatgpt/chatgpt_prompt_guide/chatgpt_prompt_guide#2-good-prompt-2",
+          "line": 408
+        },
+        {
+          "title": "3. Excellent prompt",
+          "url": "https://developers.openai.com/cookbook/examples/chatgpt/chatgpt_prompt_guide/chatgpt_prompt_guide#3-excellent-prompt-2",
+          "line": 430
+        },
+        {
+          "title": "4. Research for… (Deep Research)",
+          "url": "https://developers.openai.com/cookbook/examples/chatgpt/chatgpt_prompt_guide/chatgpt_prompt_guide#4-research-for-deep-research",
+          "line": 474
+        },
+        {
+          "title": "1. Okay prompt",
+          "url": "https://developers.openai.com/cookbook/examples/chatgpt/chatgpt_prompt_guide/chatgpt_prompt_guide#1-okay-prompt-3",
+          "line": 476
+        },
+        {
+          "title": "2. Good prompt",
+          "url": "https://developers.openai.com/cookbook/examples/chatgpt/chatgpt_prompt_guide/chatgpt_prompt_guide#2-good-prompt-3",
+          "line": 481
+        },
+        {
+          "title": "3. Excellent prompt",
+          "url": "https://developers.openai.com/cookbook/examples/chatgpt/chatgpt_prompt_guide/chatgpt_prompt_guide#3-excellent-prompt-3",
+          "line": 511
+        }
+      ]
+    },
+    {
+      "id": "prompt-generation",
+      "title": "Prompt generation",
+      "url": "https://developers.openai.com/api/docs/guides/prompt-generation",
+      "download_url": "https://developers.openai.com/api/docs/guides/prompt-generation.md",
+      "snapshot": "snapshots/prompt-generation.md",
+      "sha256": "f1cd9ec1767862fb10c8fd0973efc8483f332145e5b530732275d2a716d0a872",
+      "retrieved_at": "2026-11-05T01:38:52+00:00",
+      "scope": "reference-only",
+      "sections": [
+        {
+          "title": "Prompt generation",
+          "url": "https://developers.openai.com/api/docs/guides/prompt-generation#prompt-generation",
+          "line": 1
+        },
+        {
+          "title": "Overview",
+          "url": "https://developers.openai.com/api/docs/guides/prompt-generation#overview",
+          "line": 7
+        },
+        {
+          "title": "Prompts",
+          "url": "https://developers.openai.com/api/docs/guides/prompt-generation#prompts",
+          "line": 16
+        },
+        {
+          "title": "Meta-prompts",
+          "url": "https://developers.openai.com/api/docs/guides/prompt-generation#meta-prompts",
+          "line": 22
+        },
+        {
+          "title": "Prompt edits",
+          "url": "https://developers.openai.com/api/docs/guides/prompt-generation#prompt-edits",
+          "line": 800
+        },
+        {
+          "title": "Schemas",
+          "url": "https://developers.openai.com/api/docs/guides/prompt-generation#schemas",
+          "line": 1809
+        },
+        {
+          "title": "Defining a constrained meta-schema",
+          "url": "https://developers.openai.com/api/docs/guides/prompt-generation#defining-a-constrained-meta-schema",
+          "line": 1816
+        },
+        {
+          "title": "Output cleaning",
+          "url": "https://developers.openai.com/api/docs/guides/prompt-generation#output-cleaning",
+          "line": 1842
+        },
+        {
+          "title": "Meta-schemas",
+          "url": "https://developers.openai.com/api/docs/guides/prompt-generation#meta-schemas",
+          "line": 1857
+        }
+      ]
+    },
+    {
+      "id": "structured-outputs",
+      "title": "Structured model outputs",
+      "url": "https://developers.openai.com/api/docs/guides/structured-outputs",
+      "download_url": "https://developers.openai.com/api/docs/guides/structured-outputs.md",
+      "snapshot": "snapshots/structured-outputs.md",
+      "sha256": "dcd211d602a85c8573033559384424d6ebc86af73a844e752822ed868d82032b",
+      "retrieved_at": "2026-11-05T01:38:52+00:00",
+      "scope": "general",
+      "sections": [
+        {
+          "title": "Structured model outputs",
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs#structured-model-outputs",
+          "line": 1
+        },
+        {
+          "title": "Supported models",
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs#supported-models",
+          "line": 281
+        },
+        {
+          "title": "Structured Outputs vs JSON mode",
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs#structured-outputs-vs-json-mode",
+          "line": 331
+        },
+        {
+          "title": "Examples",
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs#examples",
+          "line": 350
+        },
+        {
+          "title": "Chain of thought",
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs#chain-of-thought",
+          "line": 358
+        },
+        {
+          "title": "Example response",
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs#example-response",
+          "line": 717
+        },
+        {
+          "title": "Structured data extraction",
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs#structured-data-extraction",
+          "line": 757
+        },
+        {
+          "title": "Example response",
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs#example-response-1",
+          "line": 1116
+        },
+        {
+          "title": "UI Generation",
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs#ui-generation",
+          "line": 1144
+        },
+        {
+          "title": "Example response",
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs#example-response-2",
+          "line": 1585
+        },
+        {
+          "title": "Moderation",
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs#moderation",
+          "line": 1672
+        },
+        {
+          "title": "Example response",
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs#example-response-3",
+          "line": 2018
+        },
+        {
+          "title": "Step 1: Define your schema",
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs#step-1-define-your-schema",
+          "line": 2041
+        },
+        {
+          "title": "Tips for your JSON Schema",
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs#tips-for-your-json-schema",
+          "line": 2049
+        },
+        {
+          "title": "Step 2: Supply your schema in the API call",
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs#step-2-supply-your-schema-in-the-api-call",
+          "line": 2063
+        },
+        {
+          "title": "Step 3: Handle edge cases",
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs#step-3-handle-edge-cases",
+          "line": 2451
+        },
+        {
+          "title": "Handling user-generated input",
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs#handling-user-generated-input",
+          "line": 3621
+        },
+        {
+          "title": "Handling mistakes",
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs#handling-mistakes",
+          "line": 3629
+        },
+        {
+          "title": "Avoid JSON schema divergence",
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs#avoid-json-schema-divergence",
+          "line": 3633
+        },
+        {
+          "title": "Streaming",
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs#streaming",
+          "line": 3639
+        },
+        {
+          "title": "Supported schemas",
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs#supported-schemas",
+          "line": 3881
+        },
+        {
+          "title": "Supported types",
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs#supported-types",
+          "line": 3887
+        },
+        {
+          "title": "Supported properties",
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs#supported-properties",
+          "line": 3900
+        },
+        {
+          "title": "Root objects must not be `anyOf` and must be an object",
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs#root-objects-must-not-be-anyof-and-must-be-an-object",
+          "line": 4016
+        },
+        {
+          "title": "All fields must be `required`",
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs#all-fields-must-be-required",
+          "line": 4041
+        },
+        {
+          "title": "Objects have limitations on nesting depth and size",
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs#objects-have-limitations-on-nesting-depth-and-size",
+          "line": 4103
+        },
+        {
+          "title": "Limitations on total string size",
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs#limitations-on-total-string-size",
+          "line": 4107
+        },
+        {
+          "title": "Limitations on enum size",
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs#limitations-on-enum-size",
+          "line": 4111
+        },
+        {
+          "title": "`additionalProperties: false` must always be set in objects",
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs#additionalproperties-false-must-always-be-set-in-objects",
+          "line": 4117
+        },
+        {
+          "title": "Key ordering",
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs#key-ordering",
+          "line": 4152
+        },
+        {
+          "title": "Some type-specific keywords are not yet supported",
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs#some-type-specific-keywords-are-not-yet-supported",
+          "line": 4156
+        },
+        {
+          "title": "For `anyOf`, the nested schemas must each be a valid JSON Schema per this subset",
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs#for-anyof-the-nested-schemas-must-each-be-a-valid-json-schema-per-this-subset",
+          "line": 4169
+        },
+        {
+          "title": "Definitions are supported",
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs#definitions-are-supported",
+          "line": 4233
+        },
+        {
+          "title": "Recursive schemas are supported",
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs#recursive-schemas-are-supported",
+          "line": 4278
+        },
+        {
+          "title": "JSON mode",
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs#json-mode",
+          "line": 4377
+        },
+        {
+          "title": "Handling edge cases",
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs#handling-edge-cases",
+          "line": 4400
+        },
+        {
+          "title": "Resources",
+          "url": "https://developers.openai.com/api/docs/guides/structured-outputs#resources",
+          "line": 4738
+        }
+      ]
+    }
+  ]
+}

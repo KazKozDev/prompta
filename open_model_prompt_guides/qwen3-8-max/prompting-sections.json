@@ -1,0 +1,26 @@
+{
+  "source_url": "https://huggingface.co/Qwen/Qwen3.8-2.4T-A95B/blob/207bd685a7e3696cfaff12ded7c6a7ea0f88c996/README.md",
+  "source_sha256": "7690c680c2d6eb284179ef5dd4db63260d248531cae9087b09b2c2200230f331",
+  "sections": [
+    {
+      "section": "Quickstart",
+      "line": 332,
+      "text": "## Quickstart\n\nFor streamlined integration, we recommend using Qwen3.8 via APIs.\n"
+    },
+    {
+      "section": "API Usage",
+      "line": 350,
+      "text": "### API Usage\n\n> [!Important]\n> Qwen3.8-2.4T-A95B is a text-only model that requires thinking mode for all interactions. Multimodal inputs are not supported, and thinking cannot be disabled. Every response will automatically begin with reasoning enclosed in `<think>\\n...</think>\\n\\n` before the final output.\n\n> [!Tip]\n> We recommend using the following set of sampling parameters for generation:\n> - `temperature=1.0, top_p=0.95, top_k=20, min_p=0.0, presence_penalty=0.0, repetition_penalty=1.0`\n>\n> Please note that the support for sampling parameters varies according to inference frameworks.\n\n\nQwen3.8 comes with official support for `reasoning_effort`, which can be used to adjust reasoning depth and control cost:  \n  - `xhigh` (default): for complex tasks demanding thorough analysis\n  - `medium`: balancing accuracy and speed\n  - `low`: efficient reasoning optimizing for speed and cost\n\nIn addition, `preserve_thinking` is enabled by default for all workloads for the best out-of-the-box experience.\n\n"
+    },
+    {
+      "section": "Chat Completions API",
+      "line": 370,
+      "text": "#### Chat Completions API\n\nThe Chat Completions API can be used with most inference frameworks, as well as [Qwen Cloud](https://www.qwencloud.com).\nBefore starting, make sure the OpenAI Python SDK is installed and the API key and the API base URL are configured, e.g.:\n```shell\npip install -U openai\n\n# Set the following accordingly\nexport OPENAI_BASE_URL='your-base-url'\nexport OPENAI_API_KEY='your-api-key'\n```\n\n##### Text-Only Input\n\n```python\nfrom openai import OpenAI\n# Configured by environment variables\nclient = OpenAI()\n\nmessages = [{\"role\": \"user\", \"content\": \"Write a Python function to merge two sorted linked lists.\"}]\n\ncompletion = client.chat.completions.create(\n    model=\"Qwen/Qwen3.8-2.4T-A95B\",\n    messages=messages,\n    extra_body={\n        \"chat_template_kwargs\": {\n            \"enable_thinking\": True,  # on by default; should not be turned off\n            \"preserve_thinking\": True, # on by default\n        },\n    },\n    reasoning_effort=\"xhigh\",  # xhigh by default; supported levels are xhigh, medium, and low\n    stream=True,\n    stream_options={\"include_usage\": True},\n)\n\nreasoning_content = \"\"\nanswer_content = \"\"\nis_answering = False\nprint(\"\\n\" + \"=\" * 20 + \"Reasoning\" + \"=\" * 20 + \"\\n\")\n\nfor chunk in completion:\n    if not chunk.choices:\n        print(\"\\nUsage:\")\n        print(chunk.usage)\n        continue\n\n    delta = chunk.choices[0].delta\n\n    if hasattr(delta, \"reasoning_content\") and delta.reasoning_content is not None:\n        if not is_answering:\n            print(delta.reasoning_content, end=\"\", flush=True)\n        reasoning_content += delta.reasoning_content\n\n    if hasattr(delta, \"content\") and delta.content:\n        if not is_answering:\n            print(\"\\n\" + \"=\" * 20 + \"Answer\" + \"=\" * 20 + \"\\n\")\n            is_answering = True\n        print(delta.content, end=\"\", flush=True)\n        answer_content += delta.content\n```\n\n> [!Note]\n> If you are using APIs from Qwen Cloud, in addition to changing `model`, please pass `extra_body={\"enable_thinking\": True, \"preserve_thinking\": True}` instead of `extra_body={\"chat_template_kwargs\": {\"enable_thinking\": True, \"preserve_thinking\": True}}`.\n\n"
+    },
+    {
+      "section": "Best Practices",
+      "line": 435,
+      "text": "## Best Practices\n\nTo achieve optimal performance, we recommend the following settings:\n\n1. **Sampling Parameters**:  \n   - We suggest using the following set of sampling parameters:  \n     - `temperature=1.0`, `top_p=0.95`, `top_k=20`, `min_p=0.0`, `presence_penalty=0.0`, `repetition_penalty=1.0`  \n   - For supported frameworks, you can adjust the `presence_penalty` parameter between 0 and 2 to reduce endless repetition. However, using a higher value may occasionally result in language mixing and a slight decrease in model performance.\n\n2. **Adequate Output Length**: To optimize performance on agentic tasks, we recommend allocating sufficient output length to allow the model to generate detailed and comprehensive responses. For frameworks that support separate token limits for internal reasoning and final outputs, we suggest the following configuration within the 1M context length:\n   - **Reasoning Content:** Set the maximum output length to 262,144 tokens.\n   - **Final Response:** Set the maximum output length to 131,072 tokens.\n\n   These settings provide the necessary capacity for complex reasoning while ensuring ample space for high-quality final deliverables.\n"
+    }
+  ]
+}

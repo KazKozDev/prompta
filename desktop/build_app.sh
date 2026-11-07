@@ -45,6 +45,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleShortVersionString</key><string>0.1.0</string>
   <key>CFBundleVersion</key><string>1</string>
   <key>LSMinimumSystemVersion</key><string>12.0</string>
+  <key>NSMicrophoneUsageDescription</key><string>Prompta uses the microphone for local Whisper dictation. Audio is not uploaded.</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>NSRequiresAquaSystemAppearance</key><true/>
   <key>CFBundleIconFile</key><string>icon</string>

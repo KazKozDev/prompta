@@ -1,0 +1,50 @@
+{
+  "id": "kimi-k2-7-code",
+  "name": "Kimi K2.7 Code",
+  "repo": "moonshotai/Kimi-K2.7-Code",
+  "url": "https://huggingface.co/moonshotai/Kimi-K2.7-Code",
+  "revision": "74797c9c62378b951a1f6fcf5c4631024e9b8bef",
+  "retrieved_at": "2026-11-05T22:21:56.819833+00:00",
+  "role": "Coding specialist",
+  "license": "other",
+  "gated": false,
+  "weight_files_present": true,
+  "guidance_kind": "Prompt-related model-card sections",
+  "dedicated_prompting_manual": "not established; model card and official template provided",
+  "files": [
+    {
+      "title": "README.md",
+      "snapshot": "kimi-k2-7-code/README.md",
+      "url": "https://huggingface.co/moonshotai/Kimi-K2.7-Code/blob/74797c9c62378b951a1f6fcf5c4631024e9b8bef/README.md",
+      "download_url": "https://huggingface.co/moonshotai/Kimi-K2.7-Code/resolve/74797c9c62378b951a1f6fcf5c4631024e9b8bef/README.md",
+      "sha256": "c78bbe5af19636b180eda956abf1f30a79027ec04d6642ebddc44edbc4470879",
+      "bytes": 15061
+    },
+    {
+      "title": "chat_template.jinja",
+      "snapshot": "kimi-k2-7-code/chat_template.jinja",
+      "url": "https://huggingface.co/moonshotai/Kimi-K2.7-Code/blob/74797c9c62378b951a1f6fcf5c4631024e9b8bef/chat_template.jinja",
+      "download_url": "https://huggingface.co/moonshotai/Kimi-K2.7-Code/resolve/74797c9c62378b951a1f6fcf5c4631024e9b8bef/chat_template.jinja",
+      "sha256": "8d21200dff7e85beaf51c8b110952e039ffd0779f615d64d63293d74773360f9",
+      "bytes": 2385
+    },
+    {
+      "title": "generation_config.json",
+      "snapshot": "kimi-k2-7-code/generation_config.json",
+      "url": "https://huggingface.co/moonshotai/Kimi-K2.7-Code/blob/74797c9c62378b951a1f6fcf5c4631024e9b8bef/generation_config.json",
+      "download_url": "https://huggingface.co/moonshotai/Kimi-K2.7-Code/resolve/74797c9c62378b951a1f6fcf5c4631024e9b8bef/generation_config.json",
+      "sha256": "b784cc6a9ecb551196b81cb6b1d2dcb18467b92adaab6992ae4cc455ad44d2ce",
+      "bytes": 91
+    },
+    {
+      "title": "LICENSE",
+      "snapshot": "kimi-k2-7-code/LICENSE",
+      "url": "https://huggingface.co/moonshotai/Kimi-K2.7-Code/blob/74797c9c62378b951a1f6fcf5c4631024e9b8bef/LICENSE",
+      "download_url": "https://huggingface.co/moonshotai/Kimi-K2.7-Code/resolve/74797c9c62378b951a1f6fcf5c4631024e9b8bef/LICENSE",
+      "sha256": "9cb73476cecdfabac7775bf7c225bd5f6017d5d678372917e4456964c0454f7a",
+      "bytes": 1470
+    }
+  ],
+  "failures": [],
+  "generation_integration": "Main-screen dropdown: pinned README model-card recommendations only. Other archived documents remain reference material; generator model is unchanged."
+}

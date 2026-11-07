@@ -294,14 +294,14 @@ test('резервный отсев не показывает принятую �
   assert.ok(!gated.rejected.some((item) => item.key === 'relaxed'));
 });
 
-test('полный цикл: повтор битого JSON, три уникальных варианта и синтез каждого', async () => {
+test('полный цикл: повтор битого JSON, пять уникальных вариантов и синтез каждого', async () => {
   let briefCalls = 0;
   let synthCalls = 0;
-  const choices = ['a', 'b', 'c'].map((key) => ({ key, reason: key, confidence: 0.8, whyNotCheaper: 'тест' }));
+  const choices = ['a', 'b', 'c', 'd', 'e'].map((key) => ({ key, reason: key, confidence: 0.8, whyNotCheaper: 'тест' }));
   const result = await runPipeline({
     thoughts: 'синтетическая классификация',
     catalog: { version: 'test', techniques: choices.map((c) => tech(c.key)) },
-    variants: 3,
+    variants: 5,
     llm: async (prompt) => {
       if (prompt.includes('Поток мыслей:')) return ++briefCalls === 1 ? 'broken JSON' : BRIEF_JSON;
       if (prompt.includes('Доступные техники')) return JSON.stringify({ choices: [...choices, choices[0]] });
@@ -310,8 +310,8 @@ test('полный цикл: повтор битого JSON, три уникал
     },
   });
   assert.equal(briefCalls, 2);
-  assert.equal(synthCalls, 3);
-  assert.equal(result.alternatives?.length, 2);
+  assert.equal(synthCalls, 5);
+  assert.equal(result.alternatives?.length, 4);
   assert.deepEqual(result.trace.map((t) => t.step), ['brief', 'gate', 'select', 'synthesize']);
 });
 
@@ -333,4 +333,33 @@ test('catalog display metadata is English and procedure steps remain available',
       assert.doesNotMatch(technique.procedure!.join(' '), /[А-Яа-яЁё]/u);
     }
   }
+});
+
+
+test('desktop defaults: model topic survives and progress advances only after completed stages', async () => {
+  const updates: [number, string][] = [];
+  const { llm, calls } = fakeLLM({ brief: JSON.stringify({ ...brief, topic: 'Анализ отзывов' }) });
+  const result = await runPipeline({ thoughts: 'Classify reviews', catalog, llm, oneShot: true,
+    onProgress: (percent, stage) => updates.push([percent, stage]) });
+  assert.equal(result.brief.topic, 'Анализ отзывов');
+  assert.deepEqual(updates.map(([percent]) => percent), [20, 30, 40, 95]);
+  assert.match(calls.at(-1)!, /Begin the final prompt with one short, relevant worked example/);
+  assert.match(calls[0], /"topic"/);
+});
+
+
+test('zero-shot baseline is additional, standalone, and precedes selected prompts', async () => {
+  const { renderPipelineResult } = await import('./render.ts');
+  const { buildZeroShotPrompt } = await import('./zero-shot.ts');
+  const { llm } = fakeLLM();
+  const result = await runPipeline({ thoughts: 'Classify reviews', catalog, llm });
+  assert.ok(result.zeroShotPrompt?.includes(brief.goal));
+  assert.ok(result.zeroShotPrompt?.includes(brief.output_format));
+  assert.notEqual(result.zeroShotPrompt, result.synthesis.prompt);
+  const html = renderPipelineResult(result);
+  assert.ok(html.indexOf('Zero-shot · baseline prompt') < html.indexOf('pipeline-technique-name'));
+  assert.equal((html.match(/data-copy/g) || []).length, 2 + (result.alternatives?.length ?? 0));
+  const raw = buildZeroShotPrompt('Сделай платформер на Pygame');
+  assert.match(raw, /Сделай платформер на Pygame/);
+  assert.doesNotMatch(raw, /Пример|Example input|Expected output/i);
 });

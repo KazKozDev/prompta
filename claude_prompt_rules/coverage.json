@@ -1,0 +1,31 @@
+{
+  "date": "2026-11-05",
+  "scope": "The 15 URLs in sources.json, not the entire Anthropic website. General recommendations were reviewed; model-specific sections and all examples remain available as source evidence. No claim of exhaustive site-wide coverage.",
+  "section_count": 159,
+  "rule_count": 73,
+  "active_rule_count": 71,
+  "excluded": [
+    {
+      "item": "Older Claude 3 tutorial",
+      "reason": "The official overview gives precedence to the current best-practices reference."
+    },
+    {
+      "item": "Model-specific recommendations",
+      "reason": "Retained as reference, not applied automatically without a known target version."
+    },
+    {
+      "item": "Medication dosing blocks",
+      "reason": "Require exact model-specific blocks; not generalized into the generic compiler."
+    }
+  ],
+  "ambiguities": [
+    {
+      "issue": "Assistant prefilling recommended by consistency guide but disallowed by current models",
+      "resolution": "Current best-practices migration guidance takes precedence; legacy rule is superseded."
+    },
+    {
+      "issue": "Self-checking helps some models but Opus 5 over-verifies",
+      "resolution": "Conditional guidance only; generic compiler must not add blanket verification loops."
+    }
+  ]
+}

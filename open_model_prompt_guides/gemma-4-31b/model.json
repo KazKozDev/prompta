@@ -1,0 +1,60 @@
+{
+  "id": "gemma-4-31b",
+  "name": "Gemma 4 31B IT",
+  "repo": "google/gemma-4-31B-it",
+  "url": "https://huggingface.co/google/gemma-4-31B-it",
+  "revision": "842da3794eaa0b77d5f08bae87a17459d91ff475",
+  "retrieved_at": "2026-11-05T22:21:55.509424+00:00",
+  "role": "Efficient general and multimodal model",
+  "license": "apache-2.0",
+  "gated": false,
+  "weight_files_present": true,
+  "guidance_kind": "Prompt-related model-card sections",
+  "dedicated_prompting_manual": "Gemma 4 family: control tokens and prompt formatting.",
+  "files": [
+    {
+      "title": "README.md",
+      "snapshot": "gemma-4-31b/README.md",
+      "url": "https://huggingface.co/google/gemma-4-31B-it/blob/842da3794eaa0b77d5f08bae87a17459d91ff475/README.md",
+      "download_url": "https://huggingface.co/google/gemma-4-31B-it/resolve/842da3794eaa0b77d5f08bae87a17459d91ff475/README.md",
+      "sha256": "e209f5c435b1e66055bd6d7c29185103ae8d2027a03a96b359335154f206b82b",
+      "bytes": 27963
+    },
+    {
+      "title": "chat_template.jinja",
+      "snapshot": "gemma-4-31b/chat_template.jinja",
+      "url": "https://huggingface.co/google/gemma-4-31B-it/blob/842da3794eaa0b77d5f08bae87a17459d91ff475/chat_template.jinja",
+      "download_url": "https://huggingface.co/google/gemma-4-31B-it/resolve/842da3794eaa0b77d5f08bae87a17459d91ff475/chat_template.jinja",
+      "sha256": "ae53464bf3be25802b3a5b37def7fd89667067d7577049b3b2d74c4d8de4c6d4",
+      "bytes": 18683
+    },
+    {
+      "title": "generation_config.json",
+      "snapshot": "gemma-4-31b/generation_config.json",
+      "url": "https://huggingface.co/google/gemma-4-31B-it/blob/842da3794eaa0b77d5f08bae87a17459d91ff475/generation_config.json",
+      "download_url": "https://huggingface.co/google/gemma-4-31B-it/resolve/842da3794eaa0b77d5f08bae87a17459d91ff475/generation_config.json",
+      "sha256": "d4226bbe3117d2d253ba4609720ba82c6c4ce4627a9a6ae05387c78983ac03de",
+      "bytes": 208
+    },
+    {
+      "title": "Gemma 4 prompt formatting · original HTML",
+      "snapshot": "gemma-4-31b/official-guide.html",
+      "url": "https://ai.google.dev/gemma/docs/core/prompt-formatting-gemma4",
+      "download_url": "https://ai.google.dev/gemma/docs/core/prompt-formatting-gemma4",
+      "sha256": "e74d27f63c4c7a76ce3f1844bb6423a6260ac18955452ee07b33d6340fadd314",
+      "bytes": 155709,
+      "scope": "Gemma 4 family: control tokens and prompt formatting."
+    },
+    {
+      "title": "Gemma 4 prompt formatting · readable text",
+      "snapshot": "gemma-4-31b/official-guide.txt",
+      "url": "https://ai.google.dev/gemma/docs/core/prompt-formatting-gemma4",
+      "download_url": "https://ai.google.dev/gemma/docs/core/prompt-formatting-gemma4",
+      "sha256": "f4a6554be37b81f6664c75b8c1d1c624b69027196b7c6c77a5152212d6e9591a",
+      "bytes": 14454,
+      "scope": "Gemma 4 family: control tokens and prompt formatting."
+    }
+  ],
+  "failures": [],
+  "generation_integration": "Main-screen dropdown: pinned README model-card recommendations only. Other archived documents remain reference material; generator model is unchanged."
+}
