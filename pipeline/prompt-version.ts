@@ -1,4 +1,5 @@
 import { BRIEF_SCHEMA, buildBriefPrompt } from './brief.ts';
+import { sanitizeBrief } from './injection.ts';
 import { buildManualPrompt } from './manual.ts';
 import { runOfficialPipeline } from './official.ts';
 import { ONE_SHOT_INSTRUCTION } from './prompt-defaults.ts';
@@ -22,7 +23,7 @@ export function fnv1a(text: string): string {
 /** Всё, что формирует текст внутренних промптов пайплайна. Добавили новый промпт — добавьте сюда. */
 const PROMPT_SOURCES: readonly unknown[] = [
   buildBriefPrompt, BRIEF_SCHEMA, buildSelectionPrompt, buildSynthesisPrompt, JSON.stringify(INJECTION_GUARDS),
-  buildZeroShotPrompt, generateZeroShotPrompt, buildManualPrompt, ONE_SHOT_INSTRUCTION, runOfficialPipeline,
+  buildZeroShotPrompt, generateZeroShotPrompt, buildManualPrompt, ONE_SHOT_INSTRUCTION, runOfficialPipeline, sanitizeBrief,
 ];
 
 let cached: string | undefined;

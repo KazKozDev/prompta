@@ -137,7 +137,7 @@ export function injectionGuard(language: string): string {
 /** Типы задач, где модель по определению обрабатывает чужой текст. */
 const MATERIAL_TASK_TYPES = new Set(['qa_over_docs', 'extraction', 'classification', 'agentic']);
 /** Вход брифа, который описывает внешний материал. */
-const MATERIAL_INPUT = /документ|текст|письм|почт|отзыв|переписк|стать|страниц|файл|транскрипт|стенограм|заметк|результат.*инструмент|document|text|e-?mail|review|page|file|transcript|note|html|web|tool output/i;
+const MATERIAL_INPUT = /документ|текст|письм|почт|отзыв|переписк|чат|диалог|истори|вывод|лог|стать|страниц|сайт|файл|резюме|анкет|транскрипт|стенограм|заметк|результат.*инструмент|document|text|e-?mail|review|page|site|file|transcript|note|html|web|chat|history|log|output|resume/i;
 
 /** Защита нужна, когда промпт реально обрабатывает чужой материал (документ, текст, контекст,
  *  вывод инструментов), а не просто потому что техника лежит в категории «контекст». */
@@ -145,7 +145,8 @@ export function needsInjectionGuard(brief: TaskBrief, technique: Technique): boo
   const materialSlot = /\{\{\s*(document|text|context|external_text)\s*\}\}/;
   return materialSlot.test(technique.template ?? '')
     || MATERIAL_TASK_TYPES.has(brief.task_type)
-    || MATERIAL_INPUT.test(brief.input ?? '');
+    || MATERIAL_INPUT.test(brief.input ?? '')
+    || brief.constraints.some((c) => /посторонние инструкции|untrusted instructions/i.test(c));
 }
 
 function budgetWarnings(brief: TaskBrief, technique: Technique): string[] {

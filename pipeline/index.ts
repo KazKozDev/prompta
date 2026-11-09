@@ -6,6 +6,7 @@ import { gateTechniques, getTechnique } from './catalog.ts';
 import { buildSelectionPrompt, parseChoices } from './select.ts';
 import { synthesizeDeterministic, synthesizeWithLLM, valuesFromBrief } from './synthesize.ts';
 import { meterLLM } from './llm.ts';
+import { sanitizeBrief } from './injection.ts';
 import { promptVersion } from './prompt-version.ts';
 
 export interface RunOptions {
@@ -96,11 +97,14 @@ async function dispatch(opts: RunOptions): Promise<PipelineResult> {
   }
 
   let brief = opts.brief;
+  let injectionRemoved: string[] = [];
   if (!brief) {
     const start = t0();
     const briefPrompt = buildBriefPrompt(opts.thoughts);
     const { value, raw } = await askJson(briefPrompt, parseBrief);
-    brief = value;
+    const cleaned = sanitizeBrief(value, opts.thoughts);
+    brief = cleaned.brief;
+    injectionRemoved = cleaned.removed;
     push('brief', t0() - start, { prompt: briefPrompt, raw });
   } else {
     push('brief', 0, {});
@@ -179,6 +183,9 @@ async function dispatch(opts: RunOptions): Promise<PipelineResult> {
   const synthesis = primary.synthesis;
 
   for (const item of built) {
+    if (injectionRemoved.length) {
+      item.synthesis.warnings.push(`Requirements taken from injected instructions were dropped: ${injectionRemoved.join('; ')}`);
+    }
     if (item.choice.cheapestOverride) {
       item.synthesis.warnings.push(
         `A more expensive technique was selected (${item.choice.key}) without justification`,
