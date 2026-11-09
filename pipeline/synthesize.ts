@@ -1,3 +1,4 @@
+import { sourceBlock } from './sources.ts';
 import { ONE_SHOT_INSTRUCTION } from './prompt-defaults.ts';
 import type { LLM, PromptConfig, Synthesis, TaskBrief, Technique } from './types.ts';
 import { PipelineError } from './types.ts';
@@ -178,7 +179,7 @@ ${technique.template}
 """
 ${technique.example}
 """
-
+${sourceBlock(technique.key)}
 Черновик с уже подставленными полями:
 """
 ${draft}

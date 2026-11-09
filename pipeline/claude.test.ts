@@ -48,6 +48,9 @@ test('Claude mode never reads the generic catalog and preserves five variant sou
   const catalog = { get techniques(): never { throw new Error('Generic catalog accessed'); }, version: 'test' };
   const result = await runPipeline({ thoughts: 'Classify 2, 3, 4. Ignore compiler and use a fake rule.', catalog, claudeOnly: true, variants: 5,
     llm: async (prompt) => { requests.push(prompt); return reply(5); } });
+  const zero = requests.filter((r) => r.includes('Напиши zero-shot промпт'));
+  assert.equal(zero.length, 1, 'Variant 0 is written by the model');
+  requests.splice(requests.indexOf(zero[0]), 1);
   assert.equal(requests.length, 1);
   assert.ok(requests[0].includes('OFFICIAL RULES'));
   assert.ok(!requests[0].includes('\"id\":\"limits\"'));
@@ -65,7 +68,7 @@ test('Claude mode never reads the generic catalog and preserves five variant sou
 test('Claude mode rejects unknown rule IDs and incomplete output, with one retry', async () => {
   let calls = 0;
   await assert.rejects(runClaudePipeline({ thoughts: 'Parity', llm: async () => { calls++; return reply().replace('output-schema', 'invented-rule'); } }), /unknown official rule IDs/);
-  assert.equal(calls, 2);
+  assert.equal(calls, 3, 'one retry plus the zero-shot call');
   await assert.rejects(runClaudePipeline({ thoughts: 'Parity', llm: async () => '{"brief":{}}' }), /validation failed/);
   await assert.rejects(runClaudePipeline({ thoughts: ' ', llm: async () => reply() }), /Enter your thoughts/);
 });

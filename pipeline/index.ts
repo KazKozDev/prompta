@@ -1,7 +1,7 @@
-import { buildZeroShotPrompt } from './zero-shot.ts';
+import { buildZeroShotPrompt, generateZeroShotPrompt } from './zero-shot.ts';
 import type { Catalog, LLM, PipelineResult, PipelineTrace, TaskBrief, TechniqueChoice } from './types.ts';
 import { PipelineError } from './types.ts';
-import { buildBriefPrompt, parseBrief } from './brief.ts';
+import { briefAssumptions, buildBriefPrompt, parseBrief } from './brief.ts';
 import { gateTechniques, getTechnique } from './catalog.ts';
 import { buildSelectionPrompt, parseChoices } from './select.ts';
 import { synthesizeDeterministic, synthesizeWithLLM, valuesFromBrief } from './synthesize.ts';
@@ -144,6 +144,10 @@ export async function runPipeline(opts: RunOptions): Promise<PipelineResult> {
   let completed = 0;
   const synthStart = t0();
   // Варианты независимы — собираем параллельно, чтобы 3 промпта не ждались по очереди.
+  // Variant 0 is written by the model too, in parallel with the technique variants.
+  const zeroShot = mode === 'deterministic'
+    ? Promise.resolve({ prompt: buildZeroShotPrompt(opts.thoughts, brief), byModel: false })
+    : generateZeroShotPrompt(opts.thoughts, brief, opts.llm);
   const built = await Promise.all(
     choices.map(async (item) => {
       const technique = getTechnique(opts.catalog, item.key);
@@ -185,7 +189,7 @@ export async function runPipeline(opts: RunOptions): Promise<PipelineResult> {
   }));
 
   return {
-    zeroShotPrompt: buildZeroShotPrompt(opts.thoughts, brief),
+    zeroShotPrompt: (await zeroShot).prompt,
     brief,
     choice,
     synthesis,
@@ -203,7 +207,7 @@ export function formatResult(result: PipelineResult): string {
     `Задача: ${brief.goal}`,
     `Тип: ${brief.task_type} | язык: ${brief.language} | цена ошибки: ${brief.stakes}`,
     `Формат: ${brief.output_format}`,
-    brief.assumptions.length ? `Допущения: ${brief.assumptions.join('; ')}` : 'Допущения: нет',
+    briefAssumptions(brief).length ? `Допущения: ${briefAssumptions(brief).join('; ')}` : 'Допущения: нет',
     '',
     'Zero-shot · базовый промпт:',
     result.zeroShotPrompt ?? buildZeroShotPrompt('', brief),

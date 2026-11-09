@@ -320,9 +320,6 @@ async function handlePipelineRun() {
     return;
   }
 
-  const deterministic =
-    (document.getElementById('pipeline-deterministic') as HTMLInputElement | null)?.checked ?? false;
-
   const selectedTarget = ['claude', 'chatgpt', 'gemini', 'grok'].find((target) => (document.getElementById(`pipeline-${target}`) as HTMLInputElement | null)?.checked);
   button.disabled = true;
   statusEl.classList.remove('is-error');
@@ -342,7 +339,7 @@ async function handlePipelineRun() {
       grokOnly: selectedTarget === 'grok',
       catalog,
       llm,
-      mode: deterministic && !selectedTarget ? 'deterministic' : 'llm',
+      mode: 'llm',  // every prompt is written by the model from the downloaded sources
       variants: 3,
     });
     out.innerHTML = renderPipelineResult(result);
@@ -415,8 +412,6 @@ function App() {
       for (const toggle of targetToggles) {
         toggle?.addEventListener('change', () => {
           if (toggle.checked) targetToggles.forEach((other) => { if (other && other !== toggle) other.checked = false; });
-          const deterministicToggle = document.getElementById('pipeline-deterministic') as HTMLInputElement | null;
-          if (deterministicToggle) deterministicToggle.disabled = targetToggles.some((other) => other?.checked);
         });
       }
       const pipelineOutput = document.getElementById('pipeline-output');

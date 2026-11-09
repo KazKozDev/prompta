@@ -143,8 +143,8 @@ def read_material(root: Path, entry: dict) -> tuple[str, str]:
 
 from html import escape
 from urllib.parse import urlparse
-from PyQt6.QtCore import Qt, QUrl
-from PyQt6.QtGui import QDesktopServices
+from PyQt6.QtCore import QSize, Qt, QUrl
+from PyQt6.QtGui import QColor, QDesktopServices, QFont, QIcon
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
                             QSplitter, QTreeWidget, QTreeWidgetItem, QPlainTextEdit, QPushButton)
 
@@ -156,27 +156,35 @@ class LibraryWidget(QWidget):
         self.entries: list[dict] = []
         self.current: dict | None = None
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(0, 12, 0, 0)
+        outer.setContentsMargins(0, 18, 0, 0)  # air under the tab bar, same on every Settings tab
         outer.setSpacing(10)
         intro = QLabel('Inspect the saved sources, rules and instructions used by Promptа. Source hashes verify saved copies, not the truth of a recommendation.')
         intro.setWordWrap(True)
         intro.setObjectName('muted')
         outer.addWidget(intro)
+        outer.addSpacing(6)
         search_row = QHBoxLayout()
         self.search = QLineEdit()
-        self.search.setPlaceholderText('Find a source, rule bundle or pipeline stage…')
+        self.search.setPlaceholderText('Find a source, rule bundle or pipeline stage')
         self.search.setClearButtonEnabled(True)
         self.search.setAccessibleName('Search library')
         self.search.textChanged.connect(self._filter)
         search_row.addWidget(self.search, 1)
-        refresh = QPushButton('Refresh')
+        refresh = QPushButton()
         refresh.setObjectName('ghost')
+        refresh.setIcon(QIcon(str(Path(__file__).with_name('refresh.svg'))))
+        refresh.setIconSize(QSize(15, 15))
+        refresh.setFixedSize(34, 34)  # same square as the model refresh button
+        refresh.setToolTip('Refresh library')
+        refresh.setAccessibleName('Refresh library')
         refresh.clicked.connect(self.reload)
         search_row.addWidget(refresh)
         outer.addLayout(search_row)
         split = QSplitter(Qt.Orientation.Horizontal)
         self.tree = QTreeWidget()
         self.tree.setHeaderHidden(True)
+        self.tree.setRootIsDecorated(False)
+        self.tree.setIndentation(10)
         self.tree.setObjectName('libraryTree')
         self.tree.setMinimumWidth(180)
         self.tree.setAccessibleName('Library materials')
@@ -212,19 +220,35 @@ class LibraryWidget(QWidget):
         outer.addWidget(self.summary)
 
     def reload(self) -> None:
+        # Rebuilding is cheap, but keep the reader's place: re-select the material that was open.
+        keep_path = self.current['path'] if self.current else None
         self.entries = library_entries(self.root)
         self.current = None
         self.tree.clear()
         groups: dict[str, QTreeWidgetItem] = {}
         for index, entry in enumerate(self.entries):
             if entry['category'] not in groups:
-                group = QTreeWidgetItem(self.tree, [entry['category']])
+                group = QTreeWidgetItem(self.tree, [entry['category'].upper()])
                 group.setExpanded(True)
+                # Section label, like the category headers in the technique panel: not a material.
+                group.setFlags(Qt.ItemFlag.ItemIsEnabled)
+                font = QFont(group.font(0))
+                font.setPointSizeF(max(8.0, font.pointSizeF() - 3))
+                font.setWeight(QFont.Weight.DemiBold)
+                font.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, 1)
+                group.setFont(0, font)
+                group.setForeground(0, QColor('#74694f'))
                 groups[entry['category']] = group
             item = QTreeWidgetItem(groups[entry['category']], [entry['title']])
             item.setData(0, Qt.ItemDataRole.UserRole, index)
             item.setToolTip(0, entry['path'])
         self.summary.setText(f'{len(self.entries)} materials · local, read-only library')
+        if keep_path:
+            for i in range(self.tree.topLevelItemCount()):
+                group = self.tree.topLevelItem(i)
+                for j in range(group.childCount()):
+                    if self.entries[group.child(j).data(0, Qt.ItemDataRole.UserRole)]['path'] == keep_path:
+                        self.tree.setCurrentItem(group.child(j))
         self._filter(self.search.text())
 
     def _filter(self, text: str) -> None:
@@ -266,7 +290,7 @@ class LibraryWidget(QWidget):
         ):
             source = f'<br><a href="{escape(url, quote=True)}">Original source ↗</a>'
         self.info.setText(f'<b>{escape(entry["title"])}</b><br>{escape(entry["use"])}<br>'
-                          f'<span style="color:#7b8799">{escape(entry["path"])}<br>{escape(entry.get("reference", ""))}</span>{source}')
+                          f'<span style="color:#8a7d60">{escape(entry["path"])}<br>{escape(entry.get("reference", ""))}</span>{source}')
         metadata, content = read_material(self.root, entry)
         self.integrity.setText(metadata)
         self.preview.setPlainText(content)

@@ -1,4 +1,4 @@
-import type { Modality, Stakes, TaskBrief } from './types.ts';
+import type { BriefQuestion, LLM, Modality, Stakes, TaskBrief } from './types.ts';
 import { PipelineError } from './types.ts';
 import { extractJson, optionalStringArray, requireString } from './json.ts';
 
@@ -24,7 +24,8 @@ export const BRIEF_SCHEMA = `{
   "language": "язык ответа (ru, en, …)",
   "modality": "text | image | audio | video",
   "stakes": "low | medium | high — цена ошибки",
-  "assumptions": ["что пришлось домыслить, потому что в мыслях этого нет"],
+  "assumptions": ["что пришлось домыслить и о чём не задан вопрос"],
+  "questions": [{"question": "короткий вопрос о том, чего не хватает и что заметно изменит результат", "default": "что допущено, пока ответа нет — коротко, 2–8 слов"}],
   "budget_calls": "число вызовов LLM, которое пользователь готов потратить, или null"
 }`;
 
@@ -37,8 +38,9 @@ export function buildBriefPrompt(thoughts: string): string {
 2. task_type выбирай по сути работы, а не по словам: «сравни 3 варианта» — reasoning, «вытащи поля» — extraction, «ответь по документам» — qa_over_docs.
 3. output_format должен быть исполнимым: не «хороший ответ», а «JSON с полями X, Y» или «таблица markdown, 3 колонки».
 4. modality — только по тому, что реально нужно на входе или выходе.
-5. budget_calls: если пользователь говорит про экономию или скорость — поставь 1; если явно нужен многошаговый разбор — null.
-6. Отвечай ТОЛЬКО JSON-объектом по схеме, без пояснений и markdown-обёртки.
+5. questions — только о недостающих фактах, от которых реально зависит ответ (данные, цифры, условия, критерии выбора), на языке пользователя. Не спрашивай о том, что уже сказано или легко допустить. Не больше 3; лучше 0, чем лишний; [] если всё есть. У каждого вопроса default — допущение, с которым строится промпт без ответа; это допущение НЕ повторяй в assumptions.
+6. budget_calls: если пользователь говорит про экономию или скорость — поставь 1; если явно нужен многошаговый разбор — null.
+7. Отвечай ТОЛЬКО JSON-объектом по схеме, без пояснений и markdown-обёртки.
 
 Схема:
 ${BRIEF_SCHEMA}
@@ -103,8 +105,28 @@ export function parseBrief(raw: string): TaskBrief {
     modality,
     stakes,
     assumptions: optionalStringArray(obj, 'assumptions'),
+    questions: parseQuestions(obj.questions),
     budget_calls: budgetCalls,
   };
+}
+
+/** Questions as {question, default}; a bare string (older models, saved history) is a question without a default. */
+export function parseQuestions(value: unknown): BriefQuestion[] {
+  if (!Array.isArray(value)) return [];
+  const out: BriefQuestion[] = [];
+  for (const item of value) {
+    const raw = typeof item === 'string' ? { question: item } : item && typeof item === 'object' ? item as Record<string, unknown> : null;
+    const question = typeof raw?.question === 'string' ? raw.question.trim() : '';
+    if (!question) continue;
+    const fallback = typeof raw?.default === 'string' ? raw.default.trim() : '';
+    out.push(fallback ? { question, default: fallback } : { question });
+  }
+  return out.slice(0, 3);
+}
+
+/** Everything assumed: the listed assumptions plus the defaults of unanswered questions. */
+export function briefAssumptions(brief: TaskBrief): string[] {
+  return [...brief.assumptions, ...(brief.questions ?? []).flatMap((q) => (q.default ? [q.default] : []))];
 }
 
 /** Бриф → компактный вид для следующих стадий. */
@@ -123,4 +145,19 @@ export function briefToJson(brief: TaskBrief): string {
     null,
     2,
   );
+}
+
+/** Stage 1 on its own (manual techniques use it too): one retry on broken JSON, undefined if the model cannot produce a brief. */
+export async function generateBrief(thoughts: string, llm: LLM): Promise<TaskBrief | undefined> {
+  const prompt = buildBriefPrompt(thoughts);
+  let error = '';
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const raw = await llm(prompt + (attempt ? `\n\nПредыдущий ответ не разобрался (${error}). Верни строго JSON по схеме, без пояснений.` : ''), { temperature: 0, json: true });
+      return parseBrief(raw);
+    } catch (e) {
+      error = e instanceof Error ? e.message : 'ошибка';
+    }
+  }
+  return undefined;
 }

@@ -45,7 +45,7 @@ test('Grok generates five sourced variants without the generic catalog or API ad
   assert.equal(result.alternatives?.length, 4);
   assert.equal(result.grokGuidance?.variants.length, 5);
   assert.equal(result.grokGuidance?.evidence_status, 'model-reported');
-  assert.equal(result.synthesis.config.temperature, null);
+  assert.equal(result.synthesis.config.temperature, 0.1, 'computed from the task (classification), not left empty');
   assert.match(renderPipelineResult(result), /Grok rules/);
   assert.match(renderPipelineResult(result), /https:\/\/docs.x.ai/);
 });
@@ -53,7 +53,7 @@ test('Grok generates five sourced variants without the generic catalog or API ad
 test('Grok rejects missing rules, mixed targets, and synthesis bypasses', async () => {
   let calls = 0;
   await assert.rejects(runGrokPipeline({ thoughts: 'Test', variants: 5, llm: async () => { calls++; return reply(5, ['clear', 'invented']); } }), /official rule IDs/);
-  assert.equal(calls, 2);
+  assert.equal(calls, 3, 'one retry plus the zero-shot call');
   const base = { thoughts: 'Test', grokOnly: true, catalog: { version: 'unused', techniques: [] }, llm: async () => { throw new Error('Must not call'); } };
   await assert.rejects(runPipeline({ ...base, geminiOnly: true }), /only one target/);
   await assert.rejects(runPipeline({ ...base, mode: 'deterministic' }), /cannot use a generic technique/);

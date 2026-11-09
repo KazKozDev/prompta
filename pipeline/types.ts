@@ -52,6 +52,13 @@ export interface Catalog {
   techniques: Technique[];
 }
 
+/** A question to the user and what is assumed while it stays unanswered. */
+export interface BriefQuestion {
+  question: string;
+  /** The assumption used until the user answers; not repeated in `assumptions`. */
+  default?: string;
+}
+
 /** Разбор входного потока мыслей. Всё, что модель домыслила, — в `assumptions`. */
 export interface TaskBrief {
   /** Short model-written topic for the result and history. */
@@ -65,6 +72,8 @@ export interface TaskBrief {
   modality: Modality;
   stakes: Stakes;
   assumptions: string[];
+  /** Up to 3 questions whose answers would change the result materially; empty when nothing important is missing. */
+  questions?: BriefQuestion[];
   /** Сколько вызовов LLM пользователь готов потратить. null — не ограничено. */
   budget_calls: number | null;
 }

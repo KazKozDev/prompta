@@ -1,6 +1,9 @@
 """Native UI and subprocess lifecycle smoke tests (run with QT_QPA_PLATFORM=offscreen)."""
 import os
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+import tempfile as _tempfile
+from PyQt6.QtCore import QSettings as _QSettings
+_QSettings.setPath(_QSettings.Format.IniFormat, _QSettings.Scope.UserScope, _tempfile.mkdtemp())  # never touch real prefs
 import subprocess
 import tempfile
 from pathlib import Path
@@ -8,7 +11,18 @@ from history import HistoryStore, history_topic
 import unittest
 from unittest.mock import Mock, patch
 
-from app import QApplication, MainWindow, PromptaWindow, Worker, QPushButton
+from app import QApplication, MainWindow, PromptaWindow, Worker, QPushButton, QLabel, QModelIndex, QListWidget
+import app as app_module
+
+
+def app_flags_enabled():
+    from app import Qt
+    return Qt.ItemFlag.ItemIsEnabled
+
+
+def app_selectable():
+    from app import Qt
+    return Qt.ItemFlag.ItemIsSelectable
 
 
 class DesktopSmokeTest(unittest.TestCase):
@@ -57,6 +71,24 @@ class DesktopSmokeTest(unittest.TestCase):
         self.assertEqual(self.store.path.stat().st_mode & 0o777, 0o600)
         reopened.close()
 
+    def test_cross_deletes_history_entry_from_list_and_disk(self):
+        for name in ('Первая', 'Вторая', 'Третья'):
+            self.store.add(name, 'manual', name, {'topic': name})
+        with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
+            window = MainWindow()
+        window.history.setCurrentIndex(3)
+        window.history.showPopup()
+        listing = window.history._popup_frame.findChild(QListWidget)
+        self.assertFalse(listing.item(0).data(app_module.DELETABLE_ROLE))
+        self.assertTrue(listing.item(2).data(app_module.DELETABLE_ROLE))
+        window.history.deleteRequested.emit(2)
+        self.assertEqual([e['label'] for e in self.store.load()], ['Первая', 'Третья'])
+        self.assertEqual([window.history.itemText(i) for i in range(window.history.count())],
+                         ['— history —', 'Первая', 'Третья'])
+        self.assertEqual(window.history.currentText(), 'Третья')
+        window.history.hidePopup()
+        window.close()
+
     def test_repeated_results_fit_narrow_window_without_stale_rows(self):
         from app import QLabel, QSS
         from PyQt6.QtCore import QEvent
@@ -87,7 +119,7 @@ class DesktopSmokeTest(unittest.TestCase):
                 labels = window.output_holder.findChildren(QLabel)
                 self.assertEqual(sum(label.text() == 'PROMPT' for label in labels), 0)
                 self.assertEqual(sum(label.text() == 'type: generation' for label in labels), 1)
-                self.assertEqual(len(window.output_holder.findChildren(QPushButton)), 3)
+                self.assertEqual(len([b for b in window.output_holder.findChildren(QPushButton) if b.objectName() != 'restorePrompt']), 3)
                 for label in labels:
                     if label.wordWrap():
                         self.assertGreaterEqual(label.height(), label.heightForWidth(label.width()), label.text())
@@ -296,7 +328,7 @@ class DesktopSmokeTest(unittest.TestCase):
         with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
             window = MainWindow()
         try:
-            self.assertEqual(window.variants.value(), 3)
+            self.assertEqual(window.variants.value(), 1)
             window.variants.buttons.button(5).click()
             self.assertEqual(window.variants.value(), 5)
             self.assertEqual(sum(b.isChecked() for b in window.variants.buttons.buttons()), 1)
@@ -368,7 +400,7 @@ class DesktopSmokeTest(unittest.TestCase):
             window = MainWindow()
         labels = {label.text(): label for label in window.findChildren(QLabel)}
         self.assertNotIn('THOUGHTS', labels)
-        self.assertTrue(window.thoughts.placeholderText().startswith('Thoughts\n'))
+        self.assertEqual(window.thoughts.placeholderText(), 'Describe what you need')
         self.assertEqual(window.thoughts.accessibleName(), 'Thoughts')
         self.assertFalse(window.settings_button.icon().isNull())
         self.assertTrue(window.settings_dialog.isAncestorOf(window.api_key))
@@ -544,9 +576,9 @@ class DesktopSmokeTest(unittest.TestCase):
         with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
             window = MainWindow()
         try:
-            self.assertEqual(window.prompt_model.count(), 16)
+            self.assertEqual(sum(1 for i in range(window.prompt_model.count()) if window.prompt_model.itemData(i)), 15)
             window.chatgpt_only.setChecked(True)
-            window.prompt_model.setCurrentIndex(1)
+            window.prompt_model.setCurrentIndex(window.prompt_model.findData('kimi-k3-1-pro'))
             self.assertFalse(window.chatgpt_only.isChecked())
             self.assertEqual(window._selected_target(), 'openModel')
             self.assertFalse(window.technique.isEnabled())
@@ -571,7 +603,8 @@ class DesktopSmokeTest(unittest.TestCase):
         with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
             window = MainWindow()
         try:
-            name = window.prompt_model.itemText(2)
+            model_index = window.prompt_model.findData('glm-5-3')
+            name = window.prompt_model.itemText(model_index)
             payload = {
                 'brief': {'goal': 'g', 'task_type': 'generation', 'input': '', 'output_format': '',
                           'constraints': [], 'language': 'en', 'modality': 'text', 'stakes': 'low',
@@ -588,7 +621,7 @@ class DesktopSmokeTest(unittest.TestCase):
             window._filter_history()
             window.history.setCurrentIndex(1)
             self.assertEqual(window._selected_target(), 'openModel')
-            self.assertEqual(window.prompt_model.currentIndex(), 2)
+            self.assertEqual(window.prompt_model.currentIndex(), model_index)
             # An unknown model must not leave the hidden toggle on with an empty dropdown.
             payload['openModelGuidance']['target'] = 'No such model'
             window.history.setCurrentIndex(0)
@@ -642,10 +675,8 @@ class DesktopSmokeTest(unittest.TestCase):
         model = window.model.current_key()
         provider = window.provider.current_key()
         window.technique.set_current('zero_shot')
-        window.deterministic.setChecked(True)
         window.claude_only.setChecked(True)
         self.assertFalse(window.technique.isEnabled())
-        self.assertFalse(window.deterministic.isEnabled())
         self.assertEqual(window.model.current_key(), model)
         self.assertEqual(window.provider.current_key(), provider)
         window.thoughts.setPlainText('Synthetic parity test')
@@ -653,12 +684,34 @@ class DesktopSmokeTest(unittest.TestCase):
             window.run_pipeline()
             payload = worker_type.call_args.args[0]
             self.assertTrue(payload['claudeOnly'])
-            self.assertFalse(payload['deterministic'])
+            self.assertNotIn('deterministic', payload, 'the app never builds without the model')
             self.assertNotIn('manualTechnique', payload)
         window.claude_only.setChecked(False)
         self.assertTrue(window.technique.isEnabled())
         self.assertEqual(window.technique.current_key(), 'zero_shot')
-        self.assertTrue(window.deterministic.isChecked())
+        window.close()
+
+    def test_questions_show_their_assumed_default_and_rebuild_waits_for_an_answer(self):
+        from app import QLineEdit
+        brief = {'goal': 'Find job titles', 'task_type': 'agentic', 'language': 'ru', 'stakes': 'medium', 'output_format': 'Report',
+                 'assumptions': ['Leftover assumption'],
+                 'questions': [{'question': 'Which countries?', 'default': 'all of Europe'}, 'Which period?']}
+        result = {'brief': brief, 'choice': {'key': 'zero_shot', 'name': 'Zero-shot', 'reason': 'r', 'confidence': 0.5},
+                  'synthesis': {'prompt': 'Find job titles across Europe and report them with dates.', 'config': {'temperature': 0.2, 'top_p': 0.95, 'max_tokens': '1024'}, 'warnings': []},
+                  'rejected': []}
+        with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
+            window = PromptaWindow()
+        window.render(result)
+        fields = [answer for _, answer in window.question_answers]
+        self.assertEqual([f.placeholderText() for f in fields], ['Assumed: all of Europe', 'Your answer (optional)'])
+        self.assertFalse(window.rebuild_button.isEnabled(), 'nothing to rebuild with yet')
+        fields[1].setText('last 12 months')
+        self.assertTrue(window.rebuild_button.isEnabled())
+        texts = [label.text() for label in window.findChildren(QLabel)]
+        self.assertTrue(any('Leftover assumption' in t for t in texts))
+        self.assertIs(window.thoughts.bottom_panel.parentWidget(), window.thoughts, 'asked inside the request field')
+        window.clear_workspace()
+        self.assertIsNone(window.thoughts.bottom_panel, 'a new request starts without old questions')
         window.close()
 
     def test_claude_sources_and_mode_survive_history_restart_without_api_key(self):
@@ -716,7 +769,6 @@ class DesktopSmokeTest(unittest.TestCase):
                 self.assertFalse(window.chatgpt_only.isChecked())
                 self.assertFalse(window.gemini_only.isChecked())
                 window.technique.set_current('zero_shot')
-                window.deterministic.setChecked(True)
                 window.claude_only.setChecked(True)
                 getattr(window, f'{target}_only').setChecked(True)
                 self.assertFalse(window.claude_only.isChecked())
@@ -730,12 +782,11 @@ class DesktopSmokeTest(unittest.TestCase):
                     payload = worker_type.call_args.args[0]
                     for key in ('claude', 'chatgpt', 'gemini', 'grok'):
                         self.assertEqual(payload[f'{key}Only'], key == target)
-                    self.assertFalse(payload['deterministic'])
+                    self.assertNotIn('deterministic', payload, 'the app never builds without the model')
                     self.assertNotIn('manualTechnique', payload)
                     self.assertEqual(payload['model'], model)
                 getattr(window, f'{target}_only').setChecked(False)
                 self.assertTrue(window.technique.isEnabled())
-                self.assertTrue(window.deterministic.isChecked())
                 self.assertEqual(window.technique.current_key(), 'zero_shot')
                 window.close()
 
@@ -821,6 +872,60 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
         self.assertEqual(proc.communicate.call_count, 2)
         self.assertFalse(responses[0]['ok'])
 
+    def test_sources_window_shows_a_short_description_of_each_source(self):
+        import json
+        from app import QDialog, QLabel, TechniqueItem
+        links = json.loads((Path(__file__).resolve().parent.parent / 'catalog' / 'source-links.json').read_text())
+        self.assertTrue(all(any(s.get('summary') for s in v) for v in links.values()), 'every technique has a described source')
+        item = TechniqueItem('chain_of_thought', 'Chain-of-Thought', 'hint', links['chain_of_thought'])
+        shown = []
+        with patch.object(QDialog, 'exec', lambda dialog: shown.extend(l.text() for l in dialog.findChildren(QLabel) if l.objectName() == 'sourceSummary')):
+            item._show_sources('Chain-of-Thought')
+        self.assertTrue(shown and shown[0].startswith('We explore how generating a chain of thought'), shown[:1])
+        self.assertTrue(all(2 <= t.count('. ') + 1 <= 6 for t in shown), 'a few sentences each')
+
+    def test_hover_hints_use_the_app_popup_not_the_system_tooltip(self):
+        from app import HintFilter, QListWidget, QListWidgetItem, QPushButton
+        from PyQt6.QtCore import QEvent, QPoint
+        from PyQt6.QtGui import QHelpEvent
+        hints = HintFilter(self.app)
+        button = QPushButton('Build')
+        button.setToolTip('Build a prompt from the official documentation.')
+        button.show()
+        event = QHelpEvent(QEvent.Type.ToolTip, QPoint(5, 5), button.mapToGlobal(QPoint(5, 5)))
+        self.assertTrue(hints.eventFilter(button, event), 'the system tooltip is suppressed')
+        self.assertTrue(hints.popup.isVisible())
+        self.assertEqual(hints.popup.text(), 'Build a prompt from the official documentation.')
+        hints.eventFilter(button, QEvent(QEvent.Type.Leave))
+        self.assertFalse(hints.popup.isVisible())
+        listing = QListWidget()
+        item = QListWidgetItem('Row', listing)
+        item.setToolTip('Row details')
+        listing.show()
+        self.cls_app_process()
+        pos = listing.visualItemRect(item).center()
+        hints.eventFilter(listing.viewport(), QHelpEvent(QEvent.Type.ToolTip, pos, listing.viewport().mapToGlobal(pos)))
+        self.assertEqual(hints.popup.text(), 'Row details', 'list rows get the same hint')
+        hints.hide()
+        button.close()
+        listing.close()
+
+    def test_prompt_block_is_editable_and_copies_the_edit(self):
+        from app import PromptEdit, QGuiApplication
+        editor = PromptEdit('Original prompt text that is long enough.', None)
+        self.assertFalse(editor.isReadOnly())
+        editor.fit_to_content()
+        editor.resize(420, 200)
+        editor.show()
+        self.cls_app_process()
+        editor.moveCursor(editor.textCursor().MoveOperation.End)
+        editor.insertPlainText(' Edited by me.' + '\nline' * 30)
+        self.cls_app_process()
+        self.assertGreater(editor.height(), PromptEdit.FIT_MIN, 'the block grows with the edit')
+        editor._copy()
+        self.assertTrue(QGuiApplication.clipboard().text().startswith('Original prompt text that is long enough. Edited by me.'))
+        editor.close()
+
     def test_each_variant_copies_its_own_prompt(self):
         with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
             window = MainWindow()
@@ -889,6 +994,49 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
         with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
             return PromptaWindow()
 
+    def test_prompt_edits_are_saved_to_history_and_survive_restart(self):
+        from PyQt6.QtWidgets import QTabWidget
+        manual = {'zeroShotPrompt': 'Task: original baseline prompt for the saved task.', 'topic': 'Saved task',
+                  'technique': {'key': 'a', 'name': 'Alpha', 'category': 'test'}, 'prompt': 'ALPHA original prompt text, long enough.',
+                  'config': {'temperature': 0.2, 'top_p': 0.95, 'rationale': 'r'}, 'source_ref': 's',
+                  'variants': [{'technique': {'key': 'a', 'name': 'Alpha', 'category': 'test'}, 'prompt': 'ALPHA original prompt text, long enough.',
+                                'config': {'temperature': 0.2, 'top_p': 0.95, 'rationale': 'r'}, 'source_ref': 's'},
+                               {'technique': {'key': 'b', 'name': 'Beta', 'category': 'test'}, 'prompt': 'BETA original prompt text, long enough.',
+                                'config': {'temperature': 0.2, 'top_p': 0.95, 'rationale': 'r'}, 'source_ref': 's'}]}
+        window = self._prompta_window()
+        try:
+            window.thoughts.setPlainText('Saved task')
+            window.on_finished({'ok': True, 'manual': manual})
+            tabs = window.output_scroll.widget().findChild(QTabWidget)
+            tabs.widget(2).setPlainText('BETA edited by the user, long enough to keep.')
+            tabs.widget(0).setPlainText('Zero-shot edited by the user, long enough.')
+            window._edit_timer.stop()
+            window._save_prompt_edits()
+        finally:
+            window.close()
+        saved = self.store.load()[-1]['payload']
+        self.assertEqual(saved['variants'][1]['prompt'], 'BETA edited by the user, long enough to keep.')
+        self.assertEqual(saved['zeroShotPrompt'], 'Zero-shot edited by the user, long enough.')
+        self.assertEqual(saved['prompt'], 'ALPHA original prompt text, long enough.', 'untouched variants stay as built')
+        reopened = self._prompta_window()
+        try:
+            reopened.history.setCurrentIndex(reopened.history.findData(len(reopened._history_items) - 1))
+            tabs = reopened.output_scroll.widget().findChild(QTabWidget)
+            self.assertEqual(tabs.widget(2).toPlainText(), 'BETA edited by the user, long enough to keep.')
+            self.assertTrue(tabs.widget(2).is_edited() and tabs.widget(2).restore.isVisibleTo(tabs.widget(2)))
+            self.assertTrue(tabs.tabText(2).endswith('•'), 'the tab shows the variant was edited')
+            self.assertFalse(tabs.widget(1).is_edited())
+            tabs.widget(2).restore.click()
+            self.assertEqual(tabs.widget(2).toPlainText(), 'BETA original prompt text, long enough.')
+            self.assertFalse(tabs.tabText(2).endswith('•'))
+            reopened._edit_timer.stop()
+            reopened._save_prompt_edits()
+        finally:
+            reopened.close()
+        saved = self.store.load()[-1]['payload']
+        self.assertEqual(saved['variants'][1]['prompt'], 'BETA original prompt text, long enough.')
+        self.assertEqual(saved['originalPrompts'], {'0': 'Task: original baseline prompt for the saved task.'}, 'only the still-edited variant keeps an original')
+
     def test_target_switch_drives_hidden_toggles_and_request(self):
         window = self._prompta_window()
         try:
@@ -911,7 +1059,7 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
             request = payload()
             self.assertTrue(request['grokOnly'])
             self.assertFalse(request['claudeOnly'])
-            window.prompt_model.setCurrentIndex(2)
+            window.prompt_model.setCurrentIndex(window.prompt_model.findData('glm-5-3'))
             request = payload()
             self.assertEqual(request['openModel'], window.prompt_model.currentData())
             self.assertFalse(any(b.isChecked() for b in window.segments.buttons()))
@@ -945,13 +1093,31 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
             tabs = next(w for w in widgets if isinstance(w, QTabWidget))
             details = next(w for w in widgets if isinstance(w, Disclosure))
             self.assertLess(widgets.index(tabs), widgets.index(details))
-            self.assertEqual([tabs.tabText(i) for i in range(tabs.count())], ['Variant 1', 'Variant 2'])
+            self.assertEqual([tabs.tabText(i) for i in range(tabs.count())], ['Variant 0', 'Variant 1', 'Variant 2'])
+            self.assertEqual(tabs.currentIndex(), 1, 'the built prompt is shown first')
+            self.assertEqual(tabs.widget(0).toPlainText(), 'Task: snake')
             self.assertIn('FIRST PROMPT', window.prompt_edit.toPlainText())
-            self.assertIn('SECOND PROMPT', tabs.widget(1).toPlainText())
-            self.assertFalse(details.body.isVisibleTo(window))
+            self.assertIn('SECOND PROMPT', tabs.widget(2).toPlainText())
+            self.assertTrue(details.body.isVisibleTo(window), 'details are open by default')
             self.assertEqual(details.title(), 'How this prompt was built')
-            zero_shot = [e for e in details.body.findChildren(PromptEdit)]
-            self.assertEqual([e.toPlainText() for e in zero_shot], ['Task: snake'])
+            self.assertEqual(details.body.findChildren(PromptEdit), [], 'zero-shot moved out of the details')
+            def shown():
+                return [l.text() for l in details.body.findChildren(QLabel) if l.isVisibleTo(window)]
+            meta = next(w for w in widgets if isinstance(w, QLabel) and w.objectName() == 'meta')
+            first_reason = [l for l in details.body.findChildren(QLabel) if l.text() == 'because' and l.isVisibleTo(window)]
+            self.assertEqual(len(first_reason), 1, 'only the shown variant explains itself')
+            self.assertTrue(meta.text().startswith('Code prompting'))
+            self.assertTrue(tabs.widget(1).spec.text().startswith('temp '), 'run settings sit in the prompt block')
+            self.assertIsNone(tabs.widget(0).spec, 'zero-shot has no run settings')
+            tabs.setCurrentIndex(2)
+            second_reason = [l for l in details.body.findChildren(QLabel) if l.text() == 'because' and l.isVisibleTo(window)]
+            self.assertEqual(len(second_reason), 1)
+            self.assertIsNot(first_reason[0], second_reason[0], 'switching tabs swaps the explanation')
+            self.assertTrue(meta.text().startswith('Few-shot · confidence 70%'), 'header names the shown technique')
+            tabs.setCurrentIndex(0)
+            self.assertTrue(any(t.startswith('Zero-shot:') for t in shown()))
+            self.assertNotIn('because', shown())
+            self.assertIn('coding · low stakes · en', shown(), 'the shared brief stays under every tab')
         finally:
             window.close()
 
@@ -960,12 +1126,233 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
         try:
             self.assertIs(window.technique.parentWidget(), window.advanced.body)
             self.assertIs(window.variants.parentWidget(), window.advanced.body)
-            self.assertFalse(window.advanced.body.isVisibleTo(window))
-            self.assertEqual(window.advanced.title(), 'Advanced')
-            window.variants.buttons.button(1).click()
-            self.assertEqual(window.advanced.title(), 'Advanced · variants: 1')
+            self.assertTrue(window.advanced.body.isVisibleTo(window), 'Advanced never folds')
+            self.assertEqual(window.advanced.title(), 'Technique')
+            self.assertFalse(window.one_shot.isChecked(), 'no invented example unless asked')
+            window.variants.buttons.button(2).click()
+            self.assertEqual(window.advanced.title(), 'Technique', 'the heading stays put')
+            self.assertEqual(window.variants.value(), 2)
+            window.segments.buttons()[1].click()  # Claude
+            self.assertFalse(window.advanced.isVisibleTo(window), 'techniques exist only for Any')
+            self.assertTrue(window.one_shot.isVisibleTo(window), 'the example toggle applies to every target')
+            self.assertEqual(window.variants.value(), 1)
+            window.segments.buttons()[0].click()  # back to Any
+            self.assertTrue(window.advanced.isVisibleTo(window))
+            self.assertTrue(window.variants.isVisibleTo(window))
+            self.assertEqual(window.variants.value(), 2, 'the count comes back')
             self.assertTrue(window.run_button.text().startswith('Build prompt'))
             self.assertEqual(window.status.text(), '')
+        finally:
+            window.close()
+
+    def test_routine_notes_stay_folded_and_status_counts_only_visible_warnings(self):
+        window = self._prompta_window()
+        try:
+            def result(warnings, guidance=None):
+                data = {
+                    'brief': {'goal': 'g', 'task_type': 'coding', 'language': 'en', 'stakes': 'low', 'output_format': 'code', 'assumptions': []},
+                    'choice': {'key': 'k', 'name': 'Gemini · official guidance', 'reason': 'r', 'confidence': 0.5, 'whyNotCheaper': 'w'},
+                    'synthesis': {'prompt': 'P' * 50, 'warnings': warnings, 'missing': [],
+                                  'config': {'temperature': None, 'top_p': None, 'max_tokens': 'm', 'rationale': 'r'}},
+                    'rejected': [],
+                }
+                if guidance:
+                    data['geminiGuidance'] = guidance
+                return data
+            guidance = {'target': 'Gemini', 'rule_set_version': 'v', 'verified_at': 'd', 'variants': [], 'rules': []}
+            note = 'General Gemini guidance. Rule usage is model-reported; source links do not independently prove output compliance.'
+            window.on_finished({'ok': True, 'result': result([note], guidance)})
+            self.assertEqual(window.status.text(), 'Gemini · official guidance · ready')
+            visible = [w for w in window.output_holder.findChildren(QLabel, 'warn') if w.isVisibleTo(window)]
+            self.assertEqual(visible, [])
+            window.on_finished({'ok': True, 'result': result([note, 'Unfilled placeholders: examples'])})
+            self.assertEqual(window.status.text(), 'Gemini · official guidance · 1 warning below the prompt')
+            visible = [w.text() for w in window.output_holder.findChildren(QLabel, 'warn') if w.isVisibleTo(window)]
+            self.assertEqual(visible, ['• Unfilled placeholders: examples'])
+        finally:
+            window.close()
+
+    def test_technique_popup_selects_several_and_builds_one_prompt_each(self):
+        from app import QTabWidget, TechniqueItem
+        window = self._prompta_window()
+        try:
+            window._on_techniques_loaded([
+                {'key': 'cot', 'name': 'Chain of thought', 'category': 'reasoning', 'status': 'ready'},
+                {'key': 'few', 'name': 'Few-shot', 'category': 'icl', 'status': 'ready'},
+                {'key': 'knn', 'name': 'KNN selection', 'category': 'procedure', 'status': 'procedure'},
+            ])
+            window.technique._open()
+            popup = window.technique._popup
+            items = {w.key: w for w in popup.findChildren(TechniqueItem)}
+            items['cot'].clicked.emit('cot')
+            items['few'].clicked.emit('few')
+            self.assertTrue(popup.isVisible(), 'multi-select keeps the panel open')
+            self.assertEqual(window.technique.current_keys(), ['cot', 'few'])
+            self.assertTrue(items['few'].property('selected'))
+            self.assertEqual(window.advanced.button.text(), 'TECHNIQUE', 'the selection shows in the field, not the heading')
+            self.assertFalse(window.technique_label.isVisibleTo(window))
+            self.assertFalse(window.variants.isVisibleTo(window), 'the 1–5 count shows only for automatic choice')
+            saved = window.technique.current_keys()
+            window.technique.set_current_keys([], emit=True)
+            self.assertTrue(window.variants.isVisibleTo(window))
+            window.technique.set_current_keys(saved, emit=True)
+            items['knn'].clicked.emit('knn')
+            self.assertEqual(window.technique.current_keys(), ['knn'], 'procedures are exclusive')
+            items['cot'].clicked.emit('cot')
+            self.assertEqual(window.technique.current_keys(), ['cot'])
+            items['few'].clicked.emit('few')
+            items['cot'].clicked.emit('cot')
+            self.assertEqual(window.technique.current_keys(), ['few'], 'a second click deselects')
+            items['cot'].clicked.emit('cot')
+            popup.close()
+
+            window.thoughts.setPlainText('Explain recursion')
+            window.model.set_current('test-model')
+            with patch('app.Worker') as worker:
+                window.run_pipeline()
+                payload = worker.call_args.args[0]
+            self.assertEqual(payload['manualTechniques'], ['few', 'cot'])
+            self.assertNotIn('manualTechnique', payload)
+            window.worker = None
+
+            variant = lambda key, name: {'technique': {'key': key, 'name': name, 'category': 'x'}, 'prompt': f'{name} prompt ' * 6,
+                                         'config': {'temperature': 0.2, 'top_p': 0.9, 'rationale': 'r'}, 'source_ref': 'src'}
+            variants = [variant('few', 'Few-shot'), variant('cot', 'Chain of thought')]
+            window.on_finished({'ok': True, 'manual': {**variants[0], 'topic': 'Recursion', 'zeroShotPrompt': 'Task',
+                                                       'variants': variants, 'failed': [{'key': 'x', 'name': 'ToT', 'error': 'timeout'}]}})
+            tabs = window.output_holder.findChild(QTabWidget, 'variantTabs')
+            self.assertEqual([tabs.tabText(i) for i in range(tabs.count())], ['Zero-shot', 'Few-shot', 'Chain of thought'])
+            self.assertIn('Chain of thought prompt', tabs.widget(2).toPlainText())
+            self.assertEqual(tabs.widget(0).toPlainText(), 'Task')
+            self.assertEqual(window.status.text(), '2 techniques built · 1 failed, see below the prompt')
+            warn = [w.text() for w in window.output_holder.findChildren(QLabel, 'warn') if w.isVisibleTo(window)]
+            self.assertEqual(warn, ['• Not built — ToT: timeout'])
+            window.technique.set_current_keys(['cot'])
+            with patch('app.Worker') as worker:
+                window.run_pipeline()
+                self.assertEqual(worker.call_args.args[0]['manualTechnique'], 'cot')
+        finally:
+            window.close()
+
+    def test_history_search_shows_live_results_and_opens_the_match(self):
+        window = self._prompta_window()
+        try:
+            for thoughts, prompt in [('игра змейка в питоне', 'Snake prompt with pygame'), ('прогноз офиса в Барселоне', 'Forecast prompt')]:
+                window.thoughts.setPlainText(thoughts)
+                window.on_finished({'ok': True, 'manual': {
+                    'technique': {'key': 't', 'name': 'Tech', 'category': 'x'}, 'prompt': prompt, 'topic': thoughts.title(),
+                    'config': {'temperature': 0.2, 'top_p': 0.9, 'rationale': 'r'}, 'source_ref': 's'}})
+            window.clear_workspace()
+            window.history_search.setFocus()
+            window.history_search.textEdited.emit('PYGAME')  # matches the prompt text, case-insensitive
+            popup = window.history_completer.popup()
+            self.assertTrue(popup.isVisible())
+            self.assertEqual(window.history_matches.rowCount(), 1)
+            self.assertTrue(window.history_matches.item(0).text().startswith('Игра Змейка В Питоне'))
+            window.history_completer.activated[QModelIndex].emit(window.history_matches.index(0, 0))
+            self.assertFalse(popup.isVisible())
+            self.assertEqual(window.thoughts.toPlainText(), 'игра змейка в питоне')
+            self.assertIn('Snake prompt', window.prompt_edit.toPlainText())
+            self.assertEqual(window.history_search.text(), '')
+
+            window.history_search.setText('барселон')
+            window.history_search.textEdited.emit('барселон')
+            popup.hide()
+            window.history_search.returnPressed.emit()
+            self.assertEqual(window.thoughts.toPlainText(), 'прогноз офиса в Барселоне')
+
+            window.history_search.textEdited.emit('nothing like this')
+            self.assertEqual(window.history_matches.item(0).text(), 'No matches')
+            self.assertFalse(window.history_matches.item(0).isEnabled())
+        finally:
+            window.close()
+
+    def test_select_all_toggles_shown_techniques_and_skips_procedures(self):
+        from app import QLineEdit
+        window = self._prompta_window()
+        try:
+            window._on_techniques_loaded([
+                {'key': 'cot', 'name': 'Chain of thought', 'category': 'reasoning', 'status': 'ready'},
+                {'key': 'few', 'name': 'Few-shot', 'category': 'icl', 'status': 'ready'},
+                {'key': 'tot', 'name': 'Tree of thoughts', 'category': 'reasoning', 'status': 'ready'},
+                {'key': 'knn', 'name': 'KNN selection', 'category': 'procedure', 'status': 'procedure'},
+            ])
+            dropdown = window.technique
+            dropdown.set_current_keys(['knn'])
+            dropdown._open()
+            button = dropdown._select_all_button
+            self.assertEqual(button.text(), 'Select all')
+            button.click()
+            self.assertEqual(dropdown.current_keys(), ['cot', 'tot', 'few'], 'procedure dropped, all others selected in panel order')
+            self.assertEqual(button.text(), 'Deselect all')
+            button.click()
+            self.assertEqual(dropdown.current_keys(), [])
+            self.assertEqual(button.text(), 'Select all')
+
+            dropdown._popup.findChild(QLineEdit).setText('thought')  # filter: CoT and ToT only
+            dropdown._toggle('few')
+            button.click()
+            self.assertEqual(dropdown.current_keys(), ['few', 'cot', 'tot'])
+            self.assertEqual(button.text(), 'Deselect all')
+            button.click()
+            self.assertEqual(dropdown.current_keys(), ['few'], 'deselect touches only the shown ones')
+            dropdown._popup.close()
+        finally:
+            window.close()
+
+    def test_open_weight_models_are_grouped_by_family_with_unselectable_headers(self):
+        from app import GROUP_HEADER_ROLE, QListWidget
+        window = self._prompta_window()
+        try:
+            combo = window.prompt_model
+            texts = [combo.itemText(i) for i in range(combo.count())]
+            headers = [t for i, t in enumerate(texts) if combo.itemData(i, GROUP_HEADER_ROLE)]
+            self.assertEqual(headers, sorted(headers, key=str.casefold))
+            self.assertIn('QWEN · ALIBABA', headers)
+            qwen = texts.index('QWEN · ALIBABA')
+            self.assertEqual(texts[qwen + 1:qwen + 4], ['Qwen3-Coder-Next', 'Qwen3.8 2.4T A95B', 'Qwen3.8 Flash Next'])
+            combo.showPopup()
+            listing = combo._popup_frame.findChild(QListWidget)
+            header_row = listing.item(qwen)
+            self.assertFalse(header_row.flags() & app_flags_enabled())
+            listing.itemClicked.emit(header_row)
+            self.assertIsNone(window._selected_target(), 'a header is not a model')
+            listing.itemClicked.emit(listing.item(qwen + 1))
+            self.assertEqual(window._selected_target(), 'openModel')
+            self.assertEqual(combo.currentData(), 'qwen3-coder-next')
+        finally:
+            window.close()
+
+    def test_picking_techniques_resets_count_to_one_and_restores_it(self):
+        window = self._prompta_window()
+        try:
+            window._on_techniques_loaded([{'key': 'sc', 'name': 'Self-consistency', 'category': 'x', 'status': 'ready'}])
+            window.variants.buttons.button(4).click()
+            self.assertEqual(window.variants.value(), 4)
+            window.technique.set_current_keys(['sc'], emit=True)
+            self.assertEqual(window.variants.value(), 1)
+            self.assertFalse(window.variants.isEnabled())
+            window.technique.set_current_keys([], emit=True)
+            self.assertEqual(window.variants.value(), 4)
+            self.assertTrue(window.variants.isEnabled())
+        finally:
+            window.close()
+
+    def test_library_keeps_the_open_material_and_headers_are_not_materials(self):
+        window = self._prompta_window()
+        try:
+            library = window.library
+            library.reload()
+            tree = library.tree
+            group = tree.topLevelItem(1)
+            self.assertEqual(group.text(0), group.text(0).upper(), 'group headers are section labels')
+            self.assertFalse(group.flags() & app_selectable())
+            target = group.child(2)
+            path = library.entries[target.data(0, 256)]['path']
+            tree.setCurrentItem(target)
+            library.reload()  # e.g. leaving and re-entering the Library tab
+            self.assertEqual(library.current['path'], path)
+            self.assertTrue(library.preview.toPlainText().strip())
         finally:
             window.close()
 

@@ -1,4 +1,4 @@
-import { buildZeroShotPrompt } from '../pipeline/zero-shot.ts';
+import { generateZeroShotPrompt } from '../pipeline/zero-shot.ts';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -8,12 +8,18 @@ import { runPipeline } from '../pipeline/index.ts';
 import { extractJson } from '../pipeline/json.ts';
 import { createLLM } from '../pipeline/llm.ts';
 import { generateManualPrompt } from '../pipeline/manual.ts';
+import { generateBrief } from '../pipeline/brief.ts';
+import { settleWithLimit } from '../pipeline/limit.ts';
 import type { Provider } from '../pipeline/llm.ts';
 import techniqueSources from '../catalog/source-links.json' with { type: 'json' };
 
 /** Мост для десктопного UI: JSON на stdin → JSON на stdout. Никаких аргументов, чтобы не мучиться с кавычками. */
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+
+/** "Select all" can send the whole catalog; at most this many generations run at once. */
+const MAX_MANUAL_TECHNIQUES = 100;
+const MANUAL_CONCURRENCY = 4;
 
 interface BridgeRequest {
   thoughts: string;
@@ -33,8 +39,20 @@ interface BridgeRequest {
   listTechniques?: boolean;
   /** Принудительно собрать промпт по методике конкретной техники. */
   manualTechnique?: string;
+  /** Несколько техник сразу: по промпту на каждую, параллельно. */
+  manualTechniques?: string[];
   /** Сколько вариантов техник предложить (1–5). */
   variants?: number;
+}
+
+/** A title when no brief was made: a missing title must not discard completed prompts. */
+async function topicFor(thoughts: string, llm: ReturnType<typeof createLLM>): Promise<string | undefined> {
+  try {
+    const raw = await llm(`Name the task below with a natural concise 2–6 word topic in the user's language. Do not clip a sentence. Return JSON {"topic":"..."}. Task data: ${JSON.stringify(thoughts)}`, { temperature: 0, json: true });
+    const data = extractJson(raw, 'topic') as { topic?: unknown };
+    if (typeof data?.topic === 'string' && data.topic.trim().length <= 80) return data.topic.trim();
+  } catch { /* no title */ }
+  return undefined;
 }
 
 async function main() {
@@ -59,7 +77,7 @@ async function main() {
   const onProgress = req.reportProgress === true
     ? (percent: number, stage: string) => process.stderr.write(`PROMPTA_PROGRESS ${JSON.stringify({ percent, stage })}\n`)
     : undefined;
-  const oneShot = req.oneShot !== false;
+  const oneShot = req.oneShot === true;  // opt-in: an invented example at the top buries the real task
   const officialMode = req.claudeOnly || req.chatgptOnly || req.geminiOnly || req.grokOnly || req.openModel;
   const catalog = officialMode && !req.listTechniques ? { version: 'official-only', techniques: [] } : loadCatalog(JSON.parse(readFileSync(join(root, 'catalog', 'catalog.json'), 'utf8')));
 
@@ -85,6 +103,60 @@ async function main() {
 
   const llm = createLLM({ provider, model, apiKey: req.apiKey });
 
+  if (officialMode && req.manualTechniques) {
+    throw new Error('Official-guidance targets cannot use generic manual techniques.');
+  }
+
+  if (req.manualTechniques !== undefined) {
+    const keys = req.manualTechniques;
+    if (!Array.isArray(keys) || keys.length < 2 || keys.length > MAX_MANUAL_TECHNIQUES || !keys.every((k) => typeof k === 'string' && k)
+        || new Set(keys).size !== keys.length || req.manualTechnique) {
+      throw new Error(`manualTechniques must list 2–${MAX_MANUAL_TECHNIQUES} distinct technique keys.`);
+    }
+    if (req.deterministic) throw new Error('Manual technique selection requires LLM synthesis. Disable Skip LLM synthesis.');
+    const techniques = keys.map((key) => {
+      const technique = catalog.techniques.find((t) => t.key === key);
+      if (!technique) throw new Error(`Unknown technique: ${key}`);
+      if (technique.status === 'procedure') throw new Error(`${technique.name} is a procedure and cannot be combined with other techniques.`);
+      if (!technique.template) throw new Error(`${technique.key}: No synthesis template`);
+      return technique;
+    });
+    onProgress?.(5, 'Techniques loaded');
+    // The same brief as automatic choice: format, constraints, assumptions and questions for every prompt.
+    const brief = await generateBrief(req.thoughts, llm);
+    onProgress?.(15, 'Brief ready');
+    const zeroShot = generateZeroShotPrompt(req.thoughts, brief, llm);  // Variant 0, by the model too
+    let finished = 0;
+    const settled = await settleWithLimit(techniques, MANUAL_CONCURRENCY, async (technique) => {
+      try {
+        return await generateManualPrompt(req.thoughts, technique, llm, oneShot, brief);
+      } finally {
+        finished += 1;
+        onProgress?.(15 + Math.round(75 * finished / techniques.length), `Prompts ready: ${finished}/${techniques.length}`);
+      }
+    });
+    const meta = (t: (typeof techniques)[number]) => ({ key: t.key, name: t.name, category: t.category });
+    const variants = techniques.flatMap((t, i) => {
+      const r = settled[i];
+      return r.status === 'fulfilled' ? [{ technique: meta(t), prompt: r.value, config: t.config, source_ref: t.source_ref, why: t.when_to_use }] : [];
+    });
+    const failed = techniques.flatMap((t, i) => {
+      const r = settled[i];
+      return r.status === 'rejected' ? [{ key: t.key, name: t.name, error: r.reason instanceof Error ? r.reason.message : String(r.reason) }] : [];
+    });
+    if (!variants.length) throw new Error(`No technique produced a prompt: ${failed.map((f) => `${f.name}: ${f.error}`).join('; ')}`);
+    const topic = brief?.topic ?? await topicFor(req.thoughts, llm);
+    onProgress?.(95, 'Topic ready');
+    const first = variants[0];
+    process.stdout.write(JSON.stringify({ ok: true, manual: {
+      zeroShotPrompt: (await zeroShot).prompt, topic, brief,
+      // First variant at the top level keeps older readers (and saved history) working.
+      technique: first.technique, prompt: first.prompt, config: first.config, source_ref: first.source_ref,
+      variants, failed,
+    } }));
+    return;
+  }
+
   if (officialMode && req.manualTechnique) {
     const target = req.claudeOnly ? 'Claude' : req.chatgptOnly ? 'ChatGPT' : req.geminiOnly ? 'Gemini' : req.grokOnly ? 'Grok' : 'Open-weight model';
     throw new Error(`${target} mode cannot use a generic manual technique.`);
@@ -100,7 +172,7 @@ async function main() {
         JSON.stringify({
           ok: true,
           procedure: {
-            zeroShotPrompt: buildZeroShotPrompt(req.thoughts),
+            zeroShotPrompt: (await generateZeroShotPrompt(req.thoughts, undefined, llm)).prompt,
             technique: { key: technique.key, name: technique.name, category: technique.category },
             steps: technique.procedure ?? [],
             when_to_use: technique.when_to_use,
@@ -115,26 +187,26 @@ async function main() {
     if (!technique.template) throw new Error(`${technique.key}: No synthesis template`);
 
     if (req.deterministic) throw new Error('Manual technique selection requires LLM synthesis. Disable Skip LLM synthesis.');
-    const prompt = await generateManualPrompt(req.thoughts, technique, llm, oneShot);
+    const brief = await generateBrief(req.thoughts, llm);
+    onProgress?.(30, 'Brief ready');
+    const [prompt, zeroShot] = await Promise.all([generateManualPrompt(req.thoughts, technique, llm, oneShot, brief),
+      generateZeroShotPrompt(req.thoughts, brief, llm)]);
     onProgress?.(85, 'Prompt ready');
-    let topic: string | undefined;
-    try {
-      const raw = await llm(`Name the task below with a natural concise 2–6 word topic in the user's language. Do not clip a sentence. Return JSON {"topic":"..."}. Task data: ${JSON.stringify(req.thoughts)}`, { temperature: 0, json: true });
-      const data = extractJson(raw, 'topic') as { topic?: unknown };
-      if (typeof data?.topic === 'string' && data.topic.trim().length <= 80) topic = data.topic.trim();
-    } catch { /* A missing title must not discard a completed prompt. */ }
+    const topic = brief?.topic ?? await topicFor(req.thoughts, llm);
     onProgress?.(95, 'Topic ready');
 
     process.stdout.write(
       JSON.stringify({
         ok: true,
         manual: {
-          zeroShotPrompt: buildZeroShotPrompt(req.thoughts),
+          zeroShotPrompt: zeroShot.prompt,
           topic,
+          brief,
           technique: { key: technique.key, name: technique.name, category: technique.category },
           prompt,
           config: technique.config,
           source_ref: technique.source_ref,
+          why: technique.when_to_use,
         },
       }),
     );

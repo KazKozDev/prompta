@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import type { Catalog, TaskBrief, Technique } from './types.ts';
 import { PipelineError } from './types.ts';
 import { costRange, gateTechniques, loadCatalog, projectForSelection } from './catalog.ts';
-import { parseBrief } from './brief.ts';
+import { briefAssumptions, parseBrief } from './brief.ts';
 import { parseChoice } from './select.ts';
 import { fillTemplate, maxTokensFor, synthesizeDeterministic, synthesizeWithLLM } from './synthesize.ts';
 import { runPipeline } from './index.ts';
@@ -70,6 +70,7 @@ function fakeLLM(replies: { brief?: string; choice?: string; prompt?: string } =
     if (prompt.includes('Доступные техники')) {
       return replies.choice ?? JSON.stringify({ key: 'zero_shot', reason: 'задача простая', confidence: 0.9, whyNotCheaper: 'взял самую дешёвую' });
     }
+    if (prompt.includes('Напиши zero-shot промпт')) return 'Zero-shot: выполни задачу напрямую по описанию и верни ответ в нужном формате.';
     return replies.prompt ?? 'Готовый промпт, собранный моделью по каркасу техники, длиной достаточно для проверки.';
   };
   return { llm, calls };
@@ -186,7 +187,7 @@ test('runPipeline проходит весь путь на фейковой мо�
 test('runPipeline синтезирует через модель, если mode=llm', async () => {
   const { llm, calls } = fakeLLM({ prompt: 'Финальный промпт от модели: классифицируй отзыв и верни JSON.' });
   const result = await runPipeline({ thoughts: 'тональность отзывов', catalog, llm });
-  assert.equal(calls.length, 3, 'бриф, выбор, синтез');
+  assert.equal(calls.length, 4, 'бриф, выбор, синтез, zero-shot');
   assert.match(result.synthesis.prompt, /Финальный промпт от модели/);
 });
 
@@ -270,6 +271,17 @@ test('бриф: русские значения modality и stakes нормал�
   assert.equal(brief.stakes, 'medium');
 });
 
+test('бриф: вопросы несут допущение по умолчанию, голые строки остаются вопросами', () => {
+  const raw = JSON.stringify({
+    goal: 'цель', task_type: 'extraction', input: 'вход', output_format: 'json', constraints: [], language: 'ru',
+    modality: 'text', stakes: 'low', assumptions: ['вход — текст'], budget_calls: null,
+    questions: [{ question: ' Какие страны? ', default: 'вся Европа' }, 'Какой период?', { question: '' }, 42],
+  });
+  const brief = parseBrief(raw);
+  assert.deepEqual(brief.questions, [{ question: 'Какие страны?', default: 'вся Европа' }, { question: 'Какой период?' }]);
+  assert.deepEqual(briefAssumptions(brief), ['вход — текст', 'вся Европа']);
+});
+
 test('выбор: ключ техники принимается из синонимов поля', () => {
   const { candidates } = gateTechniques(brief, catalog);
   const raw = JSON.stringify({ technique: 'zero_shot', reason: 'x', confidence: 0.7, whyNotCheaper: 'y' });
@@ -305,6 +317,7 @@ test('полный цикл: повтор битого JSON, пять уника
     llm: async (prompt) => {
       if (prompt.includes('Поток мыслей:')) return ++briefCalls === 1 ? 'broken JSON' : BRIEF_JSON;
       if (prompt.includes('Доступные техники')) return JSON.stringify({ choices: [...choices, choices[0]] });
+      if (prompt.includes('Напиши zero-shot промпт')) return 'Классифицируй входные данные напрямую и верни метку для каждого элемента.';
       synthCalls += 1;
       return 'Классифицируй входные данные и верни только JSON с фиксированными метками.';
     },
@@ -351,10 +364,12 @@ test('desktop defaults: model topic survives and progress advances only after co
 test('zero-shot baseline is additional, standalone, and precedes selected prompts', async () => {
   const { renderPipelineResult } = await import('./render.ts');
   const { buildZeroShotPrompt } = await import('./zero-shot.ts');
-  const { llm } = fakeLLM();
+  const { llm, calls } = fakeLLM();
   const result = await runPipeline({ thoughts: 'Classify reviews', catalog, llm });
-  assert.ok(result.zeroShotPrompt?.includes(brief.goal));
-  assert.ok(result.zeroShotPrompt?.includes(brief.output_format));
+  const zeroRequest = calls.find((c) => c.includes('Напиши zero-shot промпт'));
+  assert.ok(zeroRequest?.includes(brief.goal), 'Variant 0 is written by the model from the task');
+  assert.ok(zeroRequest?.includes('Методика техники по скачанным первоисточникам'), 'grounded in the downloaded zero-shot sources');
+  assert.ok(result.zeroShotPrompt && result.zeroShotPrompt.length >= 40);
   assert.notEqual(result.zeroShotPrompt, result.synthesis.prompt);
   const html = renderPipelineResult(result);
   assert.ok(html.indexOf('Zero-shot · baseline prompt') < html.indexOf('pipeline-technique-name'));
@@ -362,4 +377,18 @@ test('zero-shot baseline is additional, standalone, and precedes selected prompt
   const raw = buildZeroShotPrompt('Сделай платформер на Pygame');
   assert.match(raw, /Сделай платформер на Pygame/);
   assert.doesNotMatch(raw, /Пример|Example input|Expected output/i);
+});
+
+test('every synthesis request quotes the downloaded sources of the technique', async () => {
+  const { buildSynthesisPrompt } = await import('./synthesize.ts');
+  const { buildManualPrompt } = await import('./manual.ts');
+  const { hasSources } = await import('./sources.ts');
+  const cot = catalog.techniques.find((t) => t.key === 'chain_of_thought')!;
+  for (const request of [buildSynthesisPrompt(brief, cot, 'draft'), buildManualPrompt('think step by step', cot)]) {
+    assert.match(request, /Методика техники по скачанным первоисточникам/);
+    assert.match(request, /Wei et al\., 2022 · arXiv:2201\.11903/, 'original arXiv paper');
+    assert.match(request, /Prompt Engineering \(Google whitepaper|whitepaper, с\. 29/, 'archive.org passage');
+  }
+  const promptable = catalog.techniques.filter((t) => t.status !== 'index-only');
+  assert.deepEqual(promptable.filter((t) => !hasSources(t.key)).map((t) => t.key), [], 'every technique has its sources');
 });

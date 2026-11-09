@@ -59,3 +59,13 @@ class HistoryStore:
             entry_id = cursor.lastrowid
         return {'id': entry_id, 'label': label, 'kind': kind, 'thoughts': thoughts,
                 'payload': payload, 'created_at': created_at}
+
+    def delete(self, entry_id: int) -> None:
+        with closing(self._connect()) as connection, connection:
+            connection.execute('DELETE FROM history WHERE id = ?', (entry_id,))
+
+    def update_payload(self, entry_id: int, payload: dict) -> None:
+        """Keep the user's edits of a saved result (prompt texts live inside the payload)."""
+        with closing(self._connect()) as connection, connection:
+            connection.execute('UPDATE history SET payload = ? WHERE id = ?',
+                               (json.dumps(payload, ensure_ascii=False), entry_id))

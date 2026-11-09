@@ -1,17 +1,20 @@
-# 🚀 Prompt Engineering Studio
+# Prompta
 
-A web application that transforms your simple queries into advanced, optimized prompts using cutting-edge prompt engineering techniques. Support for multiple LLM providers including Google Gemini, OpenAI, and Ollama.
-
-![Prompt Engineering Studio Demo](https://img.shields.io/badge/Status-Working-brightgreen) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white) ![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)
+Prompta turns a rough stream of thoughts into a ready-to-use prompt. The main app is a native desktop
+app ([desktop/README.md](desktop/README.md), `python3 desktop/app.py`); the same pipeline is also
+available from the terminal (`npm run pipeline`) and to other agents as an MCP server (`npm run mcp`, see [mcp/README.md](mcp/README.md)).
 
 ## ✨ Features
 
-- **26+ Prompt Engineering Techniques** - From basic Zero-Shot to advanced Tree of Thoughts
-- **Multi-Provider Support** - Works with Google Gemini, OpenAI, and Ollama (local)
-- **Real-time Generation** - Generate enhanced prompts instantly
-- **Copy & Use** - One-click copy of generated prompts
-- **Academic References** - Each technique includes paper citations and arXiv links
-- **Modern UI** - Clean, responsive interface built with modern web technologies
+- **Thoughts → brief → prompt** — the request is parsed into a brief (goal, format, constraints, assumptions),
+  plus up to 3 questions about missing facts; answer them and rebuild for a sharper prompt.
+- **Technique catalog** — 89 prompting techniques with sources (`catalog/catalog.json`); for the "Any" target the
+  cheapest technique that fits is chosen automatically, or pick techniques by hand.
+- **Official guidance targets** — Claude, ChatGPT, Gemini and Grok prompts are built only from saved official
+  rule sets with verified source links; open-weight models use their own saved guides.
+- **Zero-shot baseline** — every result has a plain zero-shot tab to compare against, and each variant says what
+  it adds over it.
+- **LLM providers** — Gemini, OpenAI or a local Ollama model write the prompts.
 
 ## 🧩 Пайплайн: мысли → промпт (beta)
 

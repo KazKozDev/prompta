@@ -1,5 +1,6 @@
 import { buildZeroShotPrompt } from './zero-shot.ts';
 import { isOfficialSourceUrl } from './official.ts';
+import { briefAssumptions } from './brief.ts';
 import type { PipelineResult } from './types.ts';
 
 /** Чистый рендер результата пайплайна в HTML — без React, чтобы можно было тестировать и превьюить. */
@@ -68,7 +69,7 @@ export function renderPipelineResult(result: PipelineResult): string {
       <p class="pipeline-goal">${escapeHtml(brief.goal)}</p>
       <div class="pipeline-chips">${chips}</div>
       <p class="pipeline-note"><b>Format:</b> ${escapeHtml(brief.output_format)}</p>
-      ${brief.assumptions.length ? `<p class="pipeline-note">Assumptions: ${brief.assumptions.map(escapeHtml).join('; ')}</p>` : ''}
+      ${briefAssumptions(brief).length ? `<p class="pipeline-note">Assumptions: ${briefAssumptions(brief).map(escapeHtml).join('; ')}</p>` : ''}
 
       <div class="pipeline-prompt-wrap">
         <div class="pipeline-prompt-bar">

@@ -107,3 +107,29 @@ test('bridge: live progress stays on stderr and preserves the final JSON protoco
   assert.equal(update.percent, 10);
   assert.equal(update.stage, 'Technique loaded');
 });
+
+test('мост: несколько техник — проверка входа до вызова модели', () => {
+  const cases: [Record<string, unknown>, RegExp][] = [
+    [{ manualTechniques: ['zero_shot'] }, /2–100 distinct/],
+    [{ manualTechniques: ['zero_shot', 'zero_shot'] }, /2–100 distinct/],
+    [{ manualTechniques: ['zero_shot', 42] }, /2–100 distinct/],
+    [{ manualTechniques: ['zero_shot', 'few_shot'], manualTechnique: 'zero_shot' }, /2–100 distinct/],
+    [{ manualTechniques: ['zero_shot', 'no_such_technique'] }, /Unknown technique/],
+    [{ manualTechniques: ['zero_shot', 'icl_knn_selection'] }, /procedure and cannot be combined/],
+    [{ manualTechniques: ['zero_shot', 'few_shot'], deterministic: true }, /requires LLM synthesis/],
+    [{ manualTechniques: ['zero_shot', 'few_shot'], claudeOnly: true }, /cannot use generic manual techniques/],
+  ];
+  for (const [extra, error] of cases) {
+    const { data } = call({ thoughts: 'синтетический тест', model: 'dummy', ...extra });
+    assert.equal(data.ok, false, JSON.stringify(extra));
+    assert.match(String(data.error), error, JSON.stringify(extra));
+  }
+});
+
+test('мост: «Select all» — больше 10 техник проходит проверку, больше 100 нет', () => {
+  const many = Array.from({ length: 101 }, (_, i) => `t${i}`);
+  assert.match(String(call({ thoughts: 'x', model: 'dummy', manualTechniques: many }).data.error), /2–100 distinct/);
+  const twelve = ['zero_shot', 'few_shot', 'system_prompting', 'role_prompting', 'contextual_prompting', 'prompt_chaining',
+    'step_back_prompting', 'chain_of_thought', 'self_consistency', 'tree_of_thoughts', 'react', 'no_such'];
+  assert.match(String(call({ thoughts: 'x', model: 'dummy', manualTechniques: twelve }).data.error), /Unknown technique: no_such/);
+});
