@@ -8,6 +8,7 @@ UI на PyQt6, логика — существующий TS-пайплайн ч�
 from __future__ import annotations
 
 import json
+import os
 import re
 from html import escape
 from urllib.parse import urlparse, urlencode
@@ -828,7 +829,7 @@ class MainWindow(QMainWindow):
         self.api_key.setPlaceholderText("Enter your API key")
         self.api_key.setAccessibleName("API key")
         settings_layout.addWidget(self.api_key)
-        key_hint = QLabel("Required for OpenAI and Gemini. Not needed for Ollama.\nYour key stays in memory and is not saved to disk.")
+        key_hint = QLabel("Required for Gemini, OpenAI, Anthropic and xAI. Not needed for Ollama (local or :cloud models).\nYour key stays in memory and is not saved to disk.")
         key_hint.setObjectName("muted")
         key_hint.setWordWrap(True)
         settings_layout.addWidget(key_hint)
@@ -844,6 +845,7 @@ class MainWindow(QMainWindow):
         mcp_scroll.setWidget(self.mcp_settings)
         use_step_scroll(mcp_scroll)
         self.settings_tabs.addTab(mcp_scroll, "MCP server")
+        self.settings_tabs.addTab(self._build_history_settings(), "History")
         self.settings_tabs.currentChanged.connect(self._settings_tab_changed)
         settings_outer.addWidget(self.settings_tabs, 1)
         settings_actions = QHBoxLayout()
@@ -1127,6 +1129,80 @@ class MainWindow(QMainWindow):
             self.history.showPopup()  # rebuild the open list without the deleted row
         else:
             self.history.hidePopup()
+
+    HISTORY_LIMITS = [(100, "Keep the newest 100"), (500, "Keep the newest 500"), (2000, "Keep the newest 2,000"),
+                      (0, "Keep everything"), (-1, "Don't save history")]
+    HISTORY_AGES = [(0, "Forever"), (30, "30 days"), (90, "90 days"), (365, "1 year")]
+
+    def _history_prefs_path(self) -> Path:
+        return self.history_store.path.with_name("settings.json")
+
+    def _load_history_prefs(self) -> None:
+        """Saved choice applies unless an environment variable already set the limit."""
+        try:
+            prefs = json.loads(self._history_prefs_path().read_text())
+        except (OSError, ValueError):
+            return
+        if "PROMPTA_HISTORY_MAX" not in os.environ and isinstance(prefs.get("history_max"), int):
+            self.history_store.max_entries = prefs["history_max"]
+        if "PROMPTA_HISTORY_DAYS" not in os.environ and isinstance(prefs.get("history_days"), int):
+            self.history_store.max_age_days = max(0, prefs["history_days"])
+
+    def _build_history_settings(self) -> QWidget:
+        self._load_history_prefs()
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(0, 18, 0, 0)
+        layout.setSpacing(14)
+        layout.addWidget(self._mini_label("How many requests to keep"))
+        self.history_limit = QComboBox()
+        self.history_limit.setAccessibleName("How many requests to keep")
+        for value, label in self.HISTORY_LIMITS:
+            self.history_limit.addItem(label, value)
+        index = self.history_limit.findData(self.history_store.max_entries)
+        if index < 0:
+            self.history_limit.addItem(f"Keep the newest {self.history_store.max_entries}", self.history_store.max_entries)
+            index = self.history_limit.count() - 1
+        self.history_limit.setCurrentIndex(index)
+        layout.addWidget(self.history_limit)
+        layout.addWidget(self._mini_label("Delete requests older than"))
+        self.history_age = QComboBox()
+        self.history_age.setAccessibleName("Delete requests older than")
+        for value, label in self.HISTORY_AGES:
+            self.history_age.addItem(label, value)
+        self.history_age.setCurrentIndex(max(0, self.history_age.findData(self.history_store.max_age_days)))
+        layout.addWidget(self.history_age)
+        hint = QLabel("History stays on this Mac, readable only by your user account. "
+                      "Older entries are removed when a new result is saved.")
+        hint.setObjectName("muted")
+        hint.setWordWrap(True)
+        layout.addWidget(hint)
+        delete_all = QPushButton("Delete all history…")
+        delete_all.setAccessibleName("Delete all history")
+        delete_all.clicked.connect(self.clear_history)
+        layout.addWidget(delete_all, 0, Qt.AlignmentFlag.AlignLeft)
+        layout.addStretch(1)
+        self.history_limit.currentIndexChanged.connect(self._history_prefs_changed)
+        self.history_age.currentIndexChanged.connect(self._history_prefs_changed)
+        return page
+
+    def _history_prefs_changed(self, *_: object) -> None:
+        self.history_store.max_entries = int(self.history_limit.currentData())
+        self.history_store.max_age_days = int(self.history_age.currentData())
+        path = self._history_prefs_path()
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+            path.write_text(json.dumps({"history_max": self.history_store.max_entries,
+                                        "history_days": self.history_store.max_age_days}))
+            removed = self.history_store.prune()
+        except (OSError, sqlite3.Error):
+            self.history_notice.setText("Could not save the history setting.")
+            self.history_notice.show()
+            return
+        if removed:
+            self._history_items = self.history_store.load()
+            self._shown_entry = None
+            self._filter_history()
 
     def clear_history(self) -> None:
         """Delete every saved entry after an explicit confirmation: the database file is removed."""

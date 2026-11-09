@@ -71,6 +71,23 @@ class DesktopSmokeTest(unittest.TestCase):
         self.assertEqual(self.store.path.stat().st_mode & 0o777, 0o600)
         reopened.close()
 
+    def test_history_settings_limit_prunes_and_persists(self):
+        for i in range(5):
+            self.store.add(f'q{i}', 'manual', f'q{i}', {'topic': f'q{i}'})
+        with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'), \
+                patch.dict('os.environ', {}, clear=False):
+            os_env = __import__('os').environ
+            os_env.pop('PROMPTA_HISTORY_MAX', None)
+            os_env.pop('PROMPTA_HISTORY_DAYS', None)
+            window = MainWindow()
+            window.history_limit.addItem('Keep the newest 2', 2)
+            window.history_limit.setCurrentIndex(window.history_limit.count() - 1)
+        self.assertEqual([e['label'] for e in self.store.load()], ['q3', 'q4'])
+        self.assertEqual(len(window._history_items), 2)
+        saved = __import__('json').loads(self.store.path.with_name('settings.json').read_text())
+        self.assertEqual(saved['history_max'], 2)
+        window.close()
+
     def test_clear_history_asks_first_and_then_deletes_file(self):
         from app import QMessageBox
         for name in ('Первая', 'Вторая'):
