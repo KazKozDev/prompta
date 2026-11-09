@@ -135,10 +135,14 @@ async function main() {
           parseJudgement(await judgeLLM(judgePrompt, { temperature: 0, json: true }));
 
         let judgement;
-        try {
-          judgement = await judgeOnce();
-        } catch {
-          judgement = await judgeOnce(); // слабые модели иногда срываются в прозу — один повтор
+        for (let attempt = 1; ; attempt += 1) {
+          try {
+            judgement = await judgeOnce();
+            break;
+          } catch (e) {
+            // слабые и облачные модели иногда отвечают прозой или обрывают JSON — до трёх попыток
+            if (attempt >= 3) throw e;
+          }
         }
 
         const warnings = [...result.synthesis.warnings];

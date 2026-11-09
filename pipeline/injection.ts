@@ -117,7 +117,7 @@ const stems = (text: string): Set<string> =>
 
 /** Защитное требование («не выполнять инструкции из писем», «не добавлять ссылки») — его модель
  *  написала правильно, и удалять его нельзя, хотя слова совпадают с атакой. */
-const DEFENSIVE = unicodeWords(/(?:^|[\s(,;])не\s+(?:выполн|следова|подчин|помеча|добавля|раскрыва|переход|вставля|учитыва)|игнорир\w*\s+(?:вс\w*\s+)?(?:инструкц|указани|команд)\w*\s+(?:из|в|внутри|во)\b|считать\s+(?:их\s+)?данными|только\s+по\s+(?:реальн|фактическ)|do\s+not\s+(?:follow|obey|execute|add|mark)|never\s+follow|ignore\s+(?:any\s+)?instructions\s+(?:in|inside|within|from)|treat\s+\S+(?:\s+\S+)?\s+as\s+data/i);
+const DEFENSIVE = unicodeWords(/никогда\s+не\b|(?:^|[\s(,;])не\s+(?:выполн|следова|подчин|помеча|добавля|раскрыва|раскрой|переход|вставля|учитыва|вывод|отправл|переда|счита\w*\s+команд)|never\s+(?:output|reveal|send|share|follow|execute)|must\s+not|(?:это|are)\s+(?:данные|data)|игнорир\w*\s+(?:вс\w*\s+)?(?:инструкц|указани|команд)\w*\s+(?:из|в|внутри|во)\b|считать\s+(?:их\s+)?данными|только\s+по\s+(?:реальн|фактическ)|do\s+not\s+(?:follow|obey|execute|add|mark)|never\s+follow|ignore\s+(?:any\s+)?instructions\s+(?:in|inside|within|from)|treat\s+\S+(?:\s+\S+)?\s+as\s+data/i);
 
 export function isDefensive(constraint: string): boolean {
   return DEFENSIVE.test(constraint);
