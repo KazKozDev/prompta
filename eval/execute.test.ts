@@ -76,3 +76,15 @@ test('runSuite: zero-shot против варианта, выигрыш и ко�
   assert.ok(r.promptVersion);
   assert.match(formatSuiteResults([r]), /выигрыш лучшего варианта над zero-shot: \+14 п\.п\./);
 });
+
+test('runSuite: если исполнитель не ответил ни разу, прогон падает с причиной, а не пишет 0%', async () => {
+  const suite = { ...loadSuites().find((s) => s.id === 'math-word-problems')!, examples: loadSuites()[1].examples.slice(0, 2) };
+  const brief = JSON.stringify({ goal: 'g', task_type: 'reasoning', input: 'условие', output_format: 'Ответ: число', constraints: [], language: 'ru', modality: 'text', stakes: 'low', assumptions: [], budget_calls: null });
+  const llm = async (prompt: string) => {
+    if (prompt.includes('Поток мыслей:')) return brief;
+    if (prompt.includes('Доступные техники')) return JSON.stringify({ key: 'chain_of_thought', reason: 'r', confidence: 1, whyNotCheaper: 'нужны шаги' });
+    return 'Реши задачу и в конце напиши строку «Ответ: <число>». ВСТАВЬ СЮДА: условие';
+  };
+  const execLLM = async () => { throw new Error('LLM 410: model was retired'); };
+  await assert.rejects(runSuite({ suite, target: 'catalog', catalog, llm, execLLM, variants: 1 }), /не ответил ни на один пример.*410/);
+});

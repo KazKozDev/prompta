@@ -176,6 +176,8 @@ export interface PromptResult {
   /** Точность только на трудных примерах; null — таких нет. */
   hardAccuracy: number | null;
   errors: number;
+  /** Первая ошибка исполнителя: без неё 0% точности неотличим от «промпт плохой». */
+  firstError?: string;
   judge?: number;
 }
 
@@ -227,12 +229,14 @@ export async function runSuite(opts: {
     let advN = 0;
     let hardSum = 0;
     let hardN = 0;
+    let firstError: string | undefined;
     for (const ex of suite.examples) {
       let verdict = { score: 0, formatValid: false };
       try {
         verdict = check(suite.checker, await opts.execLLM(fillPrompt(c.prompt, ex.input), { temperature: 0 }), ex.expected);
-      } catch {
+      } catch (e) {
         errors += 1;
+        firstError ??= e instanceof Error ? e.message : String(e);
       }
       sum += verdict.score;
       valid += verdict.formatValid ? 1 : 0;
@@ -246,6 +250,10 @@ export async function runSuite(opts: {
       }
     }
     const n = suite.examples.length || 1;
+    if (errors === suite.examples.length && suite.examples.length > 0) {
+      // Исполнитель не ответил ни разу — это сбой окружения, а не нулевая точность промпта.
+      throw new Error(`исполнитель не ответил ни на один пример (${suite.id}, ${c.name}): ${firstError}`);
+    }
     const row: PromptResult = {
       name: c.name,
       prompt: c.prompt,
@@ -254,6 +262,7 @@ export async function runSuite(opts: {
       adversarialAccuracy: advN ? Number((advSum / advN).toFixed(2)) : null,
       hardAccuracy: hardN ? Number((hardSum / hardN).toFixed(2)) : null,
       errors,
+      ...(firstError ? { firstError } : {}),
     };
     if (opts.judgeLLM && 'choice' in c && c.choice && c.synthesis) {
       try {
@@ -290,7 +299,7 @@ export function formatSuiteResults(results: SuiteResult[]): string {
   for (const r of results) {
     lines.push(`${r.suite} · цель ${r.target} · ${r.examples} примеров · промпты ${r.promptVersion ?? '—'}`);
     for (const p of r.prompts) {
-      lines.push(`  ${p.name.padEnd(28)} точность ${pct(p.accuracy).padStart(4)} | формат ${pct(p.formatValid).padStart(4)} | трудные ${pct(p.hardAccuracy).padStart(4)} | под инъекцией ${pct(p.adversarialAccuracy).padStart(4)}${typeof p.judge === 'number' ? ` | судья ${p.judge.toFixed(2)}` : ''}${p.errors ? ` | ошибок ${p.errors}` : ''}`);
+      lines.push(`  ${p.name.padEnd(28)} точность ${pct(p.accuracy).padStart(4)} | формат ${pct(p.formatValid).padStart(4)} | трудные ${pct(p.hardAccuracy).padStart(4)} | под инъекцией ${pct(p.adversarialAccuracy).padStart(4)}${typeof p.judge === 'number' ? ` | судья ${p.judge.toFixed(2)}` : ''}${p.errors ? ` | ошибок ${p.errors} (${(p.firstError ?? '').slice(0, 80)})` : ''}`);
     }
     lines.push(`  выигрыш лучшего варианта над zero-shot: ${r.liftOverZeroShot >= 0 ? '+' : ''}${Math.round(r.liftOverZeroShot * 100)} п.п.`);
     if (r.judgeVsAccuracy) {
