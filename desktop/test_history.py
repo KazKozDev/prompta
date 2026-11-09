@@ -50,5 +50,19 @@ class HistoryRetentionTest(unittest.TestCase):
         self.assertEqual(self.path.stat().st_mode & 0o777, 0o600)
 
 
+class QtLogFilterTest(unittest.TestCase):
+    def test_only_known_accessibility_noise_is_hidden(self):
+        try:
+            from .qt_log import is_known_noise
+        except ImportError:
+            from qt_log import is_known_noise
+        self.assertTrue(is_known_noise("QTextCursor::setPosition: Position '59' out of range"))
+        self.assertTrue(is_known_noise('Cell requested for row 1 is out of bounds for table with 0 rows! Resizing table model.',
+                                       'qt.accessibility.table'))
+        self.assertFalse(is_known_noise('QPainter::begin: Paint device returned engine == 0'))
+        self.assertFalse(is_known_noise("QTextCursor::setPosition: Position '59' out of range", 'qt.text.custom'))
+        self.assertFalse(is_known_noise('Traceback (most recent call last):'))
+
+
 if __name__ == '__main__':
     unittest.main()

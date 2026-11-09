@@ -82,11 +82,13 @@ try:
     from .controls import *  # noqa: F401,F403 — элементы управления
     from .result_view import *  # noqa: F401,F403 — вёрстка результата
     from .history_view import HistoryMixin
+    from . import qt_log
 except ImportError:
     from workers import *  # noqa: F401,F403
     from controls import *  # noqa: F401,F403
     from result_view import *  # noqa: F401,F403
     from history_view import HistoryMixin
+    import qt_log
 
 class MainWindow(HistoryMixin, QMainWindow):
     def __init__(self) -> None:
@@ -1754,6 +1756,7 @@ QTabWidget#variantTabs QPlainTextEdit#prompt { border-top-left-radius: 0; border
 
 
 def main() -> int:
+    qt_log.install()  # глушит только известный шум моста доступности macOS; PROMPTA_QT_DEBUG=1 — всё
     app = QApplication(sys.argv)
     app.setApplicationName("Prompta")
     app.setWindowIcon(QIcon(str(ROOT / "desktop" / "icon.png")))

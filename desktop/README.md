@@ -146,3 +146,11 @@ python3.12 -m venv --system-site-packages .venv-whisper
 The runtime loads only local model files. Grant macOS microphone permission on
 first use. Dependencies and model weights are excluded from Git. Implementation:
 `voice_input.py`; engine documentation: https://github.com/SYSTRAN/faster-whisper.
+
+## Вывод в консоль
+
+macOS (специальные возможности, системные подсказки ввода, диктовка) опрашивает текстовые поля, и мост
+доступности Qt 6 при этом может печатать сотни строк `QTextCursor::setPosition: Position 'N' out of range`
+и `qt.accessibility.table: Cell requested … out of bounds`. Наш код `setPosition` не вызывает, на работу
+окна это не влияет. `qt_log.py` скрывает только эти два сообщения, всё остальное печатается как обычно.
+Полный вывод Qt: `PROMPTA_QT_DEBUG=1 python3 desktop/app.py`.
