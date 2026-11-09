@@ -4,7 +4,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { loadCatalog } from '../pipeline/catalog.ts';
 import { runPipeline } from '../pipeline/index.ts';
-import { apiKeyEnv, createLLM } from '../pipeline/llm.ts';
+import { createLLMFromEnv } from '../pipeline/llm.ts';
 import type { Provider } from '../pipeline/llm.ts';
 import type { TaskBrief } from '../pipeline/types.ts';
 import { buildJudgePrompt, parseJudgement } from './judge.ts';
@@ -211,18 +211,17 @@ async function main() {
   const catalog = loadCatalog(JSON.parse(readFileSync(join(root, 'catalog', 'catalog.json'), 'utf8')));
 
   const env = { ...readEnvLocal(), ...process.env } as Record<string, string>;
-  const keyFor = (p: Provider) => (apiKeyEnv(p) ? env[apiKeyEnv(p)!] : undefined);
-  const llm = createLLM({ provider, model, apiKey: keyFor(provider) });
-  const judge2LLM = judge2Provider ? createLLM({ provider: judge2Provider, model: judge2Model, apiKey: keyFor(judge2Provider) }) : null;
+  const llm = createLLMFromEnv(provider, model, env);
+  const judge2LLM = judge2Provider ? createLLMFromEnv(judge2Provider, judge2Model, env) : null;
   const execLLM = execProvider
-    ? createLLM({ provider: execProvider, model: execModel || model, apiKey: keyFor(execProvider) })
+    ? createLLMFromEnv(execProvider, execModel || model, env)
     : llm;
   if (execProvider) process.stderr.write(`исполнение промптов: ${execProvider}/${execModel || model}\n`);
 
   let pool = examples;
   if (hard) {
     process.stderr.write(`· отбор сложных примеров через ${provider}/${screenModel} (до ${examples.length}) … `);
-    const screenLLM = createLLM({ provider, model: screenModel, apiKey: keyFor(provider) });
+    const screenLLM = createLLMFromEnv(provider, screenModel, env);
     pool = await screenHard(examples, (p) => screenLLM(p, { temperature: 0 }), hardLimit);
     process.stderr.write(`осталось ${pool.length}\n`);
     if (pool.length < 3) {

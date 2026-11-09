@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { loadCatalog } from './catalog.ts';
 import { runPipeline, formatResult } from './index.ts';
-import { apiKeyEnv, createLLM, PROVIDERS } from './llm.ts';
+import { createLLMFromEnv, PROVIDERS } from './llm.ts';
 import type { Provider } from './llm.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -51,15 +51,15 @@ async function main() {
     console.error(`неизвестный провайдер ${flags.provider}: ${PROVIDERS.join(', ')}`);
     process.exit(2);
   }
-  const keyName = apiKeyEnv(flags.provider);
-  const apiKey = keyName ? env[keyName] : undefined;
 
-  if (keyName && !apiKey) {
-    console.error(`нет ${keyName} ни в окружении, ни в .env.local`);
+
+  let llm;
+  try {
+    llm = createLLMFromEnv(flags.provider, flags.model, env);
+  } catch (e) {
+    console.error(e instanceof Error ? e.message : String(e));
     process.exit(2);
   }
-
-  const llm = createLLM({ provider: flags.provider, model: flags.model, apiKey });
   const result = await runPipeline({
     thoughts,
     catalog,

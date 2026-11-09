@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 import { loadCatalog } from '../pipeline/catalog.ts';
 import { buildManualPrompt } from '../pipeline/manual.ts';
-import { apiKeyEnv, createLLM } from '../pipeline/llm.ts';
+import { createLLMFromEnv } from '../pipeline/llm.ts';
 import type { Provider } from '../pipeline/llm.ts';
 
 /** Проверка, что промпт реально построен по методике техники, а не переписан шаблоном.
@@ -37,8 +37,7 @@ async function main() {
 
   const provider = flag('--provider', 'ollama') as Provider;
   const model = flag('--model', 'minimax-m3.1-flash:cloud');
-  const keyName = apiKeyEnv(provider);
-  const llm = createLLM({ provider, model, apiKey: keyName ? process.env[keyName] : undefined });
+  const llm = createLLMFromEnv(provider, model, process.env);
 
   const catalog = loadCatalog(JSON.parse(readFileSync(join(root, 'catalog', 'catalog.json'), 'utf8')));
   let failed = 0;

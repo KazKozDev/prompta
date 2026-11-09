@@ -4,7 +4,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { loadCatalog } from '../pipeline/catalog.ts';
 import { runPipeline } from '../pipeline/index.ts';
-import { apiKeyEnv, createLLM } from '../pipeline/llm.ts';
+import { createLLMFromEnv } from '../pipeline/llm.ts';
 import type { Provider } from '../pipeline/llm.ts';
 import { buildJudgePrompt, parseJudgement } from './judge.ts';
 import { fnv1a } from '../pipeline/prompt-version.ts';
@@ -80,30 +80,30 @@ async function main() {
 
   const catalog = loadCatalog(JSON.parse(readFileSync(join(root, 'catalog', 'catalog.json'), 'utf8')));
   const env = { ...readEnvLocal(), ...process.env } as Record<string, string>;
-  const apiKey =
-    apiKeyEnv(flags.provider) ? env[apiKeyEnv(flags.provider)!] : undefined;
-  if (!apiKey && flags.provider !== 'ollama') {
-    console.error(`нет ключа для ${flags.provider} в окружении или .env.local`);
-    process.exit(2);
-  }
+  const make = (p: Provider, m: string) => {
+    try {
+      return createLLMFromEnv(p, m, env);
+    } catch (e) {
+      console.error(e instanceof Error ? e.message : String(e));
+      process.exit(2);
+    }
+  };
 
-  const keyFor = (p: Provider): string | undefined => (apiKeyEnv(p) ? env[apiKeyEnv(p)!] : undefined);
-
-  const llm = createLLM({ provider: flags.provider, model: flags.model, apiKey });
+  const llm = make(flags.provider, flags.model);
 
   const judgeProvider = (flags.judgeProvider || flags.provider) as Provider;
   const judgeModel = flags.judgeModel || flags.model;
   const judgeLLM =
     judgeProvider === flags.provider && judgeModel === flags.model
       ? llm
-      : createLLM({ provider: judgeProvider, model: judgeModel, apiKey: keyFor(judgeProvider) });
+      : make(judgeProvider, judgeModel);
 
   if (flags.judge2Provider && !flags.judge2Model) {
     console.error('для --judge2-provider нужен --judge2-model');
     process.exit(2);
   }
   const judge2LLM = flags.judge2Provider
-    ? createLLM({ provider: flags.judge2Provider as Provider, model: flags.judge2Model, apiKey: keyFor(flags.judge2Provider as Provider) })
+    ? make(flags.judge2Provider as Provider, flags.judge2Model)
     : null;
 
   if (!flags.quiet && judge2LLM) {

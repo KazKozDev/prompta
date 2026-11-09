@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createLLM, LLMTimeoutError, meterLLM } from './llm.ts';
+import { createLLM, createLLMFromEnv, LLMTimeoutError, meterLLM, ollamaCloudModel } from './llm.ts';
 import type { LLM } from './types.ts';
 
 test('адаптеры провайдеров передают настройки и разбирают ответы', async (t) => {
@@ -101,4 +101,22 @@ test('meterLLM суммирует вызовы и токены', async () => {
   const m = meterLLM(fake);
   await m.llm('a'); await m.llm('b');
   assert.deepEqual(m.usage(), { inputTokens: 20, outputTokens: 8, calls: 2 });
+});
+
+test('облачный API Ollama: ключ в заголовке, без суффикса :cloud; локальному демону ключ не уходит', async (t) => {
+  const seen: { url: string; headers: Record<string, string>; model: string }[] = [];
+  t.mock.method(globalThis, 'fetch', async (url: unknown, init: RequestInit) => {
+    seen.push({ url: String(url), headers: init.headers as Record<string, string>, model: JSON.parse(String(init.body)).model });
+    return new Response(JSON.stringify({ response: 'ok', prompt_eval_count: 3, eval_count: 2 }));
+  });
+  await createLLMFromEnv('ollama', 'glm-5.3:cloud', { OLLAMA_HOST: 'https://ollama.com', OLLAMA_API_KEY: 'k' })('тест');
+  assert.equal(seen[0].url, 'https://ollama.com/api/generate');
+  assert.equal(seen[0].headers.authorization, 'Bearer k');
+  assert.equal(seen[0].model, 'glm-5.3');
+  await createLLMFromEnv('ollama', 'glm-5.3:cloud', { OLLAMA_API_KEY: 'k' })('тест');
+  assert.equal(seen[1].url, 'http://localhost:11434/api/generate');
+  assert.equal(seen[1].headers.authorization, undefined, 'локальный демон проксирует облако сам');
+  assert.equal(seen[1].model, 'glm-5.3:cloud');
+  assert.equal(ollamaCloudModel('gpt-oss:120b-cloud'), 'gpt-oss:120b');
+  assert.throws(() => createLLMFromEnv('anthropic', 'm', {}), /ANTHROPIC_API_KEY/);
 });

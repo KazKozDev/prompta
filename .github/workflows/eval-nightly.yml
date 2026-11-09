@@ -2,8 +2,9 @@ name: eval-nightly
 
 # Живой регрессионный прогон: пайплайн → судья → сравнение с базовой линией eval/baselines/<цель>.json.
 # Настройка (Settings → Secrets and variables → Actions):
-#   секрет ключа провайдера: GEMINI_API_KEY | OPENAI_API_KEY | ANTHROPIC_API_KEY | XAI_API_KEY
-#   переменные: EVAL_PROVIDER, EVAL_MODEL; по желанию EVAL_JUDGE2_PROVIDER, EVAL_JUDGE2_MODEL (судья другой семьи)
+#   секрет ключа провайдера: OLLAMA_API_KEY (Ollama Cloud, по умолчанию) | GEMINI_API_KEY | OPENAI_API_KEY | ANTHROPIC_API_KEY | XAI_API_KEY
+#   переменные (необязательно): EVAL_PROVIDER, EVAL_MODEL, EVAL_JUDGE2_PROVIDER, EVAL_JUDGE2_MODEL
+#   По умолчанию: Ollama Cloud напрямую (https://ollama.com), генерация glm-5.3, второй судья deepseek-v4-pro.
 # Без ключа прогон пропускается с предупреждением, а не падает.
 # Первая базовая линия: запустите вручную с update_baseline = true — файл закоммитится в ветку.
 
@@ -38,10 +39,13 @@ jobs:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
-      EVAL_PROVIDER: ${{ vars.EVAL_PROVIDER || 'gemini' }}
-      EVAL_MODEL: ${{ vars.EVAL_MODEL || 'gemini-2.5-flash' }}
-      EVAL_JUDGE2_PROVIDER: ${{ vars.EVAL_JUDGE2_PROVIDER }}
-      EVAL_JUDGE2_MODEL: ${{ vars.EVAL_JUDGE2_MODEL }}
+      OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
+      # В CI нет локального демона: облачные модели Ollama — через прямой API.
+      OLLAMA_HOST: ${{ vars.OLLAMA_HOST || 'https://ollama.com' }}
+      EVAL_PROVIDER: ${{ vars.EVAL_PROVIDER || 'ollama' }}
+      EVAL_MODEL: ${{ vars.EVAL_MODEL || 'glm-5.3:cloud' }}
+      EVAL_JUDGE2_PROVIDER: ${{ vars.EVAL_JUDGE2_PROVIDER || 'ollama' }}
+      EVAL_JUDGE2_MODEL: ${{ vars.EVAL_JUDGE2_MODEL || 'deepseek-v4-pro:cloud' }}
       # Небольшой, но разнообразный срез: 6 обычных задач и 3 состязательные, по 3 повтора.
       EVAL_IDS: meeting-actions,invoice-fields,tickets-classify,math-word-problem,docs-qa,agent-research,inj-email-triage,inj-doc-qa,inj-mcp-context
     steps:
@@ -55,7 +59,7 @@ jobs:
         run: |
           case "$EVAL_PROVIDER" in
             gemini) k="$GEMINI_API_KEY";; openai) k="$OPENAI_API_KEY";;
-            anthropic) k="$ANTHROPIC_API_KEY";; xai) k="$XAI_API_KEY";; *) k="";;
+            anthropic) k="$ANTHROPIC_API_KEY";; xai) k="$XAI_API_KEY";; ollama) k="$OLLAMA_API_KEY";; *) k="";;
           esac
           if [ -z "$k" ]; then
             echo "::warning::Нет ключа для $EVAL_PROVIDER — живой eval пропущен"

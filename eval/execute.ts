@@ -5,7 +5,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { loadCatalog } from '../pipeline/catalog.ts';
 import { runPipeline } from '../pipeline/index.ts';
 import { extractJson } from '../pipeline/json.ts';
-import { apiKeyEnv, createLLM } from '../pipeline/llm.ts';
+import { createLLMFromEnv } from '../pipeline/llm.ts';
 import type { Provider } from '../pipeline/llm.ts';
 import type { Catalog, LLM } from '../pipeline/types.ts';
 import { buildJudgePrompt, parseJudgement } from './judge.ts';
@@ -306,10 +306,7 @@ async function main() {
     return i === -1 ? def : argv[i + 1];
   };
   const env = { ...readEnvLocal(), ...process.env } as Record<string, string>;
-  const make = (provider: Provider, model: string) => {
-    const keyName = apiKeyEnv(provider);
-    return createLLM({ provider, model, apiKey: keyName ? env[keyName] : undefined });
-  };
+  const make = (provider: Provider, model: string) => createLLMFromEnv(provider, model, env);
 
   const provider = flag('--provider', 'gemini') as Provider;
   const model = flag('--model', 'gemini-2.5-flash');

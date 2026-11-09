@@ -23,8 +23,37 @@ export function apiKeyEnv(provider: Provider): string | undefined {
     openai: 'OPENAI_API_KEY',
     anthropic: 'ANTHROPIC_API_KEY',
     xai: 'XAI_API_KEY',
-    ollama: undefined,
+    // Необязателен: нужен только для прямого облачного API ollama.com (OLLAMA_HOST=https://ollama.com).
+    ollama: 'OLLAMA_API_KEY',
   }[provider];
+}
+
+/** Без ключа работает только Ollama: локальный демон сам проксирует облачные модели `:cloud`. */
+export const keyRequired = (provider: Provider): boolean => provider !== 'ollama';
+
+const isLocalHost = (url: string): boolean => {
+  try {
+    return ['localhost', '127.0.0.1', '[::1]', '::1'].includes(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+};
+
+/** Прямой API ollama.com не знает суффикс `:cloud`/`-cloud` локального демона: `glm-5.3:cloud` → `glm-5.3`. */
+export function ollamaCloudModel(model: string): string {
+  return model.replace(/[:-]cloud$/i, '');
+}
+
+/** LLM из переменных окружения: ключ провайдера, для Ollama — OLLAMA_HOST и необязательный OLLAMA_API_KEY. */
+export function createLLMFromEnv(provider: Provider, model: string, env: Record<string, string | undefined>, extra: Partial<LLMOptions> = {}): LLM {
+  const keyName = apiKeyEnv(provider);
+  const apiKey = keyName ? env[keyName] : undefined;
+  if (keyRequired(provider) && !apiKey) throw new Error(`нет ${keyName} ни в окружении, ни в .env.local`);
+  let baseUrl = extra.baseUrl;
+  if (!baseUrl && provider === 'ollama' && env.OLLAMA_HOST) {
+    baseUrl = /^https?:\/\//.test(env.OLLAMA_HOST) ? env.OLLAMA_HOST : `http://${env.OLLAMA_HOST}`;
+  }
+  return createLLM({ provider, model, apiKey, ...extra, baseUrl });
 }
 
 export class LLMTimeoutError extends Error {
@@ -176,12 +205,16 @@ export function createLLM(opts: LLMOptions): LLM {
     };
   }
 
-  const base = opts.baseUrl || 'http://localhost:11434';
+  const base = (opts.baseUrl || 'http://localhost:11434').replace(/\/+$/, '');
+  // Облачный API (ollama.com) — с ключом и без суффикса :cloud; локальному демону ключ не отправляем.
+  const remote = !isLocalHost(base);
+  const ollamaHeaders: Record<string, string> = remote && apiKey ? { authorization: `Bearer ${apiKey}` } : {};
+  const ollamaModel = remote && /(^|\.)ollama\.com$/.test(new URL(base).hostname) ? ollamaCloudModel(model) : model;
   return async (prompt, o = {}) => {
     const data = (await postJson(
       `${base}/api/generate`,
       {
-        model,
+        model: ollamaModel,
         prompt,
         stream: false,
         ...(o.json ? { format: 'json' } : {}),
@@ -190,7 +223,7 @@ export function createLLM(opts: LLMOptions): LLM {
           ...(o.maxTokens ? { num_predict: o.maxTokens } : {}),
         },
       },
-      {},
+      ollamaHeaders,
       http,
     )) as { response?: string; prompt_eval_count?: number; eval_count?: number };
     report(o.onUsage, data.prompt_eval_count, data.eval_count);

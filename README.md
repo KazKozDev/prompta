@@ -41,7 +41,8 @@ npm run pipeline -- "sort support emails into billing/shipping/returns, strict J
 
 | Provider | `--provider` | Key variable |
 |---|---|---|
-| Ollama | `ollama` | none |
+| Ollama, local models and `:cloud` models through the local daemon | `ollama` | none |
+| Ollama Cloud direct API (no local daemon, for example in CI) | `ollama` + `OLLAMA_HOST=https://ollama.com` | `OLLAMA_API_KEY` |
 | Gemini | `gemini` | `GEMINI_API_KEY` |
 | OpenAI or a compatible API | `openai` | `OPENAI_API_KEY` |
 | Anthropic | `anthropic` | `ANTHROPIC_API_KEY` |
@@ -90,7 +91,7 @@ node eval/regress.ts --current report.json --baseline eval/baselines/catalog.jso
 | Workflow | When | What |
 |---|---|---|
 | `ci` | every push and PR | types, offline tests, catalog validation, web build, desktop tests, `.app` bundle |
-| `eval-nightly` | daily | live eval for `catalog` and `claude` against `eval/baselines/`; skipped without a provider key |
+| `eval-nightly` | daily | live eval for `catalog` and `claude` against `eval/baselines/`, on Ollama Cloud by default (`OLLAMA_API_KEY` secret); skipped without a key |
 | `source-drift` | weekly | re-downloads the official Claude, ChatGPT, Gemini and Grok guides and fails if a snapshot changed |
 
 ## Repository layout
