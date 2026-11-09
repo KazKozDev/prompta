@@ -15,12 +15,12 @@ Set these in the client's MCP config (or in `.env.local` at the repo root):
 
 | Variable | Default | Notes |
 |---|---|---|
-| `PROMPTA_PROVIDER` | `ollama` | `ollama`, `openai` (any OpenAI-compatible API) or `gemini` |
+| `PROMPTA_PROVIDER` | `ollama` | `ollama`, `openai` (any OpenAI-compatible API), `gemini`, `anthropic` or `xai` |
 | `PROMPTA_MODEL` | first **local** Ollama chat model | Set it explicitly: the automatic choice skips `:cloud` and embedding models but is otherwise arbitrary |
-| `PROMPTA_API_KEY` | `OPENAI_API_KEY` / `GEMINI_API_KEY` | Required for `openai` and `gemini` |
+| `PROMPTA_API_KEY` | `OPENAI_API_KEY` / `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` / `XAI_API_KEY` | Required for every provider except `ollama` |
 | `PROMPTA_BASE_URL` | provider default | e.g. LM Studio `http://localhost:1234` with `openai` |
 
-Context sent by the agent is trimmed to its newest ~12k characters, and common secrets (API keys, tokens, private keys, `password=` values) are redacted before it reaches the model.
+Context sent by the agent is trimmed to its newest ~12k characters, and common secrets (API keys, tokens, private keys, `password=` values) are redacted before it reaches the model. The context is treated as data: `<<<`/`>>>` markers inside it are neutralized so it cannot close its block and add a task of its own.
 
 ## Connect
 

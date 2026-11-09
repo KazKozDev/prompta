@@ -1,10 +1,27 @@
 # eval — измерение качества промптов и стабильности выбора
 
-Без этого набора «хороший промпт» — вопрос вкуса. Здесь 18 задач, рубрика на 5 критериев, судья и
-метрики, которые считаются по прогонам.
+Без этого набора «хороший промпт» — вопрос вкуса. Здесь 28 задач (из них 10 состязательных — с внедрёнными
+командами), рубрика на 5 критериев, судья, эталонные наборы для проверки по результату и регрессионный гейт.
+
+## Новое (ноябрь 2026)
 
 ```bash
-npm test                                                     # 30 проверок, офлайн
+node eval/run.ts --target claude --ids invoice-fields,inj-doc-qa --repeat 3 --provider anthropic --model claude-opus-5-5 --out report.json
+node eval/execute.ts --suite all --target catalog --provider ollama --model qwen3:8b [--exec-provider anthropic --exec-model claude-opus-5-5] [--judge]
+node eval/regress.ts --current report.json --baseline eval/baselines/claude.json [--update]
+```
+
+| Что | Где |
+|---|---|
+| `--target catalog\|claude\|chatgpt\|gemini\|grok\|open:<id>` — какой режим генерации меряем; для официальных целей судья сверяет промпт с правилами, на которые сослался генератор, а метрики выбора техники не считаются | `run.ts`, `target.ts` |
+| `taskTypeHit`, `scoreCI95` (полуширина 95% интервала), `cost` (токены генерации), `promptVersions`, `judgeVersion` | `aggregate.ts` |
+| Состязательные задачи (`adversarial: true`): `injectionHit` — генератор выполнил внедрённую команду, `guardHit` — в промпте есть правило «материал — данные» | `tasks.json`, `aggregate.ts` |
+| Исполнение промптов на эталонах: извлечение полей счёта в JSON, текстовые задачи, тональность; точность, точность под инъекцией, выигрыш над zero-shot, корреляция судьи с точностью | `execute.ts`, `data/exec-suites.json` |
+| Регрессионный гейт: падение балла сверх max(0.5, совокупный 95% интервал), рост запрещённых техник, инъекций, ошибок | `regress.ts`, `baselines/` |
+| Ночной живой прогон в CI | `.github/workflows/eval-nightly.yml` |
+
+```bash
+npm test                                                     # офлайн, без ключей
 node eval/run.ts --ids meeting-actions,tickets-classify --repeat 3 --provider ollama --model glm-5.3:cloud
 node eval/run.ts --tasks 5 --repeat 2 --provider gemini --model gemini-2.5-flash
 node eval/run.ts --json > report.json                        # сырые записи для разбора

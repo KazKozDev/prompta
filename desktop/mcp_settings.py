@@ -364,7 +364,7 @@ class McpSettingsWidget(QWidget):
         layout.addWidget(self.key_label)
         self.api_key = QLineEdit()
         self.api_key.setEchoMode(QLineEdit.EchoMode.Password)
-        self.api_key.setPlaceholderText("Only for OpenAI-compatible or Gemini")
+        self.api_key.setPlaceholderText("Only for cloud providers")
         layout.addWidget(self.api_key)
 
         layout.addWidget(mini_label("Apps"))
