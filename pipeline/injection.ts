@@ -81,6 +81,25 @@ function fromInjection(constraint: string, segments: string[]): boolean {
   });
 }
 
+/** Строка промпта повторяет внедрённую команду как указание (не цитату и не защитное правило). */
+export function repeatsInjection(prompt: string, segments: string[]): string | null {
+  if (!segments.length) return null;
+  for (const line of prompt.split('\n')) {
+    const text = line.trim();
+    if (!text || isDefensive(text) || /[«"“]/.test(text)) continue;
+    const own = stems(text);
+    for (const seg of segments) {
+      let shared = 0;
+      for (const s of stems(seg)) if (own.has(s)) shared += 1;
+      if (shared >= 3 || looksLikeInjection(text)) return text;
+    }
+  }
+  return null;
+}
+
+/** В промпте уже есть правило «материал — данные» (в любой формулировке). */
+export const HAS_GUARD = /data,? not instructions|данные, а не инструкци|не выполняй\s+(?:указани|инструкци|команд)|never follow instructions|ignore (?:any )?instructions (?:found )?(?:inside|in|within)/i;
+
 /** Убирает из брифа требования, перенесённые из внедрённых команд, и помечает бриф как содержащий
  *  недоверенный материал. Возвращает новый бриф и список удалённого — для предупреждения в отчёте. */
 export function sanitizeBrief(brief: TaskBrief, thoughts: string): { brief: TaskBrief; removed: string[] } {
