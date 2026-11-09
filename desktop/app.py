@@ -50,6 +50,7 @@ from PyQt6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QMainWindow,
+    QMessageBox,
     QPlainTextEdit,
     QProgressBar,
     QPushButton,
@@ -1039,6 +1040,14 @@ class MainWindow(QMainWindow):
         self.history.currentIndexChanged.connect(self._on_history_selected)
         self.history.deleteRequested.connect(self._delete_history)
         history_row.addWidget(self.history, 1)
+        self.clear_history_button = QToolButton()
+        self.clear_history_button.setObjectName("clearHistory")
+        self.clear_history_button.setIcon(QIcon(str(ROOT / "desktop/trash.svg")))
+        self.clear_history_button.setToolTip("Delete all saved history")
+        self.clear_history_button.setAccessibleName("Delete all saved history")
+        self.clear_history_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.clear_history_button.clicked.connect(self.clear_history)
+        history_row.addWidget(self.clear_history_button)
         box.addLayout(history_row)
         box.addSpacing(8)
         self.history_notice = QLabel()
@@ -1118,6 +1127,31 @@ class MainWindow(QMainWindow):
             self.history.showPopup()  # rebuild the open list without the deleted row
         else:
             self.history.hidePopup()
+
+    def clear_history(self) -> None:
+        """Delete every saved entry after an explicit confirmation: the database file is removed."""
+        if not self._history_items:
+            return
+        answer = QMessageBox.question(
+            self, "Delete all history?",
+            f"Delete all {len(self._history_items)} saved requests and prompts? This cannot be undone.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Cancel,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            self.history_store.clear()
+        except OSError:
+            self.history_notice.setText("Could not delete the history file.")
+            self.history_notice.show()
+            return
+        self._history_items = []
+        self._shown_entry = None
+        self.history_search.clear()
+        self._filter_history()
+        self.history_notice.setText("History deleted.")
+        self.history_notice.show()
 
     def _push_history(self, label: str, kind: str, payload: dict) -> None:
         thoughts = self._active_thoughts or self.thoughts.toPlainText().strip()

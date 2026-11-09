@@ -71,6 +71,22 @@ class DesktopSmokeTest(unittest.TestCase):
         self.assertEqual(self.store.path.stat().st_mode & 0o777, 0o600)
         reopened.close()
 
+    def test_clear_history_asks_first_and_then_deletes_file(self):
+        from app import QMessageBox
+        for name in ('Первая', 'Вторая'):
+            self.store.add(name, 'manual', name, {'topic': name})
+        with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
+            window = MainWindow()
+        with patch('app.QMessageBox.question', return_value=QMessageBox.StandardButton.Cancel):
+            window.clear_history_button.click()
+        self.assertEqual(len(self.store.load()), 2, 'cancel keeps everything')
+        with patch('app.QMessageBox.question', return_value=QMessageBox.StandardButton.Yes):
+            window.clear_history_button.click()
+        self.assertFalse(self.store.path.exists())
+        self.assertEqual(window._history_items, [])
+        self.assertEqual(window.history.count(), 1)
+        window.close()
+
     def test_cross_deletes_history_entry_from_list_and_disk(self):
         for name in ('Первая', 'Вторая', 'Третья'):
             self.store.add(name, 'manual', name, {'topic': name})
