@@ -20,8 +20,6 @@ jobs:
         run: npm test
       - name: Каталог
         run: python3 catalog/validate.py
-      - name: Сборка веба
-        run: npx vite build
 
   app-bundle:
     runs-on: macos-latest

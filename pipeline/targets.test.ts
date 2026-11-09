@@ -10,7 +10,6 @@ import chatgptSources from '../chatgpt_prompt_rules/sources.json' with { type: '
 import geminiRules from '../gemini_prompt_rules/rules.json' with { type: 'json' };
 import geminiSources from '../gemini_prompt_rules/sources.json' with { type: 'json' };
 import { runPipeline } from './index.ts';
-import { renderPipelineResult } from './render.ts';
 import { isOfficialSourceUrl } from './official.ts';
 import type { OfficialTarget } from './official.ts';
 
@@ -70,12 +69,6 @@ for (const item of cases) {
     assert.equal(guidance.rule_set_version, item.rules.version);
     assert.ok(guidance.rules.every((r) => isOfficialSourceUrl(r.source_url, item.target)));
     assert.equal(Object.keys(result).filter((key) => key.endsWith('Guidance')).length, 1);
-    const html = renderPipelineResult(result);
-    assert.match(html, new RegExp(`${item.label} rules`));
-    assert.match(html, /Official sources/);
-    assert.equal((html.match(/class="pipeline-copy"/g) ?? []).length, 6);
-    guidance.rules[0].source_url = 'https://platform.claude.com/docs/foreign-rule';
-    assert.doesNotMatch(renderPipelineResult(result), /href="https:\/\/platform.claude.com/);
   });
 
   test(`${item.label}: one retry repairs malformed JSON; unknown source IDs never pass`, async () => {

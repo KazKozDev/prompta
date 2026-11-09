@@ -46,9 +46,7 @@ async function dispatch(opts: RunOptions): Promise<PipelineResult> {
   }
   if (opts.openModel) {
     if (opts.mode === 'deterministic' || opts.techniqueKey) throw new PipelineError('Model-specific prompting requires synthesis without a generic technique.', 'target');
-    if (typeof window !== 'undefined') throw new PipelineError('Local model documentation is available in the desktop app.', 'target');
-    const modulePath = './open-model.ts';
-    const { runOpenModelPipeline } = await import(/* @vite-ignore */ modulePath);
+    const { runOpenModelPipeline } = await import('./open-model.ts');
     return runOpenModelPipeline({ ...opts, openModel: opts.openModel });
   }
   if (opts.grokOnly) {

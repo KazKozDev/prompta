@@ -90,7 +90,7 @@ node eval/regress.ts --current report.json --baseline eval/baselines/catalog.jso
 
 | Workflow | When | What |
 |---|---|---|
-| `ci` | every push and PR | types, offline tests, catalog validation, web build, desktop tests, `.app` bundle |
+| `ci` | every push and PR | types, offline tests, catalog validation, desktop tests, `.app` bundle |
 | `eval-nightly` | daily | live eval for `catalog` and `claude` against `eval/baselines/`, on Ollama Cloud by default (`OLLAMA_API_KEY` secret); skipped without a key |
 | `source-drift` | weekly | re-downloads the official Claude, ChatGPT, Gemini and Grok guides and fails if a snapshot changed |
 
@@ -104,7 +104,6 @@ node eval/regress.ts --current report.json --baseline eval/baselines/catalog.jso
 | `eval/` | Tasks, judge, execution suites, regression gate, baselines |
 | `desktop/` | PyQt6 app, bridge to the pipeline, local history |
 | `mcp/` | MCP server: `improve_prompt`, `suggest_next_prompts` |
-| `index.tsx` | Legacy web UI on Vite (`npm run dev`); the desktop app is the main interface |
 | `docs/audit-2026-11.md` | Repository audit and the improvement plan it led to |
 
 ## Privacy

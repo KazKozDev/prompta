@@ -365,7 +365,6 @@ test('desktop defaults: model topic survives and progress advances only after co
 
 
 test('zero-shot baseline is additional, standalone, and precedes selected prompts', async () => {
-  const { renderPipelineResult } = await import('./render.ts');
   const { buildZeroShotPrompt } = await import('./zero-shot.ts');
   const { llm, calls } = fakeLLM();
   const result = await runPipeline({ thoughts: 'Classify reviews', catalog, llm });
@@ -374,9 +373,6 @@ test('zero-shot baseline is additional, standalone, and precedes selected prompt
   assert.ok(zeroRequest?.includes('Методика техники по скачанным первоисточникам'), 'grounded in the downloaded zero-shot sources');
   assert.ok(result.zeroShotPrompt && result.zeroShotPrompt.length >= 40);
   assert.notEqual(result.zeroShotPrompt, result.synthesis.prompt);
-  const html = renderPipelineResult(result);
-  assert.ok(html.indexOf('Zero-shot · baseline prompt') < html.indexOf('pipeline-technique-name'));
-  assert.equal((html.match(/data-copy/g) || []).length, 2 + (result.alternatives?.length ?? 0));
   const raw = buildZeroShotPrompt('Сделай платформер на Pygame');
   assert.match(raw, /Сделай платформер на Pygame/);
   assert.doesNotMatch(raw, /Пример|Example input|Expected output/i);

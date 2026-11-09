@@ -10,7 +10,7 @@ import { buildZeroShotPrompt, generateZeroShotPrompt } from './zero-shot.ts';
 /** Ручная метка набора промптов: меняйте при осознанной переработке, чтобы отчёты читались людьми. */
 export const PROMPT_SET = '2026-11-09';
 
-/** FNV-1a 32 bit: без зависимостей, одинаково в Node и в браузере. */
+/** FNV-1a 32 bit: без зависимостей. */
 export function fnv1a(text: string): string {
   let h = 0x811c9dc5;
   for (let i = 0; i < text.length; i += 1) {
@@ -29,8 +29,7 @@ const PROMPT_SOURCES: readonly unknown[] = [
 let cached: string | undefined;
 
 /** Отпечаток промптов: `<метка>+<хеш исходников>`. Хеш меняется сам при любой правке текста промпта,
- *  поэтому балл eval нельзя случайно приписать другой версии. В минифицированной веб-сборке хеш
- *  отличается от Node — сравнивайте отпечатки только из одного окружения. */
+ *  поэтому балл eval нельзя случайно приписать другой версии. */
 export function promptVersion(): string {
   cached ??= `${PROMPT_SET}+${fnv1a(PROMPT_SOURCES.map((s) => String(s)).join('␞'))}`;
   return cached;

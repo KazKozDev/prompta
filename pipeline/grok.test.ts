@@ -4,7 +4,6 @@ import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { loadGrokRules, runGrokPipeline } from './grok.ts';
 import { runPipeline } from './index.ts';
-import { renderPipelineResult } from './render.ts';
 import { isOfficialSourceUrl } from './official.ts';
 import rules from '../grok_prompt_rules/rules.json' with { type: 'json' };
 import sources from '../grok_prompt_rules/sources.json' with { type: 'json' };
@@ -46,8 +45,6 @@ test('Grok generates five sourced variants without the generic catalog or API ad
   assert.equal(result.grokGuidance?.variants.length, 5);
   assert.equal(result.grokGuidance?.evidence_status, 'model-reported');
   assert.equal(result.synthesis.config.temperature, 0.1, 'computed from the task (classification), not left empty');
-  assert.match(renderPipelineResult(result), /Grok rules/);
-  assert.match(renderPipelineResult(result), /https:\/\/docs.x.ai/);
 });
 
 test('Grok rejects missing rules, mixed targets, and synthesis bypasses', async () => {

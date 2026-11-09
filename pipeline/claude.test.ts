@@ -7,7 +7,6 @@ import { loadClaudeRules, runClaudePipeline } from './claude.ts';
 import rules from '../claude_prompt_rules/rules.json' with { type: 'json' };
 import sources from '../claude_prompt_rules/sources.json' with { type: 'json' };
 import { runPipeline } from './index.ts';
-import { renderPipelineResult } from './render.ts';
 
 const brief = { goal: 'Classify numbers by parity', task_type: 'classification', input: '2, 3, 4', output_format: 'JSON', constraints: [], language: 'en', modality: 'text', stakes: 'low', assumptions: [], budget_calls: null };
 function reply(count = 1) {
@@ -61,8 +60,6 @@ test('Claude mode never reads the generic catalog and preserves five variant sou
   assert.equal(result.claudeGuidance?.rule_set_version, rules.version);
   assert.equal(result.claudeGuidance?.evidence_status, 'model-reported');
   assert.ok(result.claudeGuidance?.rules.every((r) => r.source_url.startsWith('https://platform.claude.com/')));
-  assert.match(renderPipelineResult(result), /https:\/\/platform.claude.com/);
-  assert.match(renderPipelineResult(result), /Official sources/);
 });
 
 test('Claude mode rejects unknown rule IDs and incomplete output, with one retry', async () => {
@@ -77,10 +74,4 @@ test('Claude mode cannot silently mix manual or deterministic synthesis', async 
   for (const extra of [{ mode: 'deterministic' as const }, { techniqueKey: 'zero_shot' }]) {
     await assert.rejects(runPipeline({ thoughts: 'Parity', catalog: { version: 'test', techniques: [] }, llm: async () => { throw new Error('Must not call LLM'); }, claudeOnly: true, ...extra }), /cannot use a generic technique/);
   }
-});
-
-test('Claude source renderer never turns non-official stored URLs into links', async () => {
-  const result = await runClaudePipeline({ thoughts: 'Parity', llm: async () => reply() });
-  result.claudeGuidance!.rules[0].source_url = 'file:///private/secret';
-  assert.doesNotMatch(renderPipelineResult(result), /href="file:/);
 });

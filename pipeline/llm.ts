@@ -117,7 +117,7 @@ function report(cb: ((u: TokenUsage) => void) | undefined, input: unknown, outpu
   cb({ inputTokens: Number.isFinite(i) ? i : 0, outputTokens: Number.isFinite(o) ? o : 0 });
 }
 
-/** Адаптер без SDK: только fetch, чтобы пайплайн не тянул зависимости и работал в браузере. */
+/** Адаптер без SDK: только fetch, чтобы пайплайн не тянул зависимости. */
 export function createLLM(opts: LLMOptions): LLM {
   const { provider, model, apiKey } = opts;
   const http = { timeoutMs: opts.timeoutMs ?? DEFAULT_TIMEOUT_MS, signal: opts.signal };

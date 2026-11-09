@@ -25,9 +25,7 @@ PIPELINE_MATERIALS = {
     'json.ts': 'JSON parsing, repair and validation helpers.',
     'llm.ts': 'Generator adapters and request settings; no API keys are stored in this file.',
     'types.ts': 'Brief, technique, result and provenance data contracts.',
-    'render.ts': 'Result rendering and source-link validation.',
     'cli.ts': 'Command-line pipeline entry point. Reference; not the desktop generation route.',
-    'preview.ts': 'Prompt preview tooling. Reference; not the normal generation call.',
     'README.md': 'Pipeline overview and usage documentation.',
 }
 
