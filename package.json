@@ -12,7 +12,9 @@
     "eval": "node eval/run.ts",
     "typecheck": "tsc --noEmit",
     "audit": "node eval/audit.ts",
-    "mcp": "node mcp/server.ts"
+    "mcp": "node mcp/server.ts",
+    "eval:exec": "node eval/execute.ts",
+    "eval:regress": "node eval/regress.ts"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
