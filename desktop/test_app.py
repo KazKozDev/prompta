@@ -95,10 +95,10 @@ class DesktopSmokeTest(unittest.TestCase):
         with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
             window = MainWindow()
         with patch('app.QMessageBox.question', return_value=QMessageBox.StandardButton.Cancel):
-            window.clear_history_button.click()
+            window.delete_all_history_button.click()
         self.assertEqual(len(self.store.load()), 2, 'cancel keeps everything')
         with patch('app.QMessageBox.question', return_value=QMessageBox.StandardButton.Yes):
-            window.clear_history_button.click()
+            window.delete_all_history_button.click()
         self.assertFalse(self.store.path.exists())
         self.assertEqual(window._history_items, [])
         self.assertEqual(window.history.count(), 1)

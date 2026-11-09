@@ -112,7 +112,7 @@ node eval/regress.ts --current report.json --baseline eval/baselines/catalog.jso
   client from the app's MCP settings writes the key into that client's MCP config, as the client requires.
 - History is stored locally in `~/Library/Application Support/Prompta/history.sqlite3` with
   owner-only permissions.
-- History keeps the newest 500 entries. Change the limit with `PROMPTA_HISTORY_MAX`, add an age
+- History keeps the newest 500 entries. Change this in Settings → History, or with `PROMPTA_HISTORY_MAX`; add an age
   limit with `PROMPTA_HISTORY_DAYS`, or set `PROMPTA_HISTORY_MAX=-1` to turn history off.
 - Context sent through MCP is trimmed, and secrets in it are redacted before it reaches a model.
 

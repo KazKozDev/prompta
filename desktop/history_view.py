@@ -180,6 +180,7 @@ class HistoryMixin:
         hint.setWordWrap(True)
         layout.addWidget(hint)
         delete_all = QPushButton("Delete all history…")
+        self.delete_all_history_button = delete_all
         delete_all.setAccessibleName("Delete all history")
         delete_all.clicked.connect(self.clear_history)
         layout.addWidget(delete_all, 0, Qt.AlignmentFlag.AlignLeft)
