@@ -37,6 +37,8 @@ export interface ExecExample {
   input: string;
   expected: unknown;
   adversarial?: boolean;
+  /** Ловушка: на лёгких примерах zero-shot уже даёт 100%, различают техники только трудные. */
+  hard?: boolean;
 }
 
 export interface Suite {
@@ -55,14 +57,16 @@ interface SuiteFile {
 export function loadSuites(path = join(root, 'eval', 'data', 'exec-suites.json')): Suite[] {
   const file = JSON.parse(readFileSync(path, 'utf8')) as SuiteFile;
   return file.suites.map((s) => {
-    if (s.examples) return s as Suite;
-    if (!s.from) throw new Error(`${s.id}: нет ни examples, ни from`);
+    if (!s.from) {
+      if (!s.examples) throw new Error(`${s.id}: нет ни examples, ни from`);
+      return s as Suite;
+    }
     const ext = JSON.parse(readFileSync(join(root, s.from), 'utf8')) as { examples: { id: string; text: string; label: string }[] };
     const byLabel = new Map<string, { id: string; text: string; label: string }[]>();
     for (const e of ext.examples) byLabel.set(e.label, [...(byLabel.get(e.label) ?? []), e]);
     const per = Math.max(1, Math.floor((s.limit ?? ext.examples.length) / Math.max(1, byLabel.size)));
     const picked = [...byLabel.values()].flatMap((list) => list.slice(0, per));
-    return { ...s, examples: picked.map((e) => ({ id: e.id, input: e.text, expected: e.label })) } as Suite;
+    return { ...s, examples: [...picked.map((e) => ({ id: e.id, input: e.text, expected: e.label })), ...(s.examples ?? [])] } as Suite;
   });
 }
 
@@ -169,6 +173,8 @@ export interface PromptResult {
   formatValid: number;
   /** Точность только на примерах с внедрённой командой; null — таких нет. */
   adversarialAccuracy: number | null;
+  /** Точность только на трудных примерах; null — таких нет. */
+  hardAccuracy: number | null;
   errors: number;
   judge?: number;
 }
@@ -219,6 +225,8 @@ export async function runSuite(opts: {
     let errors = 0;
     let advSum = 0;
     let advN = 0;
+    let hardSum = 0;
+    let hardN = 0;
     for (const ex of suite.examples) {
       let verdict = { score: 0, formatValid: false };
       try {
@@ -232,6 +240,10 @@ export async function runSuite(opts: {
         advSum += verdict.score;
         advN += 1;
       }
+      if (ex.hard) {
+        hardSum += verdict.score;
+        hardN += 1;
+      }
     }
     const n = suite.examples.length || 1;
     const row: PromptResult = {
@@ -240,6 +252,7 @@ export async function runSuite(opts: {
       accuracy: Number((sum / n).toFixed(2)),
       formatValid: Number((valid / n).toFixed(2)),
       adversarialAccuracy: advN ? Number((advSum / advN).toFixed(2)) : null,
+      hardAccuracy: hardN ? Number((hardSum / hardN).toFixed(2)) : null,
       errors,
     };
     if (opts.judgeLLM && 'choice' in c && c.choice && c.synthesis) {
@@ -277,7 +290,7 @@ export function formatSuiteResults(results: SuiteResult[]): string {
   for (const r of results) {
     lines.push(`${r.suite} · цель ${r.target} · ${r.examples} примеров · промпты ${r.promptVersion ?? '—'}`);
     for (const p of r.prompts) {
-      lines.push(`  ${p.name.padEnd(28)} точность ${pct(p.accuracy).padStart(4)} | формат ${pct(p.formatValid).padStart(4)} | под инъекцией ${pct(p.adversarialAccuracy).padStart(4)}${typeof p.judge === 'number' ? ` | судья ${p.judge.toFixed(2)}` : ''}${p.errors ? ` | ошибок ${p.errors}` : ''}`);
+      lines.push(`  ${p.name.padEnd(28)} точность ${pct(p.accuracy).padStart(4)} | формат ${pct(p.formatValid).padStart(4)} | трудные ${pct(p.hardAccuracy).padStart(4)} | под инъекцией ${pct(p.adversarialAccuracy).padStart(4)}${typeof p.judge === 'number' ? ` | судья ${p.judge.toFixed(2)}` : ''}${p.errors ? ` | ошибок ${p.errors}` : ''}`);
     }
     lines.push(`  выигрыш лучшего варианта над zero-shot: ${r.liftOverZeroShot >= 0 ? '+' : ''}${Math.round(r.liftOverZeroShot * 100)} п.п.`);
     if (r.judgeVsAccuracy) {

@@ -14,9 +14,10 @@ test('наборы загружаются, у каждого есть приме
   const suites = loadSuites();
   assert.deepEqual(suites.map((s) => s.id), ['invoice-extraction', 'math-word-problems', 'sentiment-ru']);
   const sentiment = suites.find((s) => s.id === 'sentiment-ru')!;
-  assert.equal(sentiment.examples.length, 12);
+  assert.equal(sentiment.examples.length, 16, '12 из фикстуры + 4 трудных');
   assert.equal(new Set(sentiment.examples.map((e) => e.expected)).size, 3, 'сбалансировано по меткам');
   for (const s of suites.filter((s) => s.id !== 'sentiment-ru')) assert.ok(s.examples.some((e) => e.adversarial), s.id);
+  for (const s of suites) assert.ok(s.examples.filter((e) => e.hard).length >= 4, `${s.id}: нужны трудные примеры`);
 });
 
 test('числа: форматы с пробелами, запятыми и строкой «Ответ:»', () => {
@@ -73,5 +74,5 @@ test('runSuite: zero-shot против варианта, выигрыш и ко�
   assert.ok(r.liftOverZeroShot > 0);
   assert.equal(variant.judge, 4);
   assert.ok(r.promptVersion);
-  assert.match(formatSuiteResults([r]), /выигрыш лучшего варианта над zero-shot: \+17 п\.п\./);
+  assert.match(formatSuiteResults([r]), /выигрыш лучшего варианта над zero-shot: \+14 п\.п\./);
 });
