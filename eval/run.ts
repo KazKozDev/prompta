@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -7,6 +7,9 @@ import { runPipeline } from '../pipeline/index.ts';
 import { apiKeyEnv, createLLM } from '../pipeline/llm.ts';
 import type { Provider } from '../pipeline/llm.ts';
 import { buildJudgePrompt, parseJudgement } from './judge.ts';
+import { fnv1a } from '../pipeline/prompt-version.ts';
+import { guidanceOf, isOfficial, parseTarget, targetOptions } from './target.ts';
+import type { EvalTarget } from './target.ts';
 import { aggregate, formatReport } from './aggregate.ts';
 import type { EvalTask, RunRecord } from './aggregate.ts';
 
@@ -41,6 +44,9 @@ function parseArgs(argv: string[]) {
     json: false,
     quiet: false,
     ids: [] as string[],
+    target: 'catalog' as EvalTarget,
+    /** Сохранить {report, records} в файл — для базовой линии и сравнения в CI. */
+    out: '',
   };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
@@ -55,6 +61,8 @@ function parseArgs(argv: string[]) {
     else if (a === '--judge2-provider') flags.judge2Provider = argv[++i] as Provider;
     else if (a === '--judge2-model') flags.judge2Model = argv[++i];
     else if (a === '--json') flags.json = true;
+    else if (a === '--target') flags.target = parseTarget(argv[++i]);
+    else if (a === '--out') flags.out = argv[++i];
     else if (a === '--quiet') flags.quiet = true;
   }
   return flags;
@@ -111,14 +119,17 @@ async function main() {
           thoughts: task.thoughts,
           catalog,
           llm,
-          mode: flags.mode,
+          mode: isOfficial(flags.target) ? 'llm' : flags.mode,
           budgetCalls: task.expect.budget_calls,
+          ...targetOptions(flags.target),
         });
+        const guidance = guidanceOf(result);
         const judgePrompt = buildJudgePrompt({
           thoughts: task.thoughts,
           brief: result.brief,
           choice: result.choice,
           synthesis: result.synthesis,
+          officialRules: guidance?.rules.map(({ id, rule_text }) => ({ id, rule_text })),
         });
         const judgeOnce = async () =>
           parseJudgement(await judgeLLM(judgePrompt, { temperature: 0, json: true }));
@@ -150,6 +161,9 @@ async function main() {
           warnings,
           judgement,
           judgement2,
+          taskType: result.brief.task_type,
+          usage: result.usage,
+          promptVersion: result.promptVersion,
         });
         if (!flags.quiet) process.stderr.write(`${result.choice.key} ${judgement.total}\n`);
       } catch (e) {
@@ -160,7 +174,8 @@ async function main() {
     }
   }
 
-  const report = aggregate(records, selected);
+  const report = aggregate(records, selected, { target: flags.target, judgeVersion: fnv1a(String(buildJudgePrompt)) });
+  if (flags.out) writeFileSync(flags.out, JSON.stringify({ report, records }, null, 2));
   console.log(flags.json ? JSON.stringify({ report, records }, null, 2) : formatReport(report));
 
   if (report.failures === report.runs) process.exit(1);

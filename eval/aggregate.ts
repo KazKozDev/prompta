@@ -29,6 +29,11 @@ export type RunRecord =
       judgement: Judgement;
       /** Оценка второго судьи другой модели; сравнивается с первой. */
       judgement2?: Judgement;
+      /** Тип задачи, который пайплайн вывел в брифе. */
+      taskType?: string;
+      /** Расход генерации (без судьи). */
+      usage?: { inputTokens: number; outputTokens: number; calls: number };
+      promptVersion?: string;
     }
   | { ok: false; taskId: string; repeat: number; error: string };
 
@@ -47,18 +52,30 @@ export interface TaskSummary {
   forbiddenHit: number;
   /** Доля прогонов, где промпт содержит ожидаемую лексику. */
   mentionHit: number;
+  /** Доля прогонов, где бриф определил тип задачи как ожидалось. */
+  taskTypeHit: number;
 }
 
 export interface Report {
+  /** Что меряли: каталог техник или официальная цель. Для официальных целей метрики выбора техники не считаются. */
+  target: string;
   runs: number;
   failures: number;
   overall: {
     meanScore: number;
+    /** Полуширина 95% интервала среднего балла (нормальное приближение): разница меньше — шум. */
+    scoreCI95: number;
     stability: number;
     expectedHit: number;
     forbiddenHit: number;
     mentionHit: number;
+    taskTypeHit: number;
   };
+  /** Расход генерации: сумма и среднее на прогон. Нули — провайдер не сообщает usage. */
+  cost: { calls: number; inputTokens: number; outputTokens: number; perRun: { inputTokens: number; outputTokens: number } };
+  /** Отпечатки промптов, которыми получены записи. Больше одного — прогон смешал версии. */
+  promptVersions: string[];
+  judgeVersion?: string;
   tasks: TaskSummary[];
   techniques: { key: string; runs: number; meanScore: number }[];
   /** Есть только если прогон запускался со вторым судьёй. */
@@ -70,7 +87,20 @@ export interface Report {
 const mean = (xs: number[]): number =>
   xs.length ? Number((xs.reduce((a, b) => a + b, 0) / xs.length).toFixed(2)) : 0;
 
-export function aggregate(records: RunRecord[], tasks: EvalTask[]): Report {
+export function ci95(xs: number[]): number {
+  if (xs.length < 2) return 0;
+  const m = xs.reduce((a, b) => a + b, 0) / xs.length;
+  const variance = xs.reduce((a, b) => a + (b - m) ** 2, 0) / (xs.length - 1);
+  return Number((1.96 * Math.sqrt(variance / xs.length)).toFixed(2));
+}
+
+export function aggregate(
+  records: RunRecord[],
+  tasks: EvalTask[],
+  meta: { target?: string; judgeVersion?: string } = {},
+): Report {
+  const target = meta.target ?? 'catalog';
+  const official = target !== 'catalog';
   const byTask = new Map<string, RunRecord[]>();
   for (const r of records) {
     const list = byTask.get(r.taskId) ?? [];
@@ -111,7 +141,14 @@ export function aggregate(records: RunRecord[], tasks: EvalTask[]): Report {
           task.expect.must_mention.some((m) => r.prompt.toLowerCase().includes(m.toLowerCase())),
         ).length / denom).toFixed(2),
       ),
+      taskTypeHit: Number((okRuns.filter((r) => r.taskType === task.expect.task_type).length / denom).toFixed(2)),
     });
+    if (official) {
+      // Официальная цель не выбирает технику из каталога: ожидания any_of/forbidden к ней неприменимы.
+      const s = summaries[summaries.length - 1];
+      s.expectedHit = 0;
+      s.forbiddenHit = 0;
+    }
   }
 
   const okAll = records.filter((r): r is Extract<RunRecord, { ok: true }> => r.ok);
@@ -126,16 +163,35 @@ export function aggregate(records: RunRecord[], tasks: EvalTask[]): Report {
     techStats.set(r.techniqueKey, list);
   }
 
+  const usage = okAll.reduce(
+    (acc, r) => ({
+      calls: acc.calls + (r.usage?.calls ?? 0),
+      inputTokens: acc.inputTokens + (r.usage?.inputTokens ?? 0),
+      outputTokens: acc.outputTokens + (r.usage?.outputTokens ?? 0),
+    }),
+    { calls: 0, inputTokens: 0, outputTokens: 0 },
+  );
+  const perRun = okAll.length || 1;
+
   return {
+    target,
     runs: records.length,
     failures: records.length - okAll.length,
     overall: {
       meanScore: mean(okAll.map((r) => r.judgement.total)),
+      scoreCI95: ci95(okAll.map((r) => r.judgement.total)),
       stability: mean(summaries.map((s) => s.stability)),
       expectedHit: mean(summaries.map((s) => s.expectedHit)),
       forbiddenHit: mean(summaries.map((s) => s.forbiddenHit)),
       mentionHit: mean(summaries.map((s) => s.mentionHit)),
+      taskTypeHit: mean(summaries.map((s) => s.taskTypeHit)),
     },
+    cost: {
+      ...usage,
+      perRun: { inputTokens: Math.round(usage.inputTokens / perRun), outputTokens: Math.round(usage.outputTokens / perRun) },
+    },
+    promptVersions: [...new Set(okAll.map((r) => r.promptVersion).filter((v): v is string => Boolean(v)))],
+    judgeVersion: meta.judgeVersion,
     tasks: summaries,
     techniques: [...techStats.entries()]
       .map(([key, scores]) => ({ key, runs: scores.length, meanScore: mean(scores) }))
@@ -154,20 +210,28 @@ export function aggregate(records: RunRecord[], tasks: EvalTask[]): Report {
 
 export function formatReport(report: Report): string {
   const pct = (x: number) => `${Math.round(x * 100)}%`;
+  const official = report.target !== 'catalog';
+  const o = report.overall;
   const lines = [
+    `Цель: ${report.target} | версия промптов: ${report.promptVersions.join(', ') || '—'}${report.judgeVersion ? ` | судья: ${report.judgeVersion}` : ''}`,
     `Прогонов: ${report.runs}, ошибок: ${report.failures}`,
-    `Средний балл: ${report.overall.meanScore} | стабильность выбора: ${pct(report.overall.stability)} | попадание в ожидаемые: ${pct(report.overall.expectedHit)}`,
-    `Запрещённые техники: ${pct(report.overall.forbiddenHit)} | ожидаемая лексика в промпте: ${pct(report.overall.mentionHit)}`,
+    `Средний балл: ${o.meanScore} ± ${o.scoreCI95} (95%) | тип задачи угадан: ${pct(o.taskTypeHit)} | ожидаемая лексика: ${pct(o.mentionHit)}`,
+    official
+      ? 'Метрики выбора техники не считаются: официальная цель строит промпт по правилам, а не по каталогу.'
+      : `Стабильность выбора: ${pct(o.stability)} | попадание в ожидаемые: ${pct(o.expectedHit)} | запрещённые техники: ${pct(o.forbiddenHit)}`,
+    `Расход генерации: ${report.cost.calls} вызовов, токены ${report.cost.inputTokens} → ${report.cost.outputTokens} (на прогон ${report.cost.perRun.inputTokens} → ${report.cost.perRun.outputTokens})`,
     '',
     'По задачам:',
     ...report.tasks.map(
       (t) =>
-        `  ${t.taskId.padEnd(22)} балл ${t.meanScore.toFixed(2)} | стабильность ${pct(t.stability)} | ожидаемо ${pct(t.expectedHit)} | запрещено ${pct(t.forbiddenHit)} | ${Object.entries(t.techniques).map(([k, c]) => `${k}×${c}`).join(', ')}`,
+        official
+          ? `  ${t.taskId.padEnd(22)} балл ${t.meanScore.toFixed(2)} | тип ${pct(t.taskTypeHit)} | лексика ${pct(t.mentionHit)}`
+          : `  ${t.taskId.padEnd(22)} балл ${t.meanScore.toFixed(2)} | стабильность ${pct(t.stability)} | ожидаемо ${pct(t.expectedHit)} | запрещено ${pct(t.forbiddenHit)} | ${Object.entries(t.techniques).map(([k, c]) => `${k}×${c}`).join(', ')}`,
     ),
-    '',
-    'По техникам:',
-    ...report.techniques.map((t) => `  ${t.key.padEnd(28)} ${t.meanScore.toFixed(2)} (${t.runs})`),
   ];
+  if (!official) {
+    lines.push('', 'По техникам:', ...report.techniques.map((t) => `  ${t.key.padEnd(28)} ${t.meanScore.toFixed(2)} (${t.runs})`));
+  }
   if (report.panel) {
     lines.push(
       '',

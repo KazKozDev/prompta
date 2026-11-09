@@ -8,7 +8,8 @@ import { loadCatalog } from '../pipeline/catalog.ts';
 import { runPipeline } from '../pipeline/index.ts';
 import type { Catalog } from '../pipeline/types.ts';
 import { CRITERIA, buildJudgePrompt, parseJudgement, verdictFor } from './judge.ts';
-import { aggregate, formatReport } from './aggregate.ts';
+import { aggregate, ci95, formatReport } from './aggregate.ts';
+import { guidanceOf, parseTarget, targetOptions } from './target.ts';
 import { compareJudgements, crossCheck, formatCrossCheck } from './crosscheck.ts';
 import { parseLabel, buildCalibrationReport, formatCalibration, CALIBRATION_BRIEF } from './calibrate.ts';
 import type { TechniqueResult } from './calibrate.ts';
@@ -313,4 +314,38 @@ test('судья: числовой балл принимается, но пом�
   assert.equal(j.total, 4);
   assert.equal(j.degraded, true);
   assert.equal(j.scores.fidelity.why, '(без обоснования)');
+});
+
+test('eval официальной цели: судья видит правила, метрики выбора техники не считаются', async () => {
+  const brief = { topic: 'Чётность', goal: 'Classify numbers by parity', task_type: 'classification', input: '2, 3, 4', output_format: 'JSON', constraints: [], language: 'en', modality: 'text', stakes: 'low', assumptions: [], questions: [], budget_calls: null };
+  const official = JSON.stringify({ brief, variants: [{ prompt: 'Classify the supplied integers 2, 3, 4 by parity and return JSON. If input is missing, say so.', rule_ids: ['clear', 'uncertainty'] }] });
+  const llm = async (prompt: string, o?: { onUsage?: (u: { inputTokens: number; outputTokens: number }) => void }) => {
+    o?.onUsage?.({ inputTokens: 50, outputTokens: 10 });
+    if (prompt.includes('OFFICIAL RULES')) return official;
+    return 'Zero-shot: classify the numbers by parity and return JSON.';
+  };
+  const result = await runPipeline({ thoughts: 'числа по чётности', catalog, llm, ...targetOptions(parseTarget('claude')) });
+  const guidance = guidanceOf(result);
+  assert.ok(guidance && guidance.rules.length >= 2);
+  const judgePrompt = buildJudgePrompt({ thoughts: 'числа', brief: result.brief, choice: result.choice, synthesis: result.synthesis, officialRules: guidance!.rules });
+  assert.match(judgePrompt, /официальным правилам/);
+  assert.match(judgePrompt, /clear:/);
+
+  const task: EvalTask = { id: 'parity', title: 'p', thoughts: 'x', expect: { task_type: 'classification', any_of: ['zero_shot'], forbidden: ['claude_official'], must_mention: ['json'], budget_calls: null } };
+  const j = parseJudgement(JUDGE_JSON);
+  const report = aggregate([
+    { ok: true, taskId: 'parity', repeat: 1, techniqueKey: result.choice.key, confidence: 0.5, prompt: result.synthesis.prompt, warnings: [], judgement: j, taskType: result.brief.task_type, usage: result.usage, promptVersion: result.promptVersion },
+  ], [task], { target: 'claude' });
+  assert.equal(report.target, 'claude');
+  assert.equal(report.overall.forbiddenHit, 0, 'ожидания каталога к официальной цели неприменимы');
+  assert.equal(report.overall.taskTypeHit, 1);
+  assert.equal(report.cost.inputTokens, result.usage!.inputTokens);
+  assert.deepEqual(report.promptVersions, [result.promptVersion]);
+  assert.match(formatReport(report), /Метрики выбора техники не считаются/);
+  assert.throws(() => parseTarget('bard'), /--target/);
+});
+
+test('ci95: ноль для одного прогона, сужается с ростом выборки', () => {
+  assert.equal(ci95([4]), 0);
+  assert.ok(ci95([3, 4, 5, 3, 4, 5]) < ci95([3, 5]));
 });
