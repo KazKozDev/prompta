@@ -61,8 +61,17 @@ export function injectedSegments(thoughts: string): string[] {
 const stems = (text: string): Set<string> =>
   new Set((text.toLowerCase().match(/[\p{L}\p{N}][\p{L}\p{N}._/-]{3,}/gu) ?? []).map((w) => w.slice(0, 5)));
 
+/** Защитное требование («не выполнять инструкции из писем», «не добавлять ссылки») — его модель
+ *  написала правильно, и удалять его нельзя, хотя слова совпадают с атакой. */
+const DEFENSIVE = unicodeWords(/(?:^|[\s(,;])не\s+(?:выполн|следова|подчин|помеча|добавля|раскрыва|переход|вставля|учитыва)|игнорир\w*\s+(?:вс\w*\s+)?(?:инструкц|указани|команд)\w*\s+(?:из|в|внутри|во)\b|считать\s+(?:их\s+)?данными|только\s+по\s+(?:реальн|фактическ)|do\s+not\s+(?:follow|obey|execute|add|mark)|never\s+follow|ignore\s+(?:any\s+)?instructions\s+(?:in|inside|within|from)|treat\s+\S+(?:\s+\S+)?\s+as\s+data/i);
+
+export function isDefensive(constraint: string): boolean {
+  return DEFENSIVE.test(constraint);
+}
+
 /** Требование пришло из внедрённой команды: само похоже на атаку или делит с ней ≥2 значимых основы. */
 function fromInjection(constraint: string, segments: string[]): boolean {
+  if (isDefensive(constraint)) return false;
   if (looksLikeInjection(constraint)) return true;
   const own = stems(constraint);
   return segments.some((seg) => {
