@@ -1,0 +1,46 @@
+name: source-drift
+
+# Раз в неделю скачивает официальные гайды заново (теми же refresh_sources.py) и сравнивает снимки
+# с сохранёнными. Изменился источник — прогон падает: правила, построенные на старом тексте,
+# нужно перепроверить и обновить вручную. Сам прогон ничего не коммитит.
+# Grok не проверяется: у него нет скрипта обновления (снимки скачаны вручную, см. grok_prompt_rules/README.md).
+
+on:
+  schedule:
+    - cron: '41 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        provider: [claude, chatgpt, gemini]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Скачать гайды заново
+        run: python3 ${{ matrix.provider }}_prompt_rules/refresh_sources.py
+      - name: Сравнить снимки
+        run: |
+          if git diff --quiet -- '${{ matrix.provider }}_prompt_rules/snapshots'; then
+            echo "Источники ${{ matrix.provider }} не изменились."
+          else
+            git diff --stat -- '${{ matrix.provider }}_prompt_rules/snapshots'
+            git diff -- '${{ matrix.provider }}_prompt_rules/snapshots' > drift-${{ matrix.provider }}.diff
+            echo "::error::Официальные гайды ${{ matrix.provider }} изменились: перепроверьте rules.json и обновите снимки через refresh_sources.py"
+            exit 1
+          fi
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: drift-${{ matrix.provider }}
+          path: drift-${{ matrix.provider }}.diff
+          if-no-files-found: ignore

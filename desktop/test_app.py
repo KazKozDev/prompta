@@ -506,7 +506,7 @@ class DesktopSmokeTest(unittest.TestCase):
         from app import PopupAnimation, QDialog, QFrame, Qt, QEvent, QEasingCurve
         animation_filter = PopupAnimation()
         for popup in (QDialog(), QFrame(None, Qt.WindowType.Popup)):
-            with patch('app.QApplication.platformName', return_value='cocoa'), patch('app.QPropertyAnimation') as animation, patch.object(popup, 'setWindowOpacity'):
+            with patch('app.QApplication.platformName', return_value='cocoa'), patch('widgets.QPropertyAnimation') as animation, patch.object(popup, 'setWindowOpacity'):
                 animation_filter.eventFilter(popup, QEvent(QEvent.Type.Show))
                 animation.assert_called_once_with(popup, b'windowOpacity', popup)
                 animation.return_value.setDuration.assert_called_once_with(160)

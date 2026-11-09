@@ -37,6 +37,6 @@ jobs:
           QT_QPA_PLATFORM: offscreen
         run: |
           python3 -m pip install --quiet pytest
-          cd desktop && python3 -m pytest -q test_app.py test_mcp_settings.py
+          cd desktop && python3 -m pytest -q test_history.py test_app.py test_mcp_settings.py
       - name: Сборка .app
         run: ./desktop/build_app.sh
