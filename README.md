@@ -91,7 +91,7 @@ node eval/regress.ts --current report.json --baseline eval/baselines/catalog.jso
 |---|---|---|
 | `ci` | every push and PR | types, offline tests, catalog validation, web build, desktop tests, `.app` bundle |
 | `eval-nightly` | daily | live eval for `catalog` and `claude` against `eval/baselines/`; skipped without a provider key |
-| `source-drift` | weekly | re-downloads the official Claude, ChatGPT and Gemini guides and fails if a snapshot changed |
+| `source-drift` | weekly | re-downloads the official Claude, ChatGPT, Gemini and Grok guides and fails if a snapshot changed |
 
 ## Repository layout
 

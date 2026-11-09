@@ -3,7 +3,7 @@ name: source-drift
 # Раз в неделю скачивает официальные гайды заново (теми же refresh_sources.py) и сравнивает снимки
 # с сохранёнными. Изменился источник — прогон падает: правила, построенные на старом тексте,
 # нужно перепроверить и обновить вручную. Сам прогон ничего не коммитит.
-# Grok не проверяется: у него нет скрипта обновления (снимки скачаны вручную, см. grok_prompt_rules/README.md).
+# Grok проверяется отдельным скриптом только на чтение (grok_prompt_rules/check_sources.py): снимки скачаны вручную.
 
 on:
   schedule:
@@ -44,3 +44,14 @@ jobs:
           name: drift-${{ matrix.provider }}
           path: drift-${{ matrix.provider }}.diff
           if-no-files-found: ignore
+
+  grok:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Сверить снимки Grok с docs.x.ai
+        run: python3 grok_prompt_rules/check_sources.py
