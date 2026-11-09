@@ -1,30 +1,60 @@
-import type { LLM } from './types.ts';
+import type { LLM, TokenUsage } from './types.ts';
 
-export type Provider = 'gemini' | 'openai' | 'ollama';
+export type Provider = 'gemini' | 'openai' | 'ollama' | 'anthropic' | 'xai';
+export const PROVIDERS: readonly Provider[] = ['gemini', 'openai', 'ollama', 'anthropic', 'xai'];
 
 export interface LLMOptions {
   provider: Provider;
   model: string;
   apiKey?: string;
   baseUrl?: string;
+  /** Предел на один HTTP-запрос; по умолчанию 120 с. Повторы считаются отдельно. */
+  timeoutMs?: number;
+  /** Внешняя отмена (кнопка «Стоп», закрытие окна). */
+  signal?: AbortSignal;
 }
 
-/** Ретраи на сетевые сбои и 429/5xx: облачные модели периодически рвут соединение. */
+export const DEFAULT_TIMEOUT_MS = 120_000;
+
+/** Ключ окружения для провайдера: один источник правды для CLI, eval и MCP. */
+export function apiKeyEnv(provider: Provider): string | undefined {
+  return {
+    gemini: 'GEMINI_API_KEY',
+    openai: 'OPENAI_API_KEY',
+    anthropic: 'ANTHROPIC_API_KEY',
+    xai: 'XAI_API_KEY',
+    ollama: undefined,
+  }[provider];
+}
+
+export class LLMTimeoutError extends Error {
+  constructor(ms: number) {
+    super(`LLM request timed out after ${Math.round(ms / 1000)} s`);
+    this.name = 'LLMTimeoutError';
+  }
+}
+
+/** Ретраи на сетевые сбои, таймауты и 429/5xx: облачные модели периодически рвут соединение. */
 async function postJson(
   url: string,
   body: unknown,
-  headers: Record<string, string> = {},
-  attempts = 3,
+  headers: Record<string, string>,
+  opts: { timeoutMs: number; signal?: AbortSignal; attempts?: number },
 ): Promise<unknown> {
+  const attempts = opts.attempts ?? 3;
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    if (opts.signal?.aborted) throw opts.signal.reason ?? new Error('Aborted');
     let fatal = false;
+    const timeout = AbortSignal.timeout(opts.timeoutMs);
+    const signal = opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout;
     try {
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'content-type': 'application/json', ...headers },
         body: JSON.stringify(body),
+        signal,
       });
       const text = await res.text();
       if (res.ok) return JSON.parse(text) as unknown;
@@ -36,9 +66,11 @@ async function postJson(
         throw lastError;
       }
     } catch (e) {
+      // Отмена пользователем — сразу наружу, без повторов.
+      if (opts.signal?.aborted) throw opts.signal.reason ?? e;
       // 4xx (кроме 429) и битый JSON повторять бессмысленно
       if (fatal || e instanceof SyntaxError) throw lastError instanceof Error ? lastError : e;
-      lastError = e;
+      lastError = timeout.aborted ? new LLMTimeoutError(opts.timeoutMs) : e;
     }
 
     if (attempt < attempts) {
@@ -49,34 +81,53 @@ async function postJson(
   throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
 
-/** Адаптер без SDK: только fetch, чтобы пайплайн не тянул зависимости. */
+function report(cb: ((u: TokenUsage) => void) | undefined, input: unknown, output: unknown): void {
+  if (!cb) return;
+  const i = Number(input);
+  const o = Number(output);
+  cb({ inputTokens: Number.isFinite(i) ? i : 0, outputTokens: Number.isFinite(o) ? o : 0 });
+}
+
+/** Адаптер без SDK: только fetch, чтобы пайплайн не тянул зависимости и работал в браузере. */
 export function createLLM(opts: LLMOptions): LLM {
   const { provider, model, apiKey } = opts;
-  const base = opts.baseUrl ?? (provider === 'ollama' ? 'http://localhost:11434' : '');
+  const http = { timeoutMs: opts.timeoutMs ?? DEFAULT_TIMEOUT_MS, signal: opts.signal };
 
   if (provider === 'gemini') {
     if (!apiKey) throw new Error('An API key is required for gemini');
+    const base = opts.baseUrl || 'https://generativelanguage.googleapis.com';
     return async (prompt, o = {}) => {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-      const data = (await postJson(url, {
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: o.temperature ?? 0.2,
-          ...(o.maxTokens ? { maxOutputTokens: o.maxTokens } : {}),
-          ...(o.json ? { responseMimeType: 'application/json' } : {}),
+      // Ключ в заголовке, а не в query: URL оседают в логах прокси и трассировке.
+      const data = (await postJson(
+        `${base}/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+        {
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: o.temperature ?? 0.2,
+            ...(o.maxTokens ? { maxOutputTokens: o.maxTokens } : {}),
+            ...(o.json ? { responseMimeType: 'application/json' } : {}),
+          },
         },
-      })) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+        { 'x-goog-api-key': apiKey },
+        http,
+      )) as {
+        candidates?: { content?: { parts?: { text?: string }[] } }[];
+        usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
+      };
+      report(o.onUsage, data.usageMetadata?.promptTokenCount, data.usageMetadata?.candidatesTokenCount);
       const out = data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? '';
       if (!out) throw new Error('gemini returned an empty response');
       return out;
     };
   }
 
-  if (provider === 'openai') {
-    if (!apiKey) throw new Error('An API key is required for openai');
+  if (provider === 'openai' || provider === 'xai') {
+    if (!apiKey) throw new Error(`An API key is required for ${provider}`);
+    // xAI совместим с форматом chat/completions — отличается только адрес.
+    const base = opts.baseUrl || (provider === 'xai' ? 'https://api.x.ai' : 'https://api.openai.com');
     return async (prompt, o = {}) => {
       const data = (await postJson(
-        `${base || 'https://api.openai.com'}/v1/chat/completions`,
+        `${base}/v1/chat/completions`,
         {
           model,
           messages: [{ role: 'user', content: prompt }],
@@ -85,26 +136,83 @@ export function createLLM(opts: LLMOptions): LLM {
           ...(o.json ? { response_format: { type: 'json_object' } } : {}),
         },
         { authorization: `Bearer ${apiKey}` },
-      )) as { choices?: { message?: { content?: string } }[] };
+        http,
+      )) as {
+        choices?: { message?: { content?: string } }[];
+        usage?: { prompt_tokens?: number; completion_tokens?: number };
+      };
+      report(o.onUsage, data.usage?.prompt_tokens, data.usage?.completion_tokens);
       const out = data.choices?.[0]?.message?.content ?? '';
-      if (!out) throw new Error('openai returned an empty response');
+      if (!out) throw new Error(`${provider} returned an empty response`);
       return out;
     };
   }
 
+  if (provider === 'anthropic') {
+    if (!apiKey) throw new Error('An API key is required for anthropic');
+    const base = opts.baseUrl || 'https://api.anthropic.com';
+    return async (prompt, o = {}) => {
+      // Текущие модели Claude отклоняют temperature/top_p, поэтому они не передаются;
+      // JSON задаётся промптом (у всех JSON-стадий схема уже в тексте).
+      const data = (await postJson(
+        `${base}/v1/messages`,
+        {
+          model,
+          max_tokens: o.maxTokens ?? 16000,
+          messages: [{ role: 'user', content: prompt }],
+        },
+        { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+        http,
+      )) as {
+        content?: { type?: string; text?: string }[];
+        stop_reason?: string;
+        usage?: { input_tokens?: number; output_tokens?: number };
+      };
+      report(o.onUsage, data.usage?.input_tokens, data.usage?.output_tokens);
+      if (data.stop_reason === 'refusal') throw new Error('anthropic declined the request (stop_reason: refusal)');
+      const out = (data.content ?? []).filter((b) => b.type === 'text').map((b) => b.text ?? '').join('');
+      if (!out) throw new Error('anthropic returned an empty response');
+      return out;
+    };
+  }
+
+  const base = opts.baseUrl || 'http://localhost:11434';
   return async (prompt, o = {}) => {
-    const data = (await postJson(`${base}/api/generate`, {
-      model,
-      prompt,
-      stream: false,
-      ...(o.json ? { format: 'json' } : {}),
-      options: {
-        temperature: o.temperature ?? 0.2,
-        ...(o.maxTokens ? { num_predict: o.maxTokens } : {}),
+    const data = (await postJson(
+      `${base}/api/generate`,
+      {
+        model,
+        prompt,
+        stream: false,
+        ...(o.json ? { format: 'json' } : {}),
+        options: {
+          temperature: o.temperature ?? 0.2,
+          ...(o.maxTokens ? { num_predict: o.maxTokens } : {}),
+        },
       },
-    })) as { response?: string };
+      {},
+      http,
+    )) as { response?: string; prompt_eval_count?: number; eval_count?: number };
+    report(o.onUsage, data.prompt_eval_count, data.eval_count);
     const out = data.response ?? '';
     if (!out) throw new Error('ollama returned an empty response');
     return out;
   };
+}
+
+/** Обёртка-счётчик: суммирует токены и вызовы по всем стадиям одного прогона. */
+export function meterLLM(llm: LLM): { llm: LLM; usage: () => TokenUsage & { calls: number } } {
+  const total = { inputTokens: 0, outputTokens: 0, calls: 0 };
+  const metered: LLM = (prompt, o = {}) => {
+    total.calls += 1;
+    return llm(prompt, {
+      ...o,
+      onUsage: (u) => {
+        total.inputTokens += u.inputTokens;
+        total.outputTokens += u.outputTokens;
+        o.onUsage?.(u);
+      },
+    });
+  };
+  return { llm: metered, usage: () => ({ ...total }) };
 }

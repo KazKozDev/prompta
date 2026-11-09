@@ -10,7 +10,7 @@ import { costRange, gateTechniques, loadCatalog, projectForSelection } from './c
 import { briefAssumptions, parseBrief } from './brief.ts';
 import { parseChoice } from './select.ts';
 import { fillTemplate, maxTokensFor, synthesizeDeterministic, synthesizeWithLLM } from './synthesize.ts';
-import { runPipeline } from './index.ts';
+import { formatResult, runPipeline } from './index.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const catalog: Catalog = loadCatalog(JSON.parse(readFileSync(join(root, 'catalog', 'catalog.json'), 'utf8')));
@@ -391,4 +391,19 @@ test('every synthesis request quotes the downloaded sources of the technique', a
   }
   const promptable = catalog.techniques.filter((t) => t.status !== 'index-only');
   assert.deepEqual(promptable.filter((t) => !hasSources(t.key)).map((t) => t.key), [], 'every technique has its sources');
+});
+
+test('результат несёт расход токенов и отпечаток версии промптов', async () => {
+  const { llm } = fakeLLM();
+  const metered = async (prompt: string, o?: { onUsage?: (u: { inputTokens: number; outputTokens: number }) => void }) => {
+    o?.onUsage?.({ inputTokens: 100, outputTokens: 20 });
+    return llm(prompt);
+  };
+  const result = await runPipeline({ thoughts: 'тональность отзывов', catalog, llm: metered });
+  assert.ok(result.usage && result.usage.calls >= 3, 'бриф, выбор, синтез и zero-shot считаются');
+  assert.equal(result.usage!.inputTokens, result.usage!.calls * 100);
+  assert.match(result.promptVersion ?? '', /^\d{4}-\d{2}-\d{2}\+[0-9a-f]{8}$/);
+  const again = await runPipeline({ thoughts: 'другое', catalog, llm: metered });
+  assert.equal(again.promptVersion, result.promptVersion, 'отпечаток зависит от промптов, а не от входа');
+  assert.match(formatResult(result), /Версия промптов/);
 });

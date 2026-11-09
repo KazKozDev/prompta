@@ -14,7 +14,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { loadCatalog } from '../pipeline/catalog.ts';
 import { composeThoughts } from '../pipeline/context.ts';
 import { runPipeline } from '../pipeline/index.ts';
-import { createLLM } from '../pipeline/llm.ts';
+import { apiKeyEnv, createLLM, PROVIDERS } from '../pipeline/llm.ts';
 import type { Provider } from '../pipeline/llm.ts';
 import { suggestNextPrompts } from '../pipeline/suggest.ts';
 import type { Catalog, LLM, PipelineResult } from '../pipeline/types.ts';
@@ -223,9 +223,10 @@ function readEnvLocal(): Record<string, string> {
 /** Builds the LLM from the environment; with Ollama and no model set, picks the first local model. */
 export async function llmFromEnv(env: Record<string, string | undefined>, fetchImpl: typeof fetch = fetch): Promise<LLM> {
   const provider = (env.PROMPTA_PROVIDER || 'ollama') as Provider;
-  if (!['ollama', 'openai', 'gemini'].includes(provider)) throw new Error(`PROMPTA_PROVIDER must be ollama, openai or gemini (got "${provider}").`);
+  if (!PROVIDERS.includes(provider)) throw new Error(`PROMPTA_PROVIDER must be one of ${PROVIDERS.join(', ')} (got "${provider}").`);
   const baseUrl = env.PROMPTA_BASE_URL || undefined;
-  const apiKey = env.PROMPTA_API_KEY || (provider === 'gemini' ? env.GEMINI_API_KEY : provider === 'openai' ? env.OPENAI_API_KEY : undefined);
+  const keyName = apiKeyEnv(provider);
+  const apiKey = env.PROMPTA_API_KEY || (keyName ? env[keyName] : undefined);
   let model = env.PROMPTA_MODEL || '';
   if (!model && provider === 'ollama') {
     try {

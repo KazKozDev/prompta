@@ -24,7 +24,7 @@ from PyQt6.QtWidgets import (
 
 SERVER_NAME = "prompta"
 COPY_LABEL = "Copy JSON for other apps"
-PROVIDERS = [("ollama", "Ollama (local or :cloud)"), ("openai", "OpenAI-compatible"), ("gemini", "Gemini")]
+PROVIDERS = [("ollama", "Ollama (local or :cloud)"), ("openai", "OpenAI-compatible"), ("gemini", "Gemini"), ("anthropic", "Anthropic (Claude)"), ("xai", "xAI (Grok)")]
 
 
 def find_claude_cli() -> str | None:

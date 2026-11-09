@@ -116,7 +116,7 @@ test('llmFromEnv picks the first Ollama model and validates configuration', asyn
   const empty = (async () => ({ json: async () => ({ models: [] }) })) as unknown as typeof fetch;
   await assert.rejects(llmFromEnv({}, empty), /No local Ollama chat model/);
   await assert.rejects(llmFromEnv({ PROMPTA_PROVIDER: 'openai', PROMPTA_MODEL: 'gpt' }), /PROMPTA_API_KEY/);
-  await assert.rejects(llmFromEnv({ PROMPTA_PROVIDER: 'claude' }), /must be ollama/);
+  await assert.rejects(llmFromEnv({ PROMPTA_PROVIDER: 'claude' }), /must be one of .*anthropic/);
 });
 
 test('stdio server answers a real handshake with clean newline-delimited JSON on stdout', async () => {

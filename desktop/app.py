@@ -1611,6 +1611,8 @@ class MainWindow(QMainWindow):
                 {"key": "ollama", "label": "Ollama (local/cloud)"},
                 {"key": "gemini", "label": "Gemini"},
                 {"key": "openai", "label": "OpenAI"},
+                {"key": "anthropic", "label": "Anthropic (Claude)"},
+                {"key": "xai", "label": "xAI (Grok)"},
             ]
         )
         self.provider.set_current("ollama")

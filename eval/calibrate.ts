@@ -4,7 +4,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { loadCatalog } from '../pipeline/catalog.ts';
 import { runPipeline } from '../pipeline/index.ts';
-import { createLLM } from '../pipeline/llm.ts';
+import { apiKeyEnv, createLLM } from '../pipeline/llm.ts';
 import type { Provider } from '../pipeline/llm.ts';
 import type { TaskBrief } from '../pipeline/types.ts';
 import { buildJudgePrompt, parseJudgement } from './judge.ts';
@@ -211,7 +211,7 @@ async function main() {
   const catalog = loadCatalog(JSON.parse(readFileSync(join(root, 'catalog', 'catalog.json'), 'utf8')));
 
   const env = { ...readEnvLocal(), ...process.env } as Record<string, string>;
-  const keyFor = (p: Provider) => (p === 'gemini' ? env.GEMINI_API_KEY : p === 'openai' ? env.OPENAI_API_KEY : undefined);
+  const keyFor = (p: Provider) => (apiKeyEnv(p) ? env[apiKeyEnv(p)!] : undefined);
   const llm = createLLM({ provider, model, apiKey: keyFor(provider) });
   const judge2LLM = judge2Provider ? createLLM({ provider: judge2Provider, model: judge2Model, apiKey: keyFor(judge2Provider) }) : null;
   const execLLM = execProvider

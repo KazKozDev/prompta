@@ -128,12 +128,26 @@ export interface PipelineResult {
   /** Техники, которые выбыли до выбора: почему. */
   rejected: { key: string; reason: string }[];
   trace: PipelineTrace[];
+  /** Расход за весь прогон: все стадии и повторы разбора. Нули — провайдер не сообщил usage. */
+  usage?: TokenUsage & { calls: number };
+  /** Отпечаток внутренних промптов пайплайна: связывает результат и балл eval с версией промптов. */
+  promptVersion?: string;
 }
 
-export type LLM = (
-  prompt: string,
-  opts?: { temperature?: number; json?: boolean; maxTokens?: number },
-) => Promise<string>;
+export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+}
+
+export interface LLMCallOptions {
+  temperature?: number;
+  json?: boolean;
+  maxTokens?: number;
+  /** Адаптер сообщает расход токенов, если провайдер его вернул. */
+  onUsage?: (usage: TokenUsage) => void;
+}
+
+export type LLM = (prompt: string, opts?: LLMCallOptions) => Promise<string>;
 
 export class PipelineError extends Error {
   readonly step: string;

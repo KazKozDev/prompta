@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { loadCatalog } from './catalog.ts';
 import { runPipeline, formatResult } from './index.ts';
-import { createLLM } from './llm.ts';
+import { apiKeyEnv, createLLM, PROVIDERS } from './llm.ts';
 import type { Provider } from './llm.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -41,17 +41,21 @@ function parseArgs(argv: string[]) {
 async function main() {
   const { flags, thoughts } = parseArgs(process.argv.slice(2));
   if (!thoughts) {
-    console.error('использование: node pipeline/cli.ts "поток мыслей" [--budget 3] [--deterministic] [--json] [--provider gemini|openai|ollama] [--model ...]');
+    console.error('использование: node pipeline/cli.ts "поток мыслей" [--budget 3] [--deterministic] [--json] [--provider gemini|openai|ollama|anthropic|xai] [--model ...]');
     process.exit(2);
   }
 
   const catalog = loadCatalog(JSON.parse(readFileSync(join(root, 'catalog', 'catalog.json'), 'utf8')));
   const env = { ...readEnvLocal(), ...process.env } as Record<string, string>;
-  const apiKey =
-    flags.provider === 'gemini' ? env.GEMINI_API_KEY : flags.provider === 'openai' ? env.OPENAI_API_KEY : undefined;
+  if (!PROVIDERS.includes(flags.provider)) {
+    console.error(`неизвестный провайдер ${flags.provider}: ${PROVIDERS.join(', ')}`);
+    process.exit(2);
+  }
+  const keyName = apiKeyEnv(flags.provider);
+  const apiKey = keyName ? env[keyName] : undefined;
 
-  if (!apiKey && flags.provider !== 'ollama') {
-    console.error(`нет ${flags.provider === 'gemini' ? 'GEMINI_API_KEY' : 'OPENAI_API_KEY'} ни в окружении, ни в .env.local`);
+  if (keyName && !apiKey) {
+    console.error(`нет ${keyName} ни в окружении, ни в .env.local`);
     process.exit(2);
   }
 

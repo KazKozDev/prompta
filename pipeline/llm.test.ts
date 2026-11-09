@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createLLM } from './llm.ts';
+import { createLLM, LLMTimeoutError, meterLLM } from './llm.ts';
+import type { LLM } from './types.ts';
 
 test('адаптеры провайдеров передают настройки и разбирают ответы', async (t) => {
   for (const provider of ['ollama', 'openai', 'gemini'] as const) {
@@ -36,4 +37,68 @@ test('ошибка авторизации не повторяется, пуст�
   t.mock.restoreAll();
   t.mock.method(globalThis, 'fetch', async () => new Response('{}'));
   await assert.rejects(llm('тест'), /empty response/);
+});
+
+test('anthropic и xai: адрес, заголовки, без temperature у Claude, учёт токенов', async (t) => {
+  const seen: { url: string; headers: Record<string, string>; body: Record<string, any> }[] = [];
+  t.mock.method(globalThis, 'fetch', async (url: unknown, init: RequestInit) => {
+    seen.push({ url: String(url), headers: init.headers as Record<string, string>, body: JSON.parse(String(init.body)) });
+    const payload = String(url).includes('anthropic')
+      ? { content: [{ type: 'thinking', thinking: '' }, { type: 'text', text: 'ответ' }], stop_reason: 'end_turn', usage: { input_tokens: 11, output_tokens: 7 } }
+      : { choices: [{ message: { content: 'ответ' } }], usage: { prompt_tokens: 5, completion_tokens: 3 } };
+    return new Response(JSON.stringify(payload));
+  });
+  const usage: { inputTokens: number; outputTokens: number }[] = [];
+  const claude = createLLM({ provider: 'anthropic', model: 'synthetic', apiKey: 'k' });
+  assert.equal(await claude('тест', { temperature: 0, json: true, onUsage: (u) => usage.push(u) }), 'ответ');
+  assert.equal(seen[0].url, 'https://api.anthropic.com/v1/messages');
+  assert.equal(seen[0].headers['x-api-key'], 'k');
+  assert.ok(seen[0].headers['anthropic-version']);
+  assert.equal('temperature' in seen[0].body, false, 'текущие модели Claude отклоняют temperature');
+  assert.ok(seen[0].body.max_tokens > 0, 'max_tokens обязателен в Messages API');
+  const grok = createLLM({ provider: 'xai', model: 'synthetic', apiKey: 'k' });
+  await grok('тест', { onUsage: (u) => usage.push(u) });
+  assert.equal(seen[1].url, 'https://api.x.ai/v1/chat/completions');
+  assert.deepEqual(usage, [{ inputTokens: 11, outputTokens: 7 }, { inputTokens: 5, outputTokens: 3 }]);
+});
+
+test('anthropic: отказ модели — ошибка, а не пустой промпт', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () => new Response(JSON.stringify({ content: [], stop_reason: 'refusal' })));
+  await assert.rejects(createLLM({ provider: 'anthropic', model: 's', apiKey: 'k' })('тест'), /refusal/);
+});
+
+test('gemini: ключ в заголовке, а не в URL', async (t) => {
+  let url = ''; let headers: Record<string, string> = {};
+  t.mock.method(globalThis, 'fetch', async (u: unknown, init: RequestInit) => {
+    url = String(u); headers = init.headers as Record<string, string>;
+    return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: 'ok' }] } }] }));
+  });
+  await createLLM({ provider: 'gemini', model: 'm', apiKey: 'secret-key' })('тест');
+  assert.equal(url.includes('secret-key'), false);
+  assert.equal(headers['x-goog-api-key'], 'secret-key');
+});
+
+test('таймаут обрывает зависший запрос и повторяется; внешняя отмена — без повторов', async (t) => {
+  let calls = 0;
+  t.mock.method(globalThis, 'fetch', (_u: unknown, init: RequestInit) => {
+    calls++;
+    return new Promise((_, reject) => init.signal!.addEventListener('abort', () => reject(init.signal!.reason)));
+  });
+  const llm = createLLM({ provider: 'ollama', model: 's', timeoutMs: 20 });
+  await assert.rejects(llm('тест'), LLMTimeoutError);
+  assert.equal(calls, 3, 'таймаут — сетевой сбой, повторяется');
+  calls = 0;
+  const stop = new AbortController();
+  const cancellable = createLLM({ provider: 'ollama', model: 's', signal: stop.signal });
+  const pending = cancellable('тест');
+  stop.abort(new Error('stopped by user'));
+  await assert.rejects(pending, /stopped by user/);
+  assert.equal(calls, 1);
+});
+
+test('meterLLM суммирует вызовы и токены', async () => {
+  const fake: LLM = async (_p, o) => { o?.onUsage?.({ inputTokens: 10, outputTokens: 4 }); return 'x'; };
+  const m = meterLLM(fake);
+  await m.llm('a'); await m.llm('b');
+  assert.deepEqual(m.usage(), { inputTokens: 20, outputTokens: 8, calls: 2 });
 });

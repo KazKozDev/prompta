@@ -14,10 +14,6 @@
     "audit": "node eval/audit.ts",
     "mcp": "node mcp/server.ts"
   },
-  "dependencies": {
-    "@google/genai": "^2.8.0",
-    "openai": "^4.69.0"
-  },
   "devDependencies": {
     "@types/node": "^22.14.0",
     "typescript": "~5.7.2",

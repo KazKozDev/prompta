@@ -4,7 +4,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { loadCatalog } from '../pipeline/catalog.ts';
 import { runPipeline } from '../pipeline/index.ts';
-import { createLLM } from '../pipeline/llm.ts';
+import { apiKeyEnv, createLLM } from '../pipeline/llm.ts';
 import type { Provider } from '../pipeline/llm.ts';
 import { buildJudgePrompt, parseJudgement } from './judge.ts';
 import { aggregate, formatReport } from './aggregate.ts';
@@ -73,14 +73,13 @@ async function main() {
   const catalog = loadCatalog(JSON.parse(readFileSync(join(root, 'catalog', 'catalog.json'), 'utf8')));
   const env = { ...readEnvLocal(), ...process.env } as Record<string, string>;
   const apiKey =
-    flags.provider === 'gemini' ? env.GEMINI_API_KEY : flags.provider === 'openai' ? env.OPENAI_API_KEY : undefined;
+    apiKeyEnv(flags.provider) ? env[apiKeyEnv(flags.provider)!] : undefined;
   if (!apiKey && flags.provider !== 'ollama') {
     console.error(`нет ключа для ${flags.provider} в окружении или .env.local`);
     process.exit(2);
   }
 
-  const keyFor = (p: Provider): string | undefined =>
-    p === 'gemini' ? env.GEMINI_API_KEY : p === 'openai' ? env.OPENAI_API_KEY : undefined;
+  const keyFor = (p: Provider): string | undefined => (apiKeyEnv(p) ? env[apiKeyEnv(p)!] : undefined);
 
   const llm = createLLM({ provider: flags.provider, model: flags.model, apiKey });
 

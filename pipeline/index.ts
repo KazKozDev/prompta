@@ -5,6 +5,8 @@ import { briefAssumptions, buildBriefPrompt, parseBrief } from './brief.ts';
 import { gateTechniques, getTechnique } from './catalog.ts';
 import { buildSelectionPrompt, parseChoices } from './select.ts';
 import { synthesizeDeterministic, synthesizeWithLLM, valuesFromBrief } from './synthesize.ts';
+import { meterLLM } from './llm.ts';
+import { promptVersion } from './prompt-version.ts';
 
 export interface RunOptions {
   oneShot?: boolean;
@@ -29,8 +31,15 @@ export interface RunOptions {
   variants?: number;
 }
 
-/** Полный проход: мысли → бриф → отсев → выбор → синтез. */
+/** Полный проход: мысли → бриф → отсев → выбор → синтез. К результату добавляются расход
+ *  токенов за все стадии и отпечаток версии внутренних промптов. */
 export async function runPipeline(opts: RunOptions): Promise<PipelineResult> {
+  const meter = meterLLM(opts.llm);
+  const result = await dispatch({ ...opts, llm: meter.llm });
+  return { ...result, usage: meter.usage(), promptVersion: promptVersion() };
+}
+
+async function dispatch(opts: RunOptions): Promise<PipelineResult> {
   if ([opts.claudeOnly, opts.chatgptOnly, opts.geminiOnly, opts.grokOnly, opts.openModel].filter(Boolean).length > 1) {
     throw new PipelineError('Choose only one target: Claude, ChatGPT, Gemini, or Grok.', 'target');
   }
@@ -222,6 +231,10 @@ export function formatResult(result: PipelineResult): string {
     `Конфиг: temperature=${cfg.temperature ?? '—'}, top_p=${cfg.top_p ?? '—'}, max_tokens=${cfg.max_tokens}`,
     `Обоснование: ${cfg.rationale}`,
   ];
+  if (result.usage) {
+    lines.push(`Расход: ${result.usage.calls} вызовов, токены ${result.usage.inputTokens} → ${result.usage.outputTokens}`);
+  }
+  if (result.promptVersion) lines.push(`Версия промптов: ${result.promptVersion}`);
   if (synthesis.warnings.length) lines.push('', `Предупреждения: ${synthesis.warnings.join('; ')}`);
   if (rejected.length) lines.push(`Отсеяно до выбора: ${rejected.length} техник`);
   return lines.join('\n');
