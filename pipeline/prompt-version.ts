@@ -3,7 +3,7 @@ import { buildManualPrompt } from './manual.ts';
 import { runOfficialPipeline } from './official.ts';
 import { ONE_SHOT_INSTRUCTION } from './prompt-defaults.ts';
 import { buildSelectionPrompt } from './select.ts';
-import { buildSynthesisPrompt, INJECTION_GUARD } from './synthesize.ts';
+import { buildSynthesisPrompt, INJECTION_GUARDS } from './synthesize.ts';
 import { buildZeroShotPrompt, generateZeroShotPrompt } from './zero-shot.ts';
 
 /** Ручная метка набора промптов: меняйте при осознанной переработке, чтобы отчёты читались людьми. */
@@ -21,7 +21,7 @@ export function fnv1a(text: string): string {
 
 /** Всё, что формирует текст внутренних промптов пайплайна. Добавили новый промпт — добавьте сюда. */
 const PROMPT_SOURCES: readonly unknown[] = [
-  buildBriefPrompt, BRIEF_SCHEMA, buildSelectionPrompt, buildSynthesisPrompt, INJECTION_GUARD,
+  buildBriefPrompt, BRIEF_SCHEMA, buildSelectionPrompt, buildSynthesisPrompt, JSON.stringify(INJECTION_GUARDS),
   buildZeroShotPrompt, generateZeroShotPrompt, buildManualPrompt, ONE_SHOT_INSTRUCTION, runOfficialPipeline,
 ];
 

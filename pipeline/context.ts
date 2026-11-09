@@ -25,8 +25,14 @@ export function redactSecrets(text: string): string {
   );
 }
 
+/** Контекст обрамлён <<< >>>: внутри не должно быть этих маркеров, иначе чужой текст закроет блок
+ *  и допишет «задачу» от себя. */
+export function neutralizeDelimiters(text: string): string {
+  return text.replace(/<{3,}/g, '‹‹‹').replace(/>{3,}/g, '›››');
+}
+
 export function prepareContext(context: string | undefined, max = MAX_CONTEXT_CHARS): string {
-  const clean = redactSecrets((context ?? '').trim());
+  const clean = neutralizeDelimiters(redactSecrets((context ?? '').trim()));
   if (clean.length <= max) return clean;
   return `[…earlier conversation omitted…]\n${clean.slice(clean.length - max)}`;
 }

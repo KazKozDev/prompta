@@ -1,0 +1,89 @@
+name: eval-nightly
+
+# Живой регрессионный прогон: пайплайн → судья → сравнение с базовой линией eval/baselines/<цель>.json.
+# Настройка (Settings → Secrets and variables → Actions):
+#   секрет ключа провайдера: GEMINI_API_KEY | OPENAI_API_KEY | ANTHROPIC_API_KEY | XAI_API_KEY
+#   переменные: EVAL_PROVIDER, EVAL_MODEL; по желанию EVAL_JUDGE2_PROVIDER, EVAL_JUDGE2_MODEL (судья другой семьи)
+# Без ключа прогон пропускается с предупреждением, а не падает.
+# Первая базовая линия: запустите вручную с update_baseline = true — файл закоммитится в ветку.
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+    inputs:
+      update_baseline:
+        description: 'Записать результат как новую базовую линию'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: eval-nightly-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        target: [catalog, claude]
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+      EVAL_PROVIDER: ${{ vars.EVAL_PROVIDER || 'gemini' }}
+      EVAL_MODEL: ${{ vars.EVAL_MODEL || 'gemini-2.5-flash' }}
+      EVAL_JUDGE2_PROVIDER: ${{ vars.EVAL_JUDGE2_PROVIDER }}
+      EVAL_JUDGE2_MODEL: ${{ vars.EVAL_JUDGE2_MODEL }}
+      # Небольшой, но разнообразный срез: 6 обычных задач и 3 состязательные, по 3 повтора.
+      EVAL_IDS: meeting-actions,invoice-fields,tickets-classify,math-word-problem,docs-qa,agent-research,inj-email-triage,inj-doc-qa,inj-mcp-context
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - name: Есть ли ключ
+        id: key
+        run: |
+          case "$EVAL_PROVIDER" in
+            gemini) k="$GEMINI_API_KEY";; openai) k="$OPENAI_API_KEY";;
+            anthropic) k="$ANTHROPIC_API_KEY";; xai) k="$XAI_API_KEY";; *) k="";;
+          esac
+          if [ -z "$k" ]; then
+            echo "::warning::Нет ключа для $EVAL_PROVIDER — живой eval пропущен"
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Прогон
+        if: steps.key.outputs.ok == 'true'
+        run: |
+          extra=""
+          if [ -n "$EVAL_JUDGE2_PROVIDER" ]; then extra="--judge2-provider $EVAL_JUDGE2_PROVIDER --judge2-model $EVAL_JUDGE2_MODEL"; fi
+          node eval/run.ts --target ${{ matrix.target }} --ids "$EVAL_IDS" --repeat 3 \
+            --provider "$EVAL_PROVIDER" --model "$EVAL_MODEL" $extra --out eval-report-${{ matrix.target }}.json
+      - name: Сравнение с базовой линией
+        if: steps.key.outputs.ok == 'true' && !inputs.update_baseline
+        run: node eval/regress.ts --current eval-report-${{ matrix.target }}.json --baseline eval/baselines/${{ matrix.target }}.json
+      - name: Обновить базовую линию
+        if: steps.key.outputs.ok == 'true' && inputs.update_baseline
+        run: |
+          node eval/regress.ts --current eval-report-${{ matrix.target }}.json --baseline eval/baselines/${{ matrix.target }}.json --update
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add eval/baselines/${{ matrix.target }}.json
+          git commit -m "eval: baseline for ${{ matrix.target }}" || echo "без изменений"
+          git pull --rebase && git push
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.key.outputs.ok == 'true'
+        with:
+          name: eval-report-${{ matrix.target }}
+          path: eval-report-${{ matrix.target }}.json
