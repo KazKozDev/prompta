@@ -316,10 +316,8 @@ class PromptaWindow(HistoryMixin, QMainWindow):
         self.build_label = "Build prompt   ⌘↵"
         self.run_button.setText(self.build_label)
         self.run_button.setToolTip("⌘↵ builds the prompt")
-        self.cancel_button.hide()
         self.status.setText("")
         # History is a picker like every other: the same button, chevron and panel with search inside.
-        self.history_search.hide()  # the filter field stays for restore logic; the picker replaces it here
         self.history_picker = IconDropdown("search.svg", "Search history", searchable=True, popup_width=480,
                                            search_placeholder="Search requests and prompts")
         self.history_picker.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -527,12 +525,6 @@ class PromptaWindow(HistoryMixin, QMainWindow):
         self.run_button.clicked.connect(lambda: self.cancel_run() if self._running() else self.run_pipeline())
         actions.addWidget(self.run_button, 1)
 
-        self.cancel_button = QPushButton("Cancel")
-        self.cancel_button.setObjectName("ghost")
-        self.cancel_button.setFixedSize(80, 42)
-        self.cancel_button.setEnabled(False)
-        self.cancel_button.clicked.connect(self.cancel_run)
-        actions.addWidget(self.cancel_button)
         box.addLayout(actions)
         # Which model writes the prompt, visible without opening Settings.
         self.model_line = QPushButton()
@@ -681,11 +673,6 @@ class PromptaWindow(HistoryMixin, QMainWindow):
 
         history_row = QHBoxLayout()
         history_row.setSpacing(8)
-        self.history_search = QLineEdit()
-        self.history_search.setPlaceholderText("Search requests and prompts")
-        self.history_search.setClearButtonEnabled(True)
-        self.history_search.textChanged.connect(self._filter_history)
-        history_row.addWidget(self.history_search, 1)
         self.history = HistoryComboBox()
         self.history.deletable = True
         # Saved titles must not become the minimum width of the entire window.
@@ -751,7 +738,6 @@ class PromptaWindow(HistoryMixin, QMainWindow):
         self.thoughts.clear()
         self.thoughts.setToolTip("")
         self._active_thoughts = ""
-        self.history_search.clear()
         previous = self.history.blockSignals(True)
         self.history.setCurrentIndex(0)
         self.history.blockSignals(previous)
@@ -774,7 +760,6 @@ class PromptaWindow(HistoryMixin, QMainWindow):
         return self.worker is not None and self.worker.isRunning()
 
     def _set_running(self, running: bool) -> None:
-        self.cancel_button.setEnabled(running)
         self.run_button.setEnabled(True)
         self.run_button.setToolTip("Stop this run" if running else "⌘↵ builds the prompt")
         if running:
@@ -1121,7 +1106,6 @@ class PromptaWindow(HistoryMixin, QMainWindow):
             self._sync_history_row()  # the button names the entry now on screen
 
     def _open_history_index(self, item_index: int) -> None:
-        self.history_search.clear()
         self._filter_history("", selected=item_index)
         combo_index = self.history.findData(item_index)
         if combo_index > 0:
@@ -1254,14 +1238,13 @@ class PromptaWindow(HistoryMixin, QMainWindow):
         self.advanced.button.toggled.connect(self._update_advanced_title)
         self.technique_label.hide()  # its count moves into the Advanced title
         # One control height for fields and segmented tracks so rows line up.
-        for widget in (self.history_search, self.history, self.prompt_model, self.technique, self.target_track, self.variants,
+        for widget in (self.history, self.prompt_model, self.technique, self.target_track, self.variants,
                        self.execution_profile):
             widget.ensurePolished()  # its own stylesheet would reset the minimum height when polished later
             widget.setFixedHeight(CONTROL_HEIGHT)
         for button in [*self.segments.buttons(), *self.variants.buttons.buttons()]:
             button.setFixedHeight(CONTROL_HEIGHT - 4)
         self.run_button.setFixedHeight(ACTION_HEIGHT)
-        self.cancel_button.setFixedHeight(ACTION_HEIGHT)
         self._sync_segments()
 
     def _sync_open_segment(self) -> None:
@@ -2012,7 +1995,7 @@ def main() -> int:
                 "rejected": [{}] * 53,
             }
         )
-        window.status.setText("Contextual prompting · warnings: 1")
+        window.status.setText("Contextual prompting · ready")  # what on_finished shows for a result without warnings
         window.resize(1160, 1180)
         for _ in range(10):  # let the prompt card's fixed height settle into the layout
             app.processEvents()

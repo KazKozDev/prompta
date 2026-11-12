@@ -128,7 +128,7 @@ class HistoryMixin:
         current = self.history.currentData()
         if isinstance(current, int) and current >= 0:
             current = -1 if current == removed else current - (current > removed)
-        self._filter_history(self.history_search.text(), selected=current)
+        self._filter_history(selected=current)
         if not self.history.isVisible():
             return  # PromptaWindow deletes from its history picker, which reopens itself
         if self.history.count() > 1:
@@ -231,7 +231,6 @@ class HistoryMixin:
             return
         self._history_items = []
         self._shown_entry = None
-        self.history_search.clear()
         self._filter_history()
         self.history_notice.setText("History deleted.")
         self.history_notice.show()
@@ -248,7 +247,6 @@ class HistoryMixin:
                      'payload': payload, 'created_at': datetime.now().isoformat()}
         self._history_items.append(entry)
         self._shown_entry = len(self._history_items) - 1  # prompt edits are saved into this entry
-        self.history_search.clear()
         self._filter_history(selected=len(self._history_items) - 1)
 
     def _flag_outdated(self, payload: dict) -> None:

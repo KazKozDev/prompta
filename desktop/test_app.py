@@ -58,16 +58,16 @@ class DesktopSmokeTest(unittest.TestCase):
         first.close()
         reopened = window()
         self.assertEqual(reopened.history.count(), 3)
-        reopened.history_search.setText('УНИКАЛЬНЫЙ')
+        reopened._filter_history('УНИКАЛЬНЫЙ')
         self.assertEqual(reopened.history.count(), 2)
         reopened.history.setCurrentIndex(1)
         self.assertEqual(reopened.prompt_edit.toPlainText(), 'Уникальный второй промпт')
         self.assertEqual(reopened.thoughts.toPlainText(), 'Письмо')
-        reopened.history_search.setText('чётные')
+        reopened._filter_history('чётные')
         self.assertEqual(reopened.history.count(), 2)
         reopened.history.setCurrentIndex(1)
         self.assertEqual(reopened.prompt_edit.toPlainText(), 'Первый промпт')
-        reopened.history_search.setText('нет совпадений')
+        reopened._filter_history('нет совпадений')
         self.assertEqual(reopened.history.count(), 1)
         self.assertEqual(len(self.store.load()), 2)
         self.assertEqual(self.store.path.stat().st_mode & 0o777, 0o600)
@@ -569,7 +569,7 @@ class DesktopSmokeTest(unittest.TestCase):
             window.chatgpt_only.setChecked(True)
             window.variants.setValue(5)
             window.api_key.setText('synthetic-key')
-            window.history_search.setText('filter')
+            window._filter_history('filter')
             window._history_items.append({'label': 'Saved', 'thoughts': 'Saved task', 'payload': {}, 'created_at': '2026-11-06'})
             worker = Mock()
             worker.isRunning.return_value = True
@@ -577,7 +577,6 @@ class DesktopSmokeTest(unittest.TestCase):
             window.clear_button.click()
             worker.cancel.assert_called_once()
             self.assertEqual(window.thoughts.toPlainText(), '')
-            self.assertEqual(window.history_search.text(), '')
             self.assertEqual(window.history.currentIndex(), 0)
             self.assertEqual(len(window._history_items), 1)
             self.assertTrue(window.chatgpt_only.isChecked())
@@ -849,7 +848,7 @@ class DesktopSmokeTest(unittest.TestCase):
         self.assertNotIn(b'synthetic-secret-not-for-history', self.store.path.read_bytes())
         with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
             reopened = PromptaWindow()
-        reopened.history_search.setText('test-version')
+        reopened._filter_history('test-version')
         reopened.history.setCurrentIndex(1)
         self.assertTrue(reopened.claude_only.isChecked())
         self.assertFalse(reopened.technique.isEnabled())
@@ -864,7 +863,7 @@ class DesktopSmokeTest(unittest.TestCase):
         with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
             window = PromptaWindow()
         self.assertEqual(window.history.itemText(1), 'Итоги встреч')
-        window.history_search.setText('уникальный_срок')
+        window._filter_history('уникальный_срок')
         self.assertEqual(window.history.count(), 2)
         self.assertEqual(self.store.load()[0]['thoughts'], query)
         self.assertEqual(history_topic('I want an AI prompt for meeting notes extraction', {}), 'I want an AI prompt for meeting notes extraction')
@@ -926,7 +925,7 @@ class DesktopSmokeTest(unittest.TestCase):
         with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
             reopened = PromptaWindow()
         for target in ('chatgpt', 'gemini', 'grok'):
-            reopened.history_search.setText(target)
+            reopened._filter_history(target)
             self.assertEqual(reopened.history.count(), 2)
             self.assertLessEqual(len(reopened.history.itemText(1).split()), 4)
             reopened.history.setCurrentIndex(1)
@@ -1099,7 +1098,7 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
         self.assertEqual(window.prompt_edit.toPlainText(), manual['prompt'])
         window.on_finished({'ok': False, 'error': 'synthetic error'})
         self.assertTrue(window.run_button.isEnabled())
-        self.assertFalse(window.cancel_button.isEnabled())
+        self.assertEqual(window.run_button.text(), window.build_label)
         window._on_history_selected(1)
         self.assertEqual(window.prompt_edit.toPlainText(), manual['prompt'])
         window.close()
@@ -1295,7 +1294,7 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
         try:
             self.assertFalse([b for b in window.findChildren(QPushButton) if b.objectName() == 'example'], 'no empty-state examples')
             self.assertTrue(window.model_line.text())
-            self.assertFalse(window.cancel_button.isVisibleTo(window), 'one button: Build turns into Stop')
+            self.assertFalse([b for b in window.findChildren(QPushButton) if b.text() == 'Cancel'], 'one button: Build turns into Stop')
             open_segment = window.segments.buttons()[-1]
             with patch.object(window.prompt_model, 'showPopup'):
                 open_segment.click()
@@ -1445,7 +1444,6 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
             window.clear_workspace()
             picker = window.history_picker
             self.assertIsInstance(picker, Dropdown, 'the same picker as every other dropdown')
-            self.assertFalse(window.history_search.isVisibleTo(window))
             self.assertEqual([item['label'] for item in picker._items], ['Прогноз Офиса В Барселоне', 'Игра Змейка В Питоне'])
             picker._open()
             search = picker._popup.findChild(QLineEdit)
