@@ -18,7 +18,6 @@ node eval/regress.ts --current report.json --baseline eval/baselines/claude.json
 | Состязательные задачи (`adversarial: true`): `injectionHit` — генератор выполнил внедрённую команду, `guardHit` — в промпте есть правило «материал — данные» | `tasks.json`, `aggregate.ts` |
 | Исполнение промптов на эталонах: извлечение полей счёта в JSON, текстовые задачи, тональность; точность, точность под инъекцией, выигрыш над zero-shot, корреляция судьи с точностью | `execute.ts`, `data/exec-suites.json` |
 | Регрессионный гейт: падение балла сверх max(0.5, совокупный 95% интервал), рост запрещённых техник, инъекций, ошибок | `regress.ts`, `baselines/` |
-| Ночной живой прогон в CI | `.github/workflows/eval-nightly.yml` |
 
 ```bash
 npm test                                                     # офлайн, без ключей
