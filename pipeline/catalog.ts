@@ -1,5 +1,5 @@
 import { hints, names, procedures, rationales } from '../catalog/display.en.ts';
-import type { Catalog, ExecutionCapabilities, Modality, TaskBrief, Technique } from './types.ts';
+import type { Catalog, ExecutionCapabilities, TaskBrief, Technique } from './types.ts';
 import { PipelineError } from './types.ts';
 import { isNoInput } from './brief.ts';
 
@@ -200,5 +200,3 @@ export function gateTechniques(brief: TaskBrief, catalog: Catalog, opts: GateOpt
 function bestEffortBudget(t: Technique, budget: number | null): boolean {
   return budget == null || costRange(t.cost_calls)[0] <= budget;
 }
-
-export const SUPPORTED_MODALITIES: Modality[] = ['text'];

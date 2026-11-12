@@ -230,15 +230,6 @@ def field_label(text: str) -> QLabel:
     return label
 
 
-def config_chips(config: dict) -> list[QLabel]:
-    """Generation settings as chips; the rationale is the hover text."""
-    why = config.get("rationale", "")
-    chips = [chip_label(f"{key} {config.get(key) if config.get(key) is not None else 'default'}", why)
-             for key in ("temperature", "top_p")]  # always first, even when the model's default applies
-    if config.get("max_tokens") is not None:
-        chips.append(chip_label(f"max_tokens {str(config['max_tokens']).lower()}", why))
-    return chips
-
 
 def note_chip(note: str) -> QLabel:
     """A pipeline note as a short chip (text before the colon), full text on hover."""

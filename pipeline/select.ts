@@ -2,7 +2,7 @@ import type { TaskBrief, Technique, TechniqueChoice } from './types.ts';
 import { PipelineError } from './types.ts';
 import { clamp01, extractJson } from './json.ts';
 import { briefToJson } from './brief.ts';
-import { projectForSelection, costRange } from './catalog.ts';
+import { projectForSelection } from './catalog.ts';
 
 /** Промпт стадии 2: бриф + список допустимых техник → выбор одной. */
 export function buildSelectionPrompt(brief: TaskBrief, candidates: Technique[], count = 1): string {
@@ -98,14 +98,4 @@ export function parseChoice(raw: string, candidates: Technique[]): TechniqueChoi
     whyNotCheaper: whyNotCheaper || 'Not explained',
     cheapestOverride: overrides || undefined,
   };
-}
-
-/** Ближайшая по цене альтернатива — чтобы показать пользователю второй вариант. */
-export function pickAlternative(candidates: Technique[], chosenKey: string): Technique | undefined {
-  return candidates.find((c) => c.key !== chosenKey);
-}
-
-export function describeCost(t: Technique): string {
-  const [min, max] = costRange(t.cost_calls);
-  return max === Infinity ? `${min}+ вызовов` : min === max ? `${min} вызов(ов)` : `${min}–${max} вызовов`;
 }
