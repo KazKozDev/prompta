@@ -1,4 +1,4 @@
-import { applyPromptDefaults, localizePromptDefaults, promptDefaultsText } from './prompt-defaults.ts';
+import { applyPromptDefaults } from './prompt-defaults.ts';
 import { buildZeroShotPrompt, generateZeroShotPrompt } from './zero-shot.ts';
 import type { Catalog, ExecutionCapabilities, LLM, PipelineResult, PipelineTrace, TaskBrief, TechniqueChoice } from './types.ts';
 import { PipelineError } from './types.ts';
@@ -40,14 +40,14 @@ export interface RunOptions {
 export async function runPipeline(opts: RunOptions): Promise<PipelineResult> {
   const meter = meterLLM(opts.llm);
   const result = await dispatch({ ...opts, llm: meter.llm });
-  const defaults = opts.mode === 'deterministic'
-    ? promptDefaultsText(result.brief, opts.executionCapabilities)
-    : await localizePromptDefaults(result.brief, opts.executionCapabilities, meter.llm);
-  const withDefaults = (prompt: string) => applyPromptDefaults(prompt, result.brief, opts.executionCapabilities, defaults);
-  if (result.zeroShotPrompt) result.zeroShotPrompt = withDefaults(result.zeroShotPrompt);
-  result.synthesis.prompt = withDefaults(result.synthesis.prompt);
-  for (const alternative of result.alternatives ?? []) {
-    alternative.synthesis.prompt = withDefaults(alternative.synthesis.prompt);
+  // With a model, the writer works the brief's checks into each prompt; offline there is no writer, so they are appended.
+  if (opts.mode === 'deterministic') {
+    const withDefaults = (prompt: string) => applyPromptDefaults(prompt, result.brief, opts.executionCapabilities);
+    if (result.zeroShotPrompt) result.zeroShotPrompt = withDefaults(result.zeroShotPrompt);
+    result.synthesis.prompt = withDefaults(result.synthesis.prompt);
+    for (const alternative of result.alternatives ?? []) {
+      alternative.synthesis.prompt = withDefaults(alternative.synthesis.prompt);
+    }
   }
   return { ...result, usage: meter.usage(), promptVersion: promptVersion() };
 }
@@ -129,6 +129,7 @@ async function dispatch(opts: RunOptions): Promise<PipelineResult> {
   const gateStart = t0();
   const { candidates, rejected } = gateTechniques(brief, opts.catalog, {
     budgetCalls: opts.budgetCalls,
+    executionCapabilities: opts.executionCapabilities,
     derivablePlaceholders:
       mode === 'deterministic' ? new Set(Object.keys(valuesFromBrief(brief))) : undefined,
   });

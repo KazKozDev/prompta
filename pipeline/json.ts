@@ -57,3 +57,10 @@ export function clamp01(n: unknown): number {
   const x = typeof n === 'number' && Number.isFinite(n) ? n : 0.5;
   return Math.min(1, Math.max(0, x));
 }
+
+/** A finished prompt the model wrapped in one outer ``` fence despite being told not to: keep only the inside. */
+export function unwrapFence(text: string): string {
+  const trimmed = text.trim();
+  const fenced = trimmed.match(/^```[\w-]*[ \t]*\n([\s\S]*?)\n?```$/);
+  return fenced && !fenced[1].includes('```') ? fenced[1].trim() : trimmed;
+}

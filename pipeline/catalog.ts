@@ -1,5 +1,5 @@
 import { hints, names, procedures, rationales } from '../catalog/display.en.ts';
-import type { Catalog, Modality, TaskBrief, Technique } from './types.ts';
+import type { Catalog, ExecutionCapabilities, Modality, TaskBrief, Technique } from './types.ts';
 import { PipelineError } from './types.ts';
 
 /** Разбор «цены» техники: 1 | "5–10" | "3+" | "10–40" → [min, max]. */
@@ -56,6 +56,8 @@ export interface GateOptions {
   budgetCalls?: number | null;
   /** Режим без LLM: техника допустима, только если все её плейсхолдеры выводимы из брифа. */
   derivablePlaceholders?: Set<string>;
+  /** Where the finished prompt runs: techniques that rely on a missing tool are left out. */
+  executionCapabilities?: ExecutionCapabilities;
 }
 
 function placeholdersOf(template: string): string[] {
@@ -73,8 +75,34 @@ const SECURITY_TASK = /инъекц|injection|jailbreak|джейлбрейк|в�
 /** Answer-engineering techniques parse a model's answer into labels or structured data for a program. */
 const MACHINE_FORMAT = /json|yaml|csv|xml|tsv|метк|label|класс|class|регуляр|regex|enum|одно слово|single word/i;
 
-/** Categories that are never a way to write the prompt for this task; null when the technique may be offered. */
-function misfit(t: Technique, brief: TaskBrief): string | null {
+/** The task is to write or improve prompts: only then do prompt-generating techniques fit. */
+const PROMPT_TASK = /промпт|prompt|инструкци\w* для (модел|ии|llm|нейросет)|system message|системн\w* сообщени/i;
+/** Techniques that produce prompts rather than do the task. */
+const META_PROMPTING = new Set(['automatic_prompt_engineering', 'meta_prompting', 'prompt_paraphrasing']);
+/** Techniques whose prompt relies on running code. */
+const NEEDS_CODE = new Set(['pal', 'program_of_thoughts', 'faithful_cot', 'tora', 'taskweaver']);
+/** Techniques whose prompt relies on search or tool calls. */
+const NEEDS_TOOLS = new Set(['react', 'ircot', 'iterative_retrieval', 'demonstrate_search_predict', 'decomposed_prompting']);
+/** Open-ended learning agents with a skill library: a research system, not a prompt for one task. */
+const OPEN_ENDED = /навык|skill|curriculum|open-ended|lifelong|minecraft/i;
+const NO_INPUT = /^\s*(нет|none|no|n\/a|пусто|отсутству\w*|—|-)?\s*[.;:]?\s*$/i;
+
+/** Techniques that are not a way to write the prompt for this task; null when the technique may be offered. */
+function misfit(t: Technique, brief: TaskBrief, capabilities: ExecutionCapabilities = {}): string | null {
+  const task = `${brief.goal} ${brief.constraints.join(' ')}`;
+  if (META_PROMPTING.has(t.key) && !PROMPT_TASK.test(task)) {
+    return 'Writes prompts instead of doing the task';
+  }
+  if (t.key === 'voyager' && !OPEN_ENDED.test(task)) {
+    return 'Open-ended learning agent with a skill library, not a prompt for one task';
+  }
+  if (NEEDS_CODE.has(t.key) && capabilities.code === 'unavailable') {
+    return 'Relies on running code, which the target environment cannot do';
+  }
+  const noTools = (['web', 'files', 'code', 'integrations'] as const).every((tool) => capabilities[tool] === 'unavailable');
+  if (NEEDS_TOOLS.has(t.key) && (noTools || (capabilities.web === 'unavailable' && NO_INPUT.test(brief.input ?? '')))) {
+    return 'Relies on search or tool calls, which the target environment cannot make';
+  }
   if (t.category === 'security' && !SECURITY_TASK.test(`${brief.goal} ${brief.constraints.join(' ')}`)) {
     return 'Security guard is added automatically when the prompt processes external material';
   }
@@ -109,7 +137,7 @@ export function gateTechniques(brief: TaskBrief, catalog: Catalog, opts: GateOpt
       rejected.push({ key: t.key, reason: `${t.status}: No synthesis template` });
       continue;
     }
-    const unfit = misfit(t, brief);
+    const unfit = misfit(t, brief, opts.executionCapabilities);
     if (unfit) {
       rejected.push({ key: t.key, reason: unfit });
       continue;
@@ -152,7 +180,7 @@ export function gateTechniques(brief: TaskBrief, catalog: Catalog, opts: GateOpt
         t.status === 'ready' &&
         ['technique', 'prompt_type'].includes(t.kind) &&
         (t.kind !== 'prompt_type' || brief.task_type === 'teaching') &&
-        !misfit(t, brief) &&
+        !misfit(t, brief, opts.executionCapabilities) &&
         (!opts.derivablePlaceholders || placeholdersOf(t.template ?? '').every((name) => opts.derivablePlaceholders!.has(name))) &&
         (bestEffortBudget(t, budget)) &&
         (brief.task_type !== 'qa_over_docs' ||

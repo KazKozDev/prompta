@@ -332,26 +332,32 @@ test('полный цикл: повтор битого JSON, пять уника
   assert.deepEqual(result.trace.map((t) => t.step), ['brief', 'gate', 'select', 'synthesize']);
 });
 
-test('проверки применяются ко всем вариантам только по брифу', async () => {
+test('проверки из брифа уходят автору каждого варианта, а не дописываются к готовому промпту', async () => {
   const choices = ['a', 'b'].map((key) => ({ key, reason: key, confidence: 0.8, whyNotCheaper: 'тест' }));
-  for (const verify_current_facts of [true, false]) {
-    const goal = verify_current_facts ? 'найти действующие вакансии' : 'перевести письмо';
+  for (const flagged of [true, false]) {
+    const goal = flagged ? 'найти действующие вакансии' : 'перевести письмо';
+    const writerRequests: string[] = [];
     const result = await runPipeline({
       thoughts: goal,
       catalog: { version: 'test', techniques: choices.map((choice) => tech(choice.key)) },
       variants: 2,
       llm: async (prompt) => {
-        if (prompt.includes('Поток мыслей:')) return JSON.stringify({ ...brief, goal, verify_current_facts, require_evidence: verify_current_facts, requires_tools: verify_current_facts, validate_output: verify_current_facts });
+        if (prompt.includes('Поток мыслей:')) return JSON.stringify({ ...brief, goal, verify_current_facts: flagged, require_evidence: flagged, requires_tools: flagged, validate_output: flagged });
         if (prompt.includes('Доступные техники')) return JSON.stringify({ choices });
+        writerRequests.push(prompt);
         return 'Выполни задачу по описанию и верни ответ в запрошенном формате.';
       },
     });
-    assert.equal(result.alternatives?.length, 1);
-    const prompts = [result.zeroShotPrompt, result.synthesis.prompt, result.alternatives?.[0].synthesis.prompt];
-    for (const prompt of prompts) {
+    assert.equal(writerRequests.length, 3, 'zero-shot and two variants');
+    for (const request of writerRequests) {
+      for (const requirement of ['Verify facts that may have changed', 'Support key claims', 'Use only tools', 'Before returning the result']) {
+        assert.equal(request.includes(requirement), flagged);
+      }
+    }
+    for (const prompt of [result.zeroShotPrompt, result.synthesis.prompt, result.alternatives?.[0].synthesis.prompt]) {
       assert.ok(prompt);
-      for (const instruction of ['Проверь изменчивые факты', 'Подкрепи ключевые выводы', 'Учитывай инструменты', 'Перед выдачей результата']) {
-        assert.equal(prompt.includes(instruction), verify_current_facts);
+      for (const tail of ['Проверь изменчивые факты', 'Подкрепи ключевые выводы', 'Учитывай инструменты', 'Перед выдачей результата']) {
+        assert.ok(!prompt.includes(tail), 'no boilerplate tail');
       }
     }
   }
@@ -501,20 +507,6 @@ test('агент без отмеченных возможностей получ
   assert.ok(Object.values(resolveExecutionCapabilities('agent', [])).every((status) => status === 'unavailable'));
 });
 
-test('проверки на языке без готового перевода переводятся одним вызовом, иначе остаются английскими', async () => {
-  const { localizePromptDefaults, promptDefaultsText } = await import('./prompt-defaults.ts');
-  const german = { ...brief, language: 'de', verify_current_facts: true, validate_output: true };
-  const english = promptDefaultsText(german);
-  assert.ok(english.startsWith('Verify facts'));
-  const translated = 'Prüfe veränderliche Fakten.\n\nPrüfe vor der Ausgabe das Schema.';
-  assert.equal(await localizePromptDefaults(german, {}, async () => translated), translated);
-  assert.equal(await localizePromptDefaults(german, {}, async () => 'ein Absatz'), english, 'broken paragraphs fall back');
-  assert.equal(await localizePromptDefaults(german, {}, async () => { throw new Error('down'); }), english);
-  let calls = 0;
-  await localizePromptDefaults({ ...german, language: 'ru' }, {}, async () => { calls += 1; return ''; });
-  assert.equal(calls, 0, 'saved languages need no call');
-});
-
 test('ссылки Hermes на GitHub допускаются только из официального репозитория', async () => {
   const { isOfficialSourceUrl } = await import('./official.ts');
   assert.ok(isOfficialSourceUrl('https://github.com/NousResearch/hermes-agent/blob/main/README.md', 'hermes'));
@@ -546,4 +538,31 @@ test('защита от инъекций не добавляется, когда
   assert.equal(needsInjectionGuard(coding, technique), false);
   assert.equal(needsInjectionGuard({ ...coding, input: 'Нет.' }, technique), false);
   assert.equal(needsInjectionGuard({ ...coding, input: 'текст письма клиента' }, technique), true);
+});
+
+test('отбор отсеивает техники, которые пишут промпты вместо задачи или требуют недоступных инструментов', () => {
+  const keys = (b: TaskBrief, capabilities = {}) => gateTechniques(b, catalog, { executionCapabilities: capabilities }).candidates.map((t) => t.key);
+  const greeting = { ...brief, task_type: 'generation', goal: 'Написать поздравление коллеге', input: 'нет', constraints: [] };
+  assert.ok(!keys(greeting).includes('meta_prompting'));
+  assert.ok(keys({ ...greeting, goal: 'Улучшить системный промпт бота поддержки' }).includes('meta_prompting'));
+
+  const sums = { ...brief, task_type: 'reasoning', goal: 'Посчитать сложные проценты по вкладу', input: 'нет', constraints: [] };
+  assert.ok(keys(sums).includes('program_of_thoughts'));
+  assert.ok(!keys(sums, { code: 'unavailable' }).includes('program_of_thoughts'), 'local model cannot run code');
+
+  const research = { ...brief, task_type: 'agentic', goal: 'Собрать новости о LLM', input: 'нет', constraints: [] };
+  const local = { web: 'unavailable', files: 'unavailable', code: 'unavailable', integrations: 'unavailable' } as const;
+  assert.ok(keys(research).includes('react'));
+  assert.ok(!keys(research, local).includes('react'), 'no tools, no ReAct');
+  assert.ok(!keys(research).includes('voyager'));
+});
+
+test('внешнее ```-ограждение вокруг готового промпта снимается, внутренние блоки кода остаются', async () => {
+  const { unwrapFence } = await import('./json.ts');
+  assert.equal(unwrapFence('```\nНайди новости.\n```'), 'Найди новости.');
+  assert.equal(unwrapFence('```markdown\nНайди новости.\n```\n'), 'Найди новости.');
+  const withCode = 'Напиши функцию.\n```python\nprint(1)\n```';
+  assert.equal(unwrapFence(withCode), withCode);
+  const twoBlocks = '```\na\n```\nтекст\n```\nb\n```';
+  assert.equal(unwrapFence(twoBlocks), twoBlocks);
 });

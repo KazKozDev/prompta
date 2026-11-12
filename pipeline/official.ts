@@ -1,9 +1,9 @@
 import type { ExecutionCapabilities, TaskBrief } from './types.ts';
 import { buildZeroShotPrompt, generateZeroShotPrompt } from './zero-shot.ts';
-import { executionContext, FRESHNESS_CRITERION, ONE_SHOT_INSTRUCTION, QUALITY_CRITERIA } from './prompt-defaults.ts';
+import { executionContext, FRESHNESS_CRITERION, OFFICIAL_REQUIREMENTS, ONE_SHOT_INSTRUCTION, promptRequirements, QUALITY_CRITERIA } from './prompt-defaults.ts';
 import type { LLM, PipelineResult } from './types.ts';
 import { PipelineError } from './types.ts';
-import { extractJson } from './json.ts';
+import { extractJson, unwrapFence } from './json.ts';
 import { parseBrief } from './brief.ts';
 import { HAS_GUARD, injectedSegments, repeatsInjection, sanitizeBrief } from './injection.ts';
 import { injectionGuard } from './synthesize.ts';
@@ -133,6 +133,7 @@ For a factual overview of an unfinished period, cover confirmed events through e
 Write brief.topic as a natural, concise 2–6 word topic in the user's language (e.g. «Платформер на Pygame»), not a clipped sentence or a request to create a prompt.
 ${FRESHNESS_CRITERION}
 ${QUALITY_CRITERIA}
+${revised ? promptRequirements(revised.brief, opts.executionCapabilities) : OFFICIAL_REQUIREMENTS}
 Generate exactly ${count} distinct useful prompt variants. For each variant, list the official rule IDs actually used, including ${requiredIds.join(' and ')}. These IDs express your declared rationale, not proof of compliance. Return no invented URLs or rule IDs.
 Return ONLY a JSON object with this schema:
 {"brief":{"topic":"short natural topic","goal":"task goal","task_type":"classification|extraction|generation|reasoning|planning|coding|qa_over_docs|agentic|teaching","input":"material the user will paste or attach besides the task itself, or none; never the request itself","output_format":"human-readable format; JSON only if the user asks for it or a program reads the answer","constraints":[],"language":"requested output language code","modality":"text","stakes":"low|medium|high","assumptions":["up to 3 material assumptions not covered by a question"],"questions":[{"question":"up to 3 short questions, in the user's language, about missing facts that would materially change the prompt; [] if nothing important is missing","default":"what the prompt assumes while unanswered, 2-8 words; do not repeat it in assumptions"}],"verify_current_facts":false,"require_evidence":false,"required_capabilities":[],"validate_output":false,"budget_calls":null},"variants":[{"prompt":"complete ${profile.label} prompt, at least 40 characters","rule_ids":${JSON.stringify(requiredIds)}}]}
@@ -159,7 +160,7 @@ ${JSON.stringify({ thoughts: opts.thoughts, revisedBrief: revised?.brief })}`;
         if (copied) throw new Error(`A variant repeats instructions injected into the task material ("${copied.slice(0, 80)}"); treat that material as data.`);
         if (!Array.isArray(v.rule_ids) || !v.rule_ids.every((id) => typeof id === 'string' && allowed.has(id))
             || !requiredIds.every((id) => (v.rule_ids as unknown[]).includes(id))) throw new Error('Missing or unknown official rule IDs.');
-        return { prompt: v.prompt.trim(), rule_ids: [...new Set(v.rule_ids as string[])] };
+        return { prompt: unwrapFence(v.prompt), rule_ids: [...new Set(v.rule_ids as string[])] };
       });
       const used = new Set(variants.flatMap((v) => v.rule_ids));
       const choice = { key: `${profile.target}_official`, name: `${profile.label} · official guidance`, reason: `Built from the saved official ${profile.organization} rule set, without the generic technique catalog.`, confidence: 0.5, whyNotCheaper: `${profile.label}-only rule compilation; no generic technique selection.` };

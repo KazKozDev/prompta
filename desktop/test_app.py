@@ -1170,7 +1170,7 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
             tabs = next(w for w in widgets if isinstance(w, QTabWidget))
             details = next(w for w in widgets if isinstance(w, Disclosure))
             self.assertLess(widgets.index(tabs), widgets.index(details))
-            self.assertEqual([tabs.tabText(i) for i in range(tabs.count())], ['Variant 0', 'Variant 1', 'Variant 2'])
+            self.assertEqual([tabs.tabText(i) for i in range(tabs.count())], ['No technique', 'Code prompting', 'Few-shot'])
             self.assertEqual(tabs.currentIndex(), 1, 'the built prompt is shown first')
             self.assertEqual(tabs.widget(0).toPlainText(), 'Task: snake')
             self.assertIn('FIRST PROMPT', window.prompt_edit.toPlainText())
@@ -1195,6 +1195,46 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
             self.assertTrue(any(t.startswith('Zero-shot:') for t in shown()))
             self.assertNotIn('because', shown())
             self.assertIn('coding · low stakes · en', shown(), 'the shared brief stays under every tab')
+        finally:
+            window.close()
+
+    def test_api_key_is_remembered_per_provider_only_when_asked(self):
+        saved = {}
+        fake = Mock(load=lambda provider: saved.get(provider, ''),
+                    save=lambda provider, key: saved.__setitem__(provider, key) or True,
+                    forget=lambda provider: saved.pop(provider, None))
+        with patch.object(app_module, 'keychain', fake):
+            window = self._prompta_window()
+            try:
+                window.provider.set_current('gemini', emit=True)
+                self.assertEqual(window.api_key.text(), '')
+                self.assertFalse(window.remember_key.isChecked(), 'off until the user asks')
+                window.api_key.setText('gemini-key')
+                window.remember_key.setChecked(True)
+                self.assertEqual(saved, {'gemini': 'gemini-key'})
+                window.provider.set_current('openai', emit=True)
+                self.assertEqual(window.api_key.text(), '', 'each provider has its own key')
+                window.provider.set_current('gemini', emit=True)
+                self.assertEqual(window.api_key.text(), 'gemini-key')
+                self.assertTrue(window.remember_key.isChecked())
+                window.remember_key.setChecked(False)
+                self.assertEqual(saved, {}, 'unchecking removes the saved key')
+            finally:
+                window.close()
+
+    def test_history_built_under_older_rules_says_so(self):
+        window = self._prompta_window()
+        try:
+            notes = lambda: [l for l in window.findChildren(QLabel) if l.text().startswith('Built with earlier Prompta rules')]
+            window._flag_outdated({'promptVersion': 'v1'})
+            self.assertFalse(notes(), 'unknown current version: no claim')
+            window.prompt_version = 'v2'
+            window._flag_outdated({'promptVersion': 'v2'})
+            self.assertFalse(notes())
+            window._flag_outdated({'promptVersion': 'v1'})
+            self.assertEqual(len(notes()), 1)
+            window._flag_outdated({})
+            self.assertEqual(len(notes()), 2, 'results saved before versions were recorded are old too')
         finally:
             window.close()
 
@@ -1310,7 +1350,7 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
             window.on_finished({'ok': True, 'manual': {**variants[0], 'topic': 'Recursion', 'zeroShotPrompt': 'Task',
                                                        'variants': variants, 'failed': [{'key': 'x', 'name': 'ToT', 'error': 'timeout'}]}})
             tabs = window.output_holder.findChild(QTabWidget, 'variantTabs')
-            self.assertEqual([tabs.tabText(i) for i in range(tabs.count())], ['Zero-shot', 'Few-shot', 'Chain of thought'])
+            self.assertEqual([tabs.tabText(i) for i in range(tabs.count())], ['No technique', 'Few-shot', 'Chain of thought'])
             self.assertIn('Chain of thought prompt', tabs.widget(2).toPlainText())
             self.assertEqual(tabs.widget(0).toPlainText(), 'Task')
             self.assertEqual(window.status.text(), '2 techniques built · 1 failed, see below the prompt')

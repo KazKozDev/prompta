@@ -1,5 +1,5 @@
 import { sanitizeBrief } from '../pipeline/injection.ts';
-import { applyPromptDefaults, localizePromptDefaults, resolveExecutionCapabilities } from '../pipeline/prompt-defaults.ts';
+import { resolveExecutionCapabilities } from '../pipeline/prompt-defaults.ts';
 import { generateZeroShotPrompt } from '../pipeline/zero-shot.ts';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 import { loadCatalog } from '../pipeline/catalog.ts';
 import { runPipeline } from '../pipeline/index.ts';
+import { promptVersion } from '../pipeline/prompt-version.ts';
 import { extractJson } from '../pipeline/json.ts';
 import { createLLM, meterLLM } from '../pipeline/llm.ts';
 import { generateManualPrompt } from '../pipeline/manual.ts';
@@ -119,7 +120,7 @@ async function main() {
         // Подсказка в одну фразу: первое предложение when_to_use без хвоста.
         hint: t.when_to_use.split(/[.;]/)[0].trim().slice(0, 90),
       }));
-    process.stdout.write(JSON.stringify({ ok: true, techniques: ready }));
+    process.stdout.write(JSON.stringify({ ok: true, techniques: ready, promptVersion: promptVersion() }));
     return;
   }
 
@@ -144,13 +145,12 @@ async function main() {
     onProgress?.(5, 'Techniques loaded');
     // The same brief as automatic choice: format, constraints, assumptions and questions for every prompt.
     const brief = await getManualBrief();
-    const defaults = await localizePromptDefaults(brief, executionCapabilities, llm);
     onProgress?.(15, 'Brief ready');
     const zeroShot = generateZeroShotPrompt(req.thoughts, brief, llm, executionCapabilities);  // Variant 0, by the model too
     let finished = 0;
     const settled = await settleWithLimit(techniques, MANUAL_CONCURRENCY, async (technique) => {
       try {
-        return applyPromptDefaults(await generateManualPrompt(req.thoughts, technique, llm, oneShot, brief, executionCapabilities), brief, executionCapabilities, defaults);
+        return await generateManualPrompt(req.thoughts, technique, llm, oneShot, brief, executionCapabilities);
       } finally {
         finished += 1;
         onProgress?.(15 + Math.round(75 * finished / techniques.length), `Prompts ready: ${finished}/${techniques.length}`);
@@ -170,7 +170,7 @@ async function main() {
     onProgress?.(95, 'Topic ready');
     const first = variants[0];
     process.stdout.write(JSON.stringify({ ok: true, manual: {
-      zeroShotPrompt: applyPromptDefaults((await zeroShot).prompt, brief, executionCapabilities, defaults), topic, brief, usage: usage(),
+      zeroShotPrompt: (await zeroShot).prompt, topic, brief, usage: usage(), promptVersion: promptVersion(),
       // First variant at the top level keeps older readers (and saved history) working.
       technique: first.technique, prompt: first.prompt, config: first.config, source_ref: first.source_ref,
       variants, failed,
@@ -190,18 +190,18 @@ async function main() {
 
     if (technique.status === 'procedure') {
       const brief = await getManualBrief();
-      const defaults = await localizePromptDefaults(brief, executionCapabilities, llm);
       process.stdout.write(
         JSON.stringify({
           ok: true,
           procedure: {
-            zeroShotPrompt: applyPromptDefaults((await generateZeroShotPrompt(req.thoughts, brief, llm, executionCapabilities)).prompt, brief, executionCapabilities, defaults),
+            zeroShotPrompt: (await generateZeroShotPrompt(req.thoughts, brief, llm, executionCapabilities)).prompt,
             technique: { key: technique.key, name: technique.name, category: technique.category },
             steps: technique.procedure ?? [],
             when_to_use: technique.when_to_use,
             source_ref: technique.source_ref,
             topic: technique.name,
             usage: usage(),
+            promptVersion: promptVersion(),
           },
         }),
       );
@@ -212,7 +212,6 @@ async function main() {
 
     if (req.deterministic) throw new Error('Manual technique selection requires LLM synthesis. Disable Skip LLM synthesis.');
     const brief = await getManualBrief();
-    const defaults = await localizePromptDefaults(brief, executionCapabilities, llm);
     onProgress?.(30, 'Brief ready');
     const [prompt, zeroShot] = await Promise.all([generateManualPrompt(req.thoughts, technique, llm, oneShot, brief, executionCapabilities),
       generateZeroShotPrompt(req.thoughts, brief, llm, executionCapabilities)]);
@@ -224,12 +223,13 @@ async function main() {
       JSON.stringify({
         ok: true,
         manual: {
-          zeroShotPrompt: applyPromptDefaults(zeroShot.prompt, brief, executionCapabilities, defaults),
+          zeroShotPrompt: zeroShot.prompt,
           topic,
           brief,
           usage: usage(),
+          promptVersion: promptVersion(),
           technique: { key: technique.key, name: technique.name, category: technique.category },
-          prompt: applyPromptDefaults(prompt, brief, executionCapabilities, defaults),
+          prompt,
           config: technique.config,
           source_ref: technique.source_ref,
           why: technique.when_to_use,

@@ -23,10 +23,12 @@ import urllib.request
 from pathlib import Path
 
 try:
+    from . import keychain
     from .history import HistoryStore, history_topic
     from .library import LibraryWidget
     from .mcp_settings import McpSettingsWidget
 except ImportError:
+    import keychain
     from history import HistoryStore, history_topic
     from library import LibraryWidget
     from mcp_settings import McpSettingsWidget
@@ -370,10 +372,17 @@ class MainWindow(HistoryMixin, QMainWindow):
         self.api_key.setPlaceholderText("Enter your API key")
         self.api_key.setAccessibleName("API key")
         settings_layout.addWidget(self.api_key)
-        key_hint = QLabel("Use a key for cloud providers. Local Ollama and local OpenAI-compatible servers can run without one.\nYour key stays in memory.")
+        self.remember_key = QCheckBox("Remember in Keychain")
+        self.remember_key.setToolTip("Save this provider's key in your macOS login Keychain and fill it in next time. "
+                                     "Unchecking removes the saved key.")
+        self.remember_key.toggled.connect(self._on_remember_key_toggled)
+        settings_layout.addWidget(self.remember_key)
+        key_hint = QLabel("Use a key for cloud providers. Local Ollama and local OpenAI-compatible servers can run without one.\n"
+                          "Without Remember, the key stays in memory only.")
         key_hint.setObjectName("muted")
         key_hint.setWordWrap(True)
         settings_layout.addWidget(key_hint)
+        self._load_saved_key(self.provider.current_key())
         settings_layout.addWidget(self._mini_label("Model base URL"))
         self.model_base_url = QLineEdit()
         self.model_base_url.setPlaceholderText("Optional · http://127.0.0.1:8080/v1")
@@ -535,6 +544,8 @@ class MainWindow(HistoryMixin, QMainWindow):
         self.techniques_loader.start()
 
     def _on_techniques_loaded(self, techniques: list) -> None:
+        loader = getattr(self, "techniques_loader", None)
+        self.prompt_version = getattr(loader, "prompt_version", "") or getattr(self, "prompt_version", "")
         if not techniques:
             return
         for item in techniques:
@@ -566,8 +577,26 @@ class MainWindow(HistoryMixin, QMainWindow):
             self.model.set_current(names[0])
         self.models_hint.setText(f"{len(names)} models loaded")
 
+    def _load_saved_key(self, provider: str) -> None:
+        """Each provider has its own key: show the saved one, or an empty field."""
+        saved = keychain.load(provider) if provider != "ollama" else ""
+        self.api_key.setText(saved)
+        previous = self.remember_key.blockSignals(True)
+        self.remember_key.setChecked(bool(saved))
+        self.remember_key.blockSignals(previous)
+
+    def _on_remember_key_toggled(self, checked: bool) -> None:
+        provider = self.provider.current_key()
+        if checked:
+            key = self.api_key.text().strip()
+            if key and not keychain.save(provider, key):
+                self.status.setText("Could not save the key to Keychain")
+        else:
+            keychain.forget(provider)
+
     def _on_provider_changed(self, provider: str) -> None:
         self.model_base_url.clear()
+        self._load_saved_key(provider)
         if provider == "ollama":
             self.load_models()
         else:
@@ -705,6 +734,8 @@ class MainWindow(HistoryMixin, QMainWindow):
         provider = self.provider.current_key()
         model = self.model.current_key().strip()
         api_key = self.api_key.text().strip()
+        if self.remember_key.isChecked() and api_key and api_key != keychain.load(provider):
+            keychain.save(provider, api_key)  # the key that works is the one to remember
 
         if not model:
             self.status.setText("Choose a model")
@@ -1454,14 +1485,22 @@ class PromptaWindow(MainWindow):
         tabs.setAttribute(Qt.WidgetAttribute.WA_StyledBackground)  # paint the card behind the tab row too
         tabs.tabBar().setDrawBase(False)
         tabs.tabBar().setElideMode(Qt.TextElideMode.ElideRight)
+        def short(name: str) -> str:
+            # "SG-ICL (self-generated ICL)" → "SG-ICL"; the full name stays in the tooltip.
+            name = re.sub(r"\s*\([^)]*\)\s*$", "", name).strip() or name
+            return name if len(name) <= 24 else name[:23].rstrip() + "…"
+
+        names = [short(name) for name, _ in prompts]
+        # Technique names tell variants apart; official targets share one name per run, so they keep numbers.
+        by_name = named_tabs or (all(names) and len(set(names)) == len(names))
         zero = editor(zero_shot)
         zero.setAccessibleName("Zero-shot baseline prompt")
-        tabs.addTab(zero, "Zero-shot" if named_tabs else "Variant 0")
+        tabs.addTab(zero, "No technique" if by_name else "Variant 0")
         tabs.setTabToolTip(0, "Zero-shot: the task stated directly, without a prompting technique")
         self.prompt_edit = editor(prompts[0][1])
-        tabs.addTab(self.prompt_edit, prompts[0][0] if named_tabs else "Variant 1")
-        for index, (name, prompt) in enumerate(prompts[1:], 2):
-            tabs.addTab(editor(prompt), name if named_tabs else f"Variant {index}")
+        tabs.addTab(self.prompt_edit, names[0] if by_name else "Variant 1")
+        for index, (_, prompt) in enumerate(prompts[1:], 2):
+            tabs.addTab(editor(prompt), names[index - 1] if by_name else f"Variant {index}")
         for index, (name, _) in enumerate(prompts, 1):
             tabs.setTabToolTip(index, name)
 

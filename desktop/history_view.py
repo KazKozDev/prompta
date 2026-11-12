@@ -247,6 +247,16 @@ class HistoryMixin:
         self.history_search.clear()
         self._filter_history(selected=len(self._history_items) - 1)
 
+    def _flag_outdated(self, payload: dict) -> None:
+        """A saved result built under earlier pipeline rules says so, and how to get a current one."""
+        current = getattr(self, "prompt_version", "")
+        if not current or payload.get("promptVersion") == current:
+            return
+        note = QLabel("Built with earlier Prompta rules. Build prompt makes it again with the current ones.")
+        note.setObjectName("warn")
+        note.setWordWrap(True)
+        self.output_layout.insertWidget(0, note)
+
     def _on_history_selected(self, index: int) -> None:
         item_index = self.history.itemData(index)
         if not isinstance(item_index, int) or not 0 <= item_index < len(self._history_items):
@@ -267,6 +277,7 @@ class HistoryMixin:
             return
         self._shown_entry = item_index
         self.thoughts.setPlainText(entry['thoughts'])
+        self._flag_outdated(payload)
         selected = next((key for key in PROMPT_TARGETS if payload.get(f"{key}Guidance")), None)
         model_index = 0
         if selected == "openModel":

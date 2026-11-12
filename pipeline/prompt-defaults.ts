@@ -1,4 +1,4 @@
-import { CAPABILITIES, type ExecutionCapabilities, type LLM, type TaskBrief } from './types.ts';
+import { CAPABILITIES, type ExecutionCapabilities, type TaskBrief } from './types.ts';
 /** Product default: a demonstration before the actual task, not an extra LLM call. */
 export const ONE_SHOT_INSTRUCTION = `Begin the final prompt with one short, relevant worked example: example input and the corresponding expected output, in the user's requested language. Clearly label it as an illustrative example, then present the real task separately. Match the requested output format; do not invent facts about the real input or reuse example data as the actual answer. If the chosen technique already contains demonstrations, put its first example at the beginning instead of adding a duplicate; retain other demonstrations required by that technique. Respect an explicit user request to omit examples. This opening example takes precedence over template block order, but preserve the rest of the template.`;
 
@@ -82,41 +82,44 @@ function languageCode(brief: TaskBrief): string {
   return brief.language.trim().toLowerCase().split(/[-_]/)[0];
 }
 
-/** Product checks appended to every prompt, in ru/es/en; other languages get English here and a translation below. */
-export function promptDefaultsText(brief?: TaskBrief, executionCapabilities: ExecutionCapabilities = {}): string {
-  if (!brief) return '';
-  const code = languageCode(brief);
-  const language: SupportedLanguage = SUPPORTED_LANGUAGES.find((item) => item === code) ?? 'en';
+function checkList(brief: TaskBrief, executionCapabilities: ExecutionCapabilities, language: SupportedLanguage): string[] {
   const instructions = [
     brief.verify_current_facts && FRESHNESS_INSTRUCTIONS[language],
     brief.require_evidence && QUALITY_INSTRUCTIONS.require_evidence[language],
     (brief.requires_tools || brief.required_capabilities?.length) && QUALITY_INSTRUCTIONS.requires_tools[language],
     brief.validate_output && QUALITY_INSTRUCTIONS.validate_output[language],
-  ].filter(Boolean);
+  ].filter((item): item is string => Boolean(item));
   const text = CAPABILITY_TEXT[language];
   for (const status of ['available', 'unavailable'] as const) {
     const capabilities = brief.required_capabilities?.filter((capability) => executionCapabilities[capability] === status);
     if (capabilities?.length) instructions.push(`${text[status]} ${capabilities.map((capability) => text.names[capability]).join(', ')}.`);
   }
-  return instructions.join('\n\n');
+  return instructions;
 }
 
-/** Same checks in the prompt's own language: one translation call when the language has no saved wording.
- *  Falls back to English if there is no model or the translation looks wrong. */
-export async function localizePromptDefaults(brief: TaskBrief | undefined, executionCapabilities: ExecutionCapabilities = {}, llm?: LLM): Promise<string> {
-  const english = promptDefaultsText(brief, executionCapabilities);
-  const code = brief ? languageCode(brief) : '';
-  if (!english || !llm || !code || SUPPORTED_LANGUAGES.some((item) => item === code)) return english;
-  try {
-    const translated = (await llm(`Translate the instructions below into the language with code "${code}". Keep the meaning, the paragraph breaks and the imperative voice. Output only the translation.
-
-${english}`, { temperature: 0 })).trim();
-    const paragraphs = (text: string) => text.split(/\n\s*\n/).length;
-    return translated && translated.length <= english.length * 3 && paragraphs(translated) === paragraphs(english) ? translated : english;
-  } catch {
-    return english;
-  }
+/** Offline (no model) only: the checks as ready paragraphs in ru/es/en, appended to the prompt. */
+export function promptDefaultsText(brief?: TaskBrief, executionCapabilities: ExecutionCapabilities = {}): string {
+  if (!brief) return '';
+  const code = languageCode(brief);
+  const language: SupportedLanguage = SUPPORTED_LANGUAGES.find((item) => item === code) ?? 'en';
+  return checkList(brief, executionCapabilities, language).join('\n\n');
 }
+
+/** For the model that writes the prompt: the same checks as requirements to work into the text,
+ *  so the prompt reads as one piece in its own language instead of ending in boilerplate paragraphs. */
+export function promptRequirements(brief?: TaskBrief, executionCapabilities: ExecutionCapabilities = {}): string {
+  const items = brief ? checkList(brief, executionCapabilities, 'en') : [];
+  if (!items.length) return '';
+  return `Requirements from the task brief that the prompt must carry. Work each one into the prompt where it fits, in the prompt's language, in one or two sentences; merge it with what the prompt already says instead of repeating it, and do not add a separate checklist or closing block:
+${items.map((item) => `- ${item}`).join('\n')}`;
+}
+
+/** Official targets write brief and variants in one call, so the flags are decided there: same requirements, by flag. */
+export const OFFICIAL_REQUIREMENTS = `When you set a brief flag, work the matching requirement into every variant in one or two sentences, in the prompt's language, where it fits; no separate checklist or closing block:
+- verify_current_facts: ${FRESHNESS_INSTRUCTIONS.en}
+- require_evidence: ${QUALITY_INSTRUCTIONS.require_evidence.en}
+- required_capabilities: ${QUALITY_INSTRUCTIONS.requires_tools.en}
+- validate_output: ${QUALITY_INSTRUCTIONS.validate_output.en}`;
 
 export function applyPromptDefaults(prompt: string, brief?: TaskBrief, executionCapabilities: ExecutionCapabilities = {}, text = promptDefaultsText(brief, executionCapabilities)): string {
   return text ? `${prompt}\n\n${text}` : prompt;

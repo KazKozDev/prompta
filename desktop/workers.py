@@ -106,6 +106,7 @@ def node_binary() -> str:
 
 class TechniquesLoader(QThread):
     loaded = pyqtSignal(list)
+    prompt_version = ""  # version of the pipeline's prompts, to spot history built under older rules
 
     def run(self) -> None:
         try:
@@ -118,6 +119,7 @@ class TechniquesLoader(QThread):
                 cwd=str(ROOT),
             )
             data = json.loads(proc.stdout or "{}")
+            self.prompt_version = str(data.get("promptVersion") or "")
             self.loaded.emit(data.get("techniques", []))
         except Exception:
             self.loaded.emit([])

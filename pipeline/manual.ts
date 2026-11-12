@@ -1,5 +1,6 @@
-import { executionContext, ONE_SHOT_INSTRUCTION } from './prompt-defaults.ts';
+import { executionContext, ONE_SHOT_INSTRUCTION, promptRequirements } from './prompt-defaults.ts';
 import { sourceBlock } from './sources.ts';
+import { unwrapFence } from './json.ts';
 import { briefAssumptions, briefToJson } from './brief.ts';
 import type { ExecutionCapabilities, LLM, TaskBrief, Technique } from './types.ts';
 
@@ -42,6 +43,7 @@ ${briefAssumptions(brief).length ? `Допущения (явно отметь и
 4. Если техника требует примеров (few-shot) — придумай их под задачу пользователя, а не абстрактные.
 5. Выведи только текст промпта. Без «Вот промпт:», без markdown-обёртки и пояснений.
 ${executionContext(capabilities)}
+${promptRequirements(brief, capabilities)}
 ${oneShot ? ONE_SHOT_INSTRUCTION : ''}`;
 }
 
@@ -54,7 +56,7 @@ export function hasPlaceholders(prompt: string): boolean {
 export async function generateManualPrompt(thoughts: string, technique: Technique, llm: LLM, oneShot = false, brief?: TaskBrief, capabilities?: ExecutionCapabilities): Promise<string> {
   const request = buildManualPrompt(thoughts, technique, oneShot, brief, capabilities);
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const prompt = (await llm(request + (attempt ? '\n\nПерепиши полный промпт: не менее 40 символов, без {{плейсхолдеров}}.' : ''), { temperature: 0.3 })).trim();
+    const prompt = unwrapFence(await llm(request + (attempt ? '\n\nПерепиши полный промпт: не менее 40 символов, без {{плейсхолдеров}}.' : ''), { temperature: 0.3 }));
     if (prompt.length >= 40 && !hasPlaceholders(prompt)) return prompt;
   }
   throw new Error('The model could not generate a complete prompt without placeholders');

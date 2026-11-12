@@ -1,6 +1,7 @@
-import { executionContext } from './prompt-defaults.ts';
+import { executionContext, promptRequirements } from './prompt-defaults.ts';
 import { briefAssumptions } from './brief.ts';
 import { sourceBlock } from './sources.ts';
+import { unwrapFence } from './json.ts';
 import type { ExecutionCapabilities, LLM, TaskBrief } from './types.ts';
 
 /** A standalone baseline, built from task data without demonstrations or technique templates. */
@@ -27,10 +28,11 @@ ${sourceBlock('zero_shot')}
 ${JSON.stringify(brief ? { goal: brief.goal, input: brief.input, output_format: brief.output_format, constraints: brief.constraints, assumptions: briefAssumptions(brief), language: brief.language } : { thoughts })}
 
 ${executionContext(capabilities)}
+${promptRequirements(brief, capabilities)}
 Требования: язык промпта — язык задачи; никаких {{плейсхолдеров}}; если нужен материал, которого нет, — метка «ВСТАВЬ СЮДА: <что>»;
 не выдумывай факты. Выведи только текст промпта, без пояснений и markdown-обёртки.`;
   try {
-    const prompt = (await llm(request, { temperature: 0.2 })).trim();
+    const prompt = unwrapFence(await llm(request, { temperature: 0.2 }));
     if (prompt.length >= 40 && !/\{\{[^}]+\}\}/.test(prompt) && !prompt.startsWith('{')) return { prompt, byModel: true };
   } catch { /* the fixed baseline below keeps the result usable */ }
   return { prompt: buildZeroShotPrompt(thoughts, brief), byModel: false };
