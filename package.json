@@ -1,5 +1,6 @@
 {
-  "name": "prompt-engineering-studio",
+  "name": "prompta",
+  "description": "Prompt generator for Claude, ChatGPT, Gemini and Grok: macOS app, CLI and MCP server",
   "private": true,
   "version": "0.0.0",
   "type": "module",
