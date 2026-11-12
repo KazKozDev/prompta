@@ -169,8 +169,53 @@ class WrappingField(QPlainTextEdit):
         self.setToolTip(self.toPlainText() if wrapped > self.max_lines else "Click to edit")
 
 
-class MainWindow(HistoryMixin, QMainWindow):
+QSS += """
+QPushButton#segment { background: rgba(255, 245, 214, 222); border: 1px solid #d8c593; color: #665b42;
+  font-size: 12px; padding: 8px 4px; border-radius: 0; }
+QPushButton#segment[first="true"] { border-top-left-radius: 9px; border-bottom-left-radius: 9px; }
+QPushButton#segment[last="true"] { border-top-right-radius: 9px; border-bottom-right-radius: 9px; }
+QPushButton#segment:hover { background: #fff0c6; }
+QPushButton#segment:checked { background: #f4ca38; border-color: #e1b72c; color: #352b10; font-weight: 600; }
+QToolButton#disclosure { background: transparent; border: none; color: #665b42; font-size: 12px; font-weight: 600; padding: 4px 0; }
+QToolButton#disclosure:hover { color: #332e24; }
+QToolButton#disclosure[field="true"] { color: #74694f; font-size: 10px; font-weight: 500; letter-spacing: 2px; padding: 2px 0; }
+QToolButton#disclosure[field="true"]:hover { color: #4a4232; }
+QPushButton#segment:disabled { color: #b5ab90; background: rgba(250, 241, 214, 160); }
+QPushButton#segment:checked:disabled { background: #efdc9c; color: #8a7a4e; border-color: #dcc583; }
+QLabel#meta { color: #665d49; font-size: 12px; }
+QFrame#variantSegments { background: transparent; border: none; }
+QListView#historySuggestions { background: #fff8e7; color: #4a4232; border: 1px solid #d8c593; border-radius: 9px; padding: 4px; outline: none; font-size: 13px; }
+QListView#historySuggestions::item { padding: 7px 10px; border: none; border-radius: 5px; }
+QListView#historySuggestions::item:hover, QListView#historySuggestions::item:selected { background: #f6e5b3; color: #4a4232; }
+QFrame#techItem[selected="true"] { background: #fbe7a1; border: 2px solid #e1b72c; }
+QFrame#techItem[selected="true"]:hover { background: #f8df8a; }
+QTabWidget#variantTabs::pane { border: none; background: transparent; top: 12px; }
+QTabWidget#variantTabs > QWidget { background: transparent; }
+QTabWidget#variantTabs QTabBar { background: transparent; }
+QTabWidget#variantTabs::tab-bar { alignment: left; }
+QTabWidget#settingsTabs::tab-bar { alignment: left; }
+QTabWidget#settingsTabs QTabBar { background: rgba(120, 96, 30, 26); border-radius: 8px; }
+QTabWidget#settingsTabs QTabBar::tab { background: transparent; border: none; border-radius: 6px; margin: 2px; padding: 4px 16px; color: #6b6047; font-size: 12px; }
+QTabWidget#settingsTabs QTabBar::tab:hover { background: rgba(255, 255, 255, 110); }
+QTabWidget#settingsTabs QTabBar::tab:selected { background: #f4ca38; color: #2f260c; font-weight: 600; }
+QTabWidget#settingsTabs::pane { border: none; top: 6px; }
+QDialog QLabel#goal { font-size: 17px; letter-spacing: -0.3px; }
+QLabel#title { font-family: 'Avenir Next'; font-size: 17px; letter-spacing: -0.2px; color: #2b2412; }
+QDialog QPushButton#primary, QDialog QPushButton#ghost { min-height: 28px; max-height: 28px; padding: 0 14px; }
+QDialog QPushButton#primary[compact="true"], QDialog QPushButton#ghost[compact="true"] {
+  min-height: 22px; max-height: 22px; padding: 0 12px; font-size: 12px; border-radius: 7px; }
+"""
+
+
+class PromptaWindow(HistoryMixin, QMainWindow):
+    """Main window: the finished prompt comes first (variants as tabs); brief, zero-shot baseline,
+    technique rationale and sources fold into "How this prompt was built". The hidden target checkboxes
+    stay the single source of truth for the segmented target switch, history restore and requests."""
+
     def __init__(self) -> None:
+        self.visible_warnings: list[str] = []
+        self.catalog_summary = ""
+        self._variants_before_manual: int | None = None
         super().__init__()
         app = QApplication.instance()
         if not hasattr(app, "popup_animation_filter"):
@@ -267,6 +312,24 @@ class MainWindow(HistoryMixin, QMainWindow):
         shortcut.activated.connect(self.run_pipeline)
         shortcut2 = QShortcut(QKeySequence("Meta+Return"), self)
         shortcut2.activated.connect(self.run_pipeline)
+        self._restyle_input()
+        self.build_label = "Build prompt   ⌘↵"
+        self.run_button.setText(self.build_label)
+        self.run_button.setToolTip("⌘↵ builds the prompt")
+        self.cancel_button.hide()
+        self.status.setText("")
+        # History is a picker like every other: the same button, chevron and panel with search inside.
+        self.history_search.hide()  # the filter field stays for restore logic; the picker replaces it here
+        self.history_picker = IconDropdown("search.svg", "Search history", searchable=True, popup_width=480,
+                                           search_placeholder="Search requests and prompts")
+        self.history_picker.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.history_picker.changed.connect(self._on_history_picked)
+        self.history_picker.deleteRequested.connect(self._on_history_delete)
+        self.header_layout.insertWidget(self.header_layout.indexOf(self.clear_button), self.history_picker)
+        self._sync_history_row()
+        self._fit_input_column()  # the restyled column (target switch with Open) is wider than at construction
+        self._restyle_settings()
+
 
     # ── левая колонка ─────────────────────────────────────────────
     def _build_input(self) -> QWidget:
@@ -460,7 +523,7 @@ class MainWindow(HistoryMixin, QMainWindow):
         self.run_button = QPushButton(self.build_label)
         self.run_button.setObjectName("buildPrompt")
         self.run_button.setFixedHeight(42)
-        # While a run is going the same button stops it (PromptaWindow); MainWindow keeps a separate Cancel.
+        # While a run is going the same button stops it.
         self.run_button.clicked.connect(lambda: self.cancel_run() if self._running() else self.run_pipeline())
         actions.addWidget(self.run_button, 1)
 
@@ -555,6 +618,11 @@ class MainWindow(HistoryMixin, QMainWindow):
             item["label"] = item.get("name", item["key"])
         self.technique.set_items(techniques, keep=self.technique.current_key())
         self.technique_label.setText(f"TECHNIQUE · {len(techniques)}")
+        procedures = sum(1 for item in techniques if item.get("status") == "procedure")
+        ready = len(techniques) - procedures
+        self.catalog_summary = f"{ready} technique{'s' if ready != 1 else ''}" + (
+            f" + {procedures} procedure{'s' if procedures != 1 else ''}" if procedures else "") + " available"
+        self._update_advanced_title()
 
     def load_models(self) -> None:
         self.models_hint.setText("Fetching Ollama models")
@@ -672,11 +740,6 @@ class MainWindow(HistoryMixin, QMainWindow):
         self._set_assumptions_card(None)  # the questions belong to the result being replaced
         self._sync_build_label()
 
-    def _show_placeholder(self) -> None:
-        # Empty output area stays blank: no hint text.
-        self._clear_output()
-        self.output_layout.addStretch(1)
-
     # ── запуск ────────────────────────────────────────────────────
     def clear_workspace(self) -> None:
         self._shown_entry = None
@@ -697,7 +760,7 @@ class MainWindow(HistoryMixin, QMainWindow):
         self.generation_progress.hide()
         self.generation_progress.setValue(0)
         self._set_running(running)
-        self.status.setText("Thoughts → brief → technique → ready-to-use prompt")
+        self.status.setText("")
         self.thoughts.setFocus()
 
     def _sync_model_line(self) -> None:
@@ -712,15 +775,12 @@ class MainWindow(HistoryMixin, QMainWindow):
 
     def _set_running(self, running: bool) -> None:
         self.cancel_button.setEnabled(running)
-        if getattr(self, "single_run_button", False):
-            self.run_button.setEnabled(True)
-            self.run_button.setToolTip("Stop this run" if running else "⌘↵ builds the prompt")
-            if running:
-                self.run_button.setText("Stop")
-            else:
-                self._sync_build_label(force=True)  # the finished signal arrives while the thread still counts as running
+        self.run_button.setEnabled(True)
+        self.run_button.setToolTip("Stop this run" if running else "⌘↵ builds the prompt")
+        if running:
+            self.run_button.setText("Stop")
         else:
-            self.run_button.setEnabled(not running)
+            self._sync_build_label(force=True)  # the finished signal arrives while the thread still counts as running
 
     def cancel_run(self) -> None:
         if self.worker and self.worker.isRunning():
@@ -752,7 +812,7 @@ class MainWindow(HistoryMixin, QMainWindow):
         """One button: it says Rebuild when the card has edits, so the user knows the request is not re-read."""
         if not hasattr(self, "run_button"):
             return
-        if not force and getattr(self, "single_run_button", False) and self._running():
+        if not force and self._running():
             return  # the button says Stop until the run ends
         card = self.assumptions_card
         count = card.change_count() if card is not None and hasattr(card, "change_count") else 0
@@ -761,6 +821,10 @@ class MainWindow(HistoryMixin, QMainWindow):
         self.run_button.setText(f"Rebuild · {count} change{'s' if count != 1 else ''}{shortcut}" if count else base)
 
     def run_pipeline(self, *, revised_brief: dict | None = None) -> None:
+        if getattr(self, "_open_mode", False) and not self.openModel_only.isChecked() and not self._running():
+            self.status.setText("Choose an open-weight model")
+            self.prompt_model.showPopup()
+            return
         if self.worker and self.worker.isRunning():
             return
         if revised_brief is None:
@@ -872,13 +936,16 @@ class MainWindow(HistoryMixin, QMainWindow):
             self.render_manual(data["manual"], source_thoughts=self._active_thoughts)
             self._push_history(data["manual"]["technique"]["name"], "manual", data["manual"])
             self.status.setText(f"{data['manual']['technique']['name']} · built using this method")
+            built, failed = len(data["manual"].get("variants") or []), len(data["manual"].get("failed") or [])
+            if built > 1:
+                self.status.setText(f"{built} techniques built" + (f" · {failed} failed, see below the prompt" if failed else ""))
             return
 
         self.render(data["result"], source_thoughts=self._active_thoughts)
         self._push_history(data["result"]["choice"]["name"], "pipeline", data["result"])
-        choice = data["result"]["choice"]
-        warnings = len(data["result"]["synthesis"]["warnings"])
-        self.status.setText(f"{choice['name']} · warnings: {warnings}")
+        count = len(self.visible_warnings)
+        name = data["result"]["choice"]["name"]
+        self.status.setText(f"{name} · {count} warning{'s' if count != 1 else ''} below the prompt" if count else f"{name} · ready")
 
     def _add_usage(self, payload: dict) -> None:
         usage = payload.get("usage")
@@ -968,271 +1035,8 @@ class MainWindow(HistoryMixin, QMainWindow):
 
         self.output_layout.addStretch(1)
 
-    def render_manual(self, manual: dict, *, source_thoughts: str | None = None) -> None:
-        self._clear_output()
-
-        technique = manual["technique"]
-        title = QLabel(manual.get("topic") or technique["name"])
-        title.setObjectName("goal")
-        title.setWordWrap(True)
-        self.output_layout.addWidget(title)
-
-        meta = QLabel(f"Source: {manual['source_ref']}")
-        meta.setObjectName("muted")
-        meta.setWordWrap(True)
-        self.output_layout.addWidget(meta)
-        self._add_zero_shot(manual)
-
-        self.prompt_edit = PromptEdit(manual["prompt"], self.output_scroll)
-        self.prompt_edit.setFixedHeight(400)
-        self.output_layout.addWidget(self.prompt_edit, 1)
-
-        config = manual["config"]
-        config_label = QLabel(
-            f"temperature {config['temperature']} · top_p {config['top_p']} · {config['rationale']}"
-        )
-        config_label.setObjectName("muted")
-        config_label.setWordWrap(True)
-        self.output_layout.addWidget(config_label)
-
-        self.output_layout.addStretch(1)
-
     # ── рендер результата ─────────────────────────────────────────
-    def render(self, result: dict, *, source_thoughts: str | None = None) -> None:
-        self._clear_output()
-        brief = result["brief"]
-        choice = result["choice"]
-        synthesis = result["synthesis"]
-        config = synthesis["config"]
-        source_target = next((key for key in PROMPT_TARGETS if isinstance(result.get(f"{key}Guidance"), dict)), None)
-        guidance = result.get(f"{source_target}Guidance") if source_target else None
 
-        goal = QLabel(brief.get("topic") or brief["goal"])
-        goal.setObjectName("goal")
-        goal.setWordWrap(True)
-        self.output_layout.addWidget(goal)
-        if brief.get("topic"):
-            description = QLabel(brief["goal"])
-            description.setObjectName("muted")
-            description.setWordWrap(True)
-            self.output_layout.addWidget(description)
-
-        chips = QHBoxLayout()
-        chips.setSpacing(6)
-        for text in (
-            f"type: {brief['task_type']}",
-            f"language: {brief['language']}",
-            f"stakes: {brief['stakes']}",
-        ):
-            chip = QLabel(text)
-            chip.setObjectName("chip")
-            chips.addWidget(chip)
-        chips.addStretch(1)
-        self.output_layout.addLayout(chips)
-
-        fmt = QLabel(f"Format: {brief['output_format']}")
-        fmt.setObjectName("muted")
-        fmt.setWordWrap(True)
-        self.output_layout.addWidget(fmt)
-
-        if brief.get("assumptions"):
-            assumptions = QLabel("Assumptions: " + "; ".join(brief["assumptions"]))
-            assumptions.setObjectName("muted")
-            assumptions.setWordWrap(True)
-            self.output_layout.addWidget(assumptions)
-
-        self._add_zero_shot(result)
-
-        tech = QFrame()
-        tech.setObjectName("tech")
-        tech_box = QVBoxLayout(tech)
-        tech_box.setContentsMargins(0, 4, 0, 0)
-        tech_box.setSpacing(6)
-
-        head = QHBoxLayout()
-        name = QLabel(choice["name"])
-        name.setObjectName("section")
-        name.setWordWrap(True)
-        confidence = QLabel("Official sources" if guidance is not None else f"confidence {round(choice['confidence'] * 100)}%")
-        confidence.setObjectName("muted")
-        confidence.setWordWrap(True)
-        head.addWidget(name, 1)
-        head.addWidget(confidence)
-        if guidance is None:
-            percent = max(0, min(100, round(choice["confidence"] * 100)))
-            meter = QWidget()
-            meter.setObjectName("confidenceSquares")
-            meter.setAccessibleName(f"Confidence {percent}%")
-            meter.setToolTip(f"Confidence {percent}%")
-            squares = QHBoxLayout(meter)
-            squares.setContentsMargins(0, 0, 0, 0)
-            squares.setSpacing(3)
-            filled = (percent + 5) // 10
-            for index in range(10):
-                square = QFrame()
-                square.setFixedSize(6, 6)
-                square.setStyleSheet(f"background: {'#e1b72c' if index < filled else '#e5e1d4'}; border: none;")
-                squares.addWidget(square)
-            meter.setFixedSize(87, 10)
-            head.addWidget(meter, 0, Qt.AlignmentFlag.AlignVCenter)
-        tech_box.addLayout(head)
-
-        why = QLabel(f"Why: {choice['reason']}")
-        why.setWordWrap(True)
-        why.setObjectName("muted")
-        tech_box.addWidget(why)
-
-        why_not = QLabel(f"Why not a cheaper method: {choice['whyNotCheaper']}")
-        why_not.setWordWrap(True)
-        why_not.setObjectName("muted")
-        tech_box.addWidget(why_not)
-
-        self.output_layout.addWidget(tech)
-
-        self.prompt_edit = PromptEdit(synthesis["prompt"], self.output_scroll, source_target)
-        self.prompt_edit.setFixedHeight(340)
-        self.output_layout.addWidget(self.prompt_edit)
-
-        config_label = QLabel(
-            f"temperature {config['temperature']} · top_p {config['top_p']} · "
-            f"max_tokens {config['max_tokens']}"
-        )
-        config_label.setObjectName("muted")
-        config_label.setWordWrap(True)
-        self.output_layout.addWidget(config_label)
-
-        rationale = QLabel(config["rationale"])
-        rationale.setObjectName("muted")
-        rationale.setWordWrap(True)
-        self.output_layout.addWidget(rationale)
-
-        if synthesis["warnings"]:
-            warn = QLabel("\n".join(f"• {w}" for w in dict.fromkeys(synthesis["warnings"])))
-            warn.setObjectName("warn")
-            warn.setWordWrap(True)
-            self.output_layout.addWidget(warn)
-
-        for index, alt in enumerate(result.get("alternatives") or [], start=2):
-            alt_choice = alt["choice"]
-            alt_synth = alt["synthesis"]
-
-            head = QLabel(f"Variant {index}: {alt_choice['name']}")
-            head.setObjectName("section")
-            head.setWordWrap(True)
-            head.setStyleSheet("margin-top: 4px; border-top: 1px solid #d8c593; padding-top: 22px;")
-            self.output_layout.addWidget(head)
-
-            why = QLabel(alt_choice["reason"])
-            why.setObjectName("muted")
-            why.setWordWrap(True)
-            self.output_layout.addWidget(why)
-
-            box = PromptEdit(alt_synth["prompt"], self.output_scroll, source_target)
-            box.setFixedHeight(260)
-            self.output_layout.addWidget(box)
-
-            cfg = alt_synth["config"]
-            meta = QLabel(f"temperature {cfg['temperature']} · {cfg['max_tokens']}")
-            meta.setObjectName("muted")
-            self.output_layout.addWidget(meta)
-
-        if isinstance(guidance, dict) and source_target:
-            source_title = QLabel(f"{PROMPT_TARGETS[source_target][0]} rules · {guidance.get('rule_set_version', 'unknown')} · checked {guidance.get('verified_at', 'unknown')}")
-            source_title.setObjectName("section")
-            source_title.setWordWrap(True)
-            self.output_layout.addWidget(source_title)
-            variants = guidance.get("variants", [])
-            for variant_index, variant in enumerate(variants, 1):
-                usage = QLabel(f"Variant {variant_index} rules: {', '.join(variant.get('rule_ids', []))}")
-                usage.setObjectName("muted")
-                usage.setWordWrap(True)
-                self.output_layout.addWidget(usage)
-            for rule in guidance.get("rules", []):
-                url = rule.get("source_url", "")
-                if not is_official_source(url, source_target):
-                    continue
-                label = QLabel(f"<a href=\"{escape(url, quote=True)}\">{escape(rule.get('id', ''))} · {escape(rule.get('source_section', 'Source'))}</a>")
-                label.setOpenExternalLinks(True)
-                label.setWordWrap(True)
-                label.setToolTip(rule.get("rule_text", ""))
-                self.output_layout.addWidget(label)
-
-        footer = QLabel(f"Techniques filtered out: {len(result['rejected'])}")
-        footer.setObjectName("muted")
-        self.output_layout.addWidget(footer)
-
-        self.output_layout.addStretch(1)
-
-
-QSS += """
-QPushButton#segment { background: rgba(255, 245, 214, 222); border: 1px solid #d8c593; color: #665b42;
-  font-size: 12px; padding: 8px 4px; border-radius: 0; }
-QPushButton#segment[first="true"] { border-top-left-radius: 9px; border-bottom-left-radius: 9px; }
-QPushButton#segment[last="true"] { border-top-right-radius: 9px; border-bottom-right-radius: 9px; }
-QPushButton#segment:hover { background: #fff0c6; }
-QPushButton#segment:checked { background: #f4ca38; border-color: #e1b72c; color: #352b10; font-weight: 600; }
-QToolButton#disclosure { background: transparent; border: none; color: #665b42; font-size: 12px; font-weight: 600; padding: 4px 0; }
-QToolButton#disclosure:hover { color: #332e24; }
-QToolButton#disclosure[field="true"] { color: #74694f; font-size: 10px; font-weight: 500; letter-spacing: 2px; padding: 2px 0; }
-QToolButton#disclosure[field="true"]:hover { color: #4a4232; }
-QPushButton#segment:disabled { color: #b5ab90; background: rgba(250, 241, 214, 160); }
-QPushButton#segment:checked:disabled { background: #efdc9c; color: #8a7a4e; border-color: #dcc583; }
-QLabel#meta { color: #665d49; font-size: 12px; }
-QFrame#variantSegments { background: transparent; border: none; }
-QListView#historySuggestions { background: #fff8e7; color: #4a4232; border: 1px solid #d8c593; border-radius: 9px; padding: 4px; outline: none; font-size: 13px; }
-QListView#historySuggestions::item { padding: 7px 10px; border: none; border-radius: 5px; }
-QListView#historySuggestions::item:hover, QListView#historySuggestions::item:selected { background: #f6e5b3; color: #4a4232; }
-QFrame#techItem[selected="true"] { background: #fbe7a1; border: 2px solid #e1b72c; }
-QFrame#techItem[selected="true"]:hover { background: #f8df8a; }
-QTabWidget#variantTabs::pane { border: none; background: transparent; top: 12px; }
-QTabWidget#variantTabs > QWidget { background: transparent; }
-QTabWidget#variantTabs QTabBar { background: transparent; }
-QTabWidget#variantTabs::tab-bar { alignment: left; }
-QTabWidget#settingsTabs::tab-bar { alignment: left; }
-QTabWidget#settingsTabs QTabBar { background: rgba(120, 96, 30, 26); border-radius: 8px; }
-QTabWidget#settingsTabs QTabBar::tab { background: transparent; border: none; border-radius: 6px; margin: 2px; padding: 4px 16px; color: #6b6047; font-size: 12px; }
-QTabWidget#settingsTabs QTabBar::tab:hover { background: rgba(255, 255, 255, 110); }
-QTabWidget#settingsTabs QTabBar::tab:selected { background: #f4ca38; color: #2f260c; font-weight: 600; }
-QTabWidget#settingsTabs::pane { border: none; top: 6px; }
-QDialog QLabel#goal { font-size: 17px; letter-spacing: -0.3px; }
-QLabel#title { font-family: 'Avenir Next'; font-size: 17px; letter-spacing: -0.2px; color: #2b2412; }
-QDialog QPushButton#primary, QDialog QPushButton#ghost { min-height: 28px; max-height: 28px; padding: 0 14px; }
-QDialog QPushButton#primary[compact="true"], QDialog QPushButton#ghost[compact="true"] {
-  min-height: 22px; max-height: 22px; padding: 0 12px; font-size: 12px; border-radius: 7px; }
-"""
-
-class PromptaWindow(MainWindow):
-    """Prompt-first layout on top of MainWindow's logic.
-
-    The finished prompt comes first (variants as tabs); brief, zero-shot baseline, technique rationale
-    and sources fold into "How this prompt was built". The target is one segmented switch, while the
-    technique and variant count live under "Advanced". MainWindow's hidden target checkboxes remain
-    the single source of truth, so history restore and request building are unchanged.
-    """
-
-    def __init__(self) -> None:
-        self.visible_warnings: list[str] = []
-        self.catalog_summary = ""
-        self._variants_before_manual: int | None = None
-        super().__init__()
-        self._restyle_input()
-        self.build_label = "Build prompt   ⌘↵"
-        self.run_button.setText(self.build_label)
-        self.run_button.setToolTip("⌘↵ builds the prompt")
-        self.single_run_button = True  # Build turns into Stop while running; no separate button
-        self.cancel_button.hide()
-        self.status.setText("")
-        # History is a picker like every other: the same button, chevron and panel with search inside.
-        self.history_search.hide()  # MainWindow's filter field stays for restore logic; the picker replaces it here
-        self.history_picker = IconDropdown("search.svg", "Search history", searchable=True, popup_width=480,
-                                           search_placeholder="Search requests and prompts")
-        self.history_picker.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.history_picker.changed.connect(self._on_history_picked)
-        self.history_picker.deleteRequested.connect(self._on_history_delete)
-        self.header_layout.insertWidget(self.header_layout.indexOf(self.clear_button), self.history_picker)
-        self._sync_history_row()
-        self._fit_input_column()  # the restyled column (target switch with Open) is wider than at construction
-        self._restyle_settings()
 
     # ── settings: same controls and rhythm as the main window ─────
     def _restyle_settings(self) -> None:
@@ -1460,15 +1264,6 @@ class PromptaWindow(MainWindow):
         self.cancel_button.setFixedHeight(ACTION_HEIGHT)
         self._sync_segments()
 
-    def _on_techniques_loaded(self, techniques: list) -> None:
-        super()._on_techniques_loaded(techniques)
-        if techniques:
-            procedures = sum(1 for item in techniques if item.get("status") == "procedure")
-            ready = len(techniques) - procedures
-            self.catalog_summary = f"{ready} technique{'s' if ready != 1 else ''}" + (
-                f" + {procedures} procedure{'s' if procedures != 1 else ''}" if procedures else "") + " available"
-            self._update_advanced_title()
-
     def _sync_open_segment(self) -> None:
         button = getattr(self, "open_segment", None)
         if button is None:
@@ -1481,13 +1276,6 @@ class PromptaWindow(MainWindow):
         if caption is not None:
             caption.setText(f"{name} · open-weight model" if name else "")
             caption.setVisible(bool(name) and self._selected_target() == "openModel")
-
-    def run_pipeline(self, *, revised_brief: dict | None = None) -> None:
-        if getattr(self, "_open_mode", False) and not self.openModel_only.isChecked() and not self._running():
-            self.status.setText("Choose an open-weight model")
-            self.prompt_model.showPopup()
-            return
-        super().run_pipeline(revised_brief=revised_brief)
 
     def _on_segment_clicked(self, button: QPushButton) -> None:
         key = button.property("target")
@@ -1550,22 +1338,6 @@ class PromptaWindow(MainWindow):
         self.advanced.setVisible(target is None)
         self.advanced.set_title("Technique")
         self.advanced.button.setToolTip(self.catalog_summary or "")
-
-    def clear_workspace(self) -> None:
-        super().clear_workspace()
-        self.status.setText("")
-
-    def on_finished(self, data: dict) -> None:
-        super().on_finished(data)
-        manual = data.get("manual") if data.get("ok") and not self._discard_result else None
-        if manual and len(manual.get("variants") or []) > 1:
-            built = len(manual["variants"])
-            failed = len(manual.get("failed") or [])
-            self.status.setText(f"{built} techniques built" + (f" · {failed} failed, see below the prompt" if failed else ""))
-        if data.get("ok") and data.get("result") and not self._discard_result:
-            count = len(self.visible_warnings)
-            name = data["result"]["choice"]["name"]
-            self.status.setText(f"{name} · {count} warning{'s' if count != 1 else ''} below the prompt" if count else f"{name} · ready")
 
     # ── result ────────────────────────────────────────────────────
     @staticmethod

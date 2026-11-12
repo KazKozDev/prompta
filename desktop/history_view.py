@@ -1,4 +1,4 @@
-"""История запросов в окне Prompta: вынесена из MainWindow, подмешивается в него."""
+"""История запросов в окне Prompta: вынесена из PromptaWindow, подмешивается в него."""
 
 from __future__ import annotations
 

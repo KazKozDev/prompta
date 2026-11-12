@@ -13,7 +13,7 @@ from history import HistoryStore, history_topic
 import unittest
 from unittest.mock import Mock, patch
 
-from app import QApplication, MainWindow, PromptaWindow, Worker, QPushButton, QLabel, QModelIndex, QListWidget, QPlainTextEdit, QScrollArea
+from app import QApplication, PromptaWindow, Worker, QPushButton, QLabel, QModelIndex, QListWidget, QPlainTextEdit, QScrollArea
 import app as app_module
 
 
@@ -44,8 +44,8 @@ class DesktopSmokeTest(unittest.TestCase):
 
     def test_history_survives_restart_and_search_restores_correct_query(self):
         def window():
-            with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
-                return MainWindow()
+            with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+                return PromptaWindow()
         first = window()
         for query, prompt in [('Чётные числа', 'Первый промпт'), ('Письмо', 'Уникальный второй промпт')]:
             first.thoughts.setPlainText(query)
@@ -76,12 +76,12 @@ class DesktopSmokeTest(unittest.TestCase):
     def test_history_settings_limit_prunes_and_persists(self):
         for i in range(5):
             self.store.add(f'q{i}', 'manual', f'q{i}', {'topic': f'q{i}'})
-        with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'), \
+        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'), \
                 patch.dict('os.environ', {}, clear=False):
             os_env = __import__('os').environ
             os_env.pop('PROMPTA_HISTORY_MAX', None)
             os_env.pop('PROMPTA_HISTORY_DAYS', None)
-            window = MainWindow()
+            window = PromptaWindow()
             window.history_limit.addItem('Keep the newest 2', 2)
             window.history_limit.setCurrentIndex(window.history_limit.count() - 1)
         self.assertEqual([e['label'] for e in self.store.load()], ['q3', 'q4'])
@@ -94,8 +94,8 @@ class DesktopSmokeTest(unittest.TestCase):
         from app import QMessageBox
         for name in ('Первая', 'Вторая'):
             self.store.add(name, 'manual', name, {'topic': name})
-        with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
-            window = MainWindow()
+        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+            window = PromptaWindow()
         with patch('app.QMessageBox.question', return_value=QMessageBox.StandardButton.Cancel):
             window.delete_all_history_button.click()
         self.assertEqual(len(self.store.load()), 2, 'cancel keeps everything')
@@ -109,8 +109,8 @@ class DesktopSmokeTest(unittest.TestCase):
     def test_cross_deletes_history_entry_from_list_and_disk(self):
         for name in ('Первая', 'Вторая', 'Третья'):
             self.store.add(name, 'manual', name, {'topic': name})
-        with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
-            window = MainWindow()
+        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+            window = PromptaWindow()
         window.history.setCurrentIndex(3)
         window.history.showPopup()
         listing = window.history._popup_frame.findChild(QListWidget)
@@ -127,8 +127,8 @@ class DesktopSmokeTest(unittest.TestCase):
     def test_repeated_results_fit_narrow_window_without_stale_rows(self):
         from app import QLabel, QSS
         from PyQt6.QtCore import QEvent
-        with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
-            window = MainWindow()
+        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+            window = PromptaWindow()
         window.setStyleSheet(QSS)
         window.resize(932, 870)
         window.show()
@@ -153,15 +153,15 @@ class DesktopSmokeTest(unittest.TestCase):
                 self.app.processEvents()
                 labels = window.output_holder.findChildren(QLabel)
                 self.assertEqual(sum(label.text() == 'PROMPT' for label in labels), 0)
-                self.assertEqual(sum(label.text() == 'type: generation' for label in labels), 1)
-                self.assertEqual(len([b for b in window.output_holder.findChildren(QPushButton) if b.objectName() != 'restorePrompt']), 3)
+                self.assertEqual(sum(label.objectName() == 'briefMeta' for label in labels), 1, 'no stale rows from the previous render')
+                self.assertEqual(len([b for b in window.output_holder.findChildren(QPushButton) if b.objectName() != 'restorePrompt']), 4)
                 for label in labels:
                     if label.wordWrap():
                         self.assertGreaterEqual(label.height(), label.heightForWidth(label.width()), label.text())
                 goal = next(label for label in labels if label.objectName() == 'goal')
                 chip = next(label for label in labels if label.objectName() == 'chip')
-                self.assertLess(goal.geometry().bottom(), chip.geometry().top())
-                self.assertGreater(window.output_scroll.verticalScrollBar().maximum(), 0)
+                self.assertLess(goal.mapTo(window, goal.rect().bottomLeft()).y(), chip.mapTo(window, chip.rect().topLeft()).y())
+                self.assertEqual(window.output_scroll.horizontalScrollBar().maximum(), 0, 'the result fits the width')
         finally:
             window.close()
 
@@ -212,8 +212,8 @@ class DesktopSmokeTest(unittest.TestCase):
             area.close()
 
     def test_generation_line_tracks_success_error_and_cancellation(self):
-        with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
-            window = MainWindow()
+        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+            window = PromptaWindow()
         window.show()
         self.app.processEvents()
         try:
@@ -261,8 +261,8 @@ class DesktopSmokeTest(unittest.TestCase):
             'topic': topic, 'technique': {'key': 'test', 'name': 'Test', 'category': 'test'},
             'prompt': 'Example', 'config': {'temperature': 0.2, 'top_p': 1, 'rationale': 'Test'},
             'source_ref': 'test'})
-        with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
-            window = MainWindow()
+        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+            window = PromptaWindow()
         try:
             window.setStyleSheet(QSS)
             window.resize(932, 760)
@@ -309,8 +309,8 @@ class DesktopSmokeTest(unittest.TestCase):
     def test_dropdown_borders_follow_rounded_popup_corners(self):
         from app import QSS
         from PyQt6.QtCore import Qt
-        with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
-            window = MainWindow()
+        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+            window = PromptaWindow()
         window.setStyleSheet(QSS)
         window.show()
         try:
@@ -338,8 +338,8 @@ class DesktopSmokeTest(unittest.TestCase):
                   'prompt': 'Saved prompt', 'config': {'temperature': 0.2, 'top_p': 1, 'rationale': 'Test'},
                   'source_ref': 'test'}
         self.store.add('Saved topic', 'manual', 'Saved request', manual)
-        with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
-            window = MainWindow()
+        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+            window = PromptaWindow()
         window.setStyleSheet(QSS)
         window.show()
         try:
@@ -360,8 +360,8 @@ class DesktopSmokeTest(unittest.TestCase):
             window.close()
 
     def test_variant_segments_are_exclusive_and_reach_pipeline(self):
-        with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
-            window = MainWindow()
+        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+            window = PromptaWindow()
         try:
             self.assertEqual(window.variants.value(), 1)
             window.variants.buttons.button(5).click()
@@ -398,19 +398,24 @@ class DesktopSmokeTest(unittest.TestCase):
 
     def test_input_fields_do_not_overlap_when_window_is_shrunk(self):
         from app import QLabel, QSS
-        with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
-            window = MainWindow()
+        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+            window = PromptaWindow()
         try:
             window.setStyleSheet(QSS)
             window.show()
             for width, height in ((672, 640), (932, 820)):
                 window.resize(width, height)
                 self.app.processEvents()
-                label = next(x for x in window.thoughts.parent().findChildren(QLabel)
-                             if x.text() == 'TECHNIQUE')
-                self.assertGreaterEqual(label.geometry().top() - window.thoughts.geometry().bottom(), 10)
-                self.assertGreaterEqual(label.height(), label.sizeHint().height())
-                self.assertGreater(window.technique.geometry().top(), label.geometry().bottom())
+                def rect(widget):
+                    return widget.geometry().translated(widget.parentWidget().mapTo(window, widget.parentWidget().rect().topLeft()))
+                labels = [x for x in window.thoughts.parent().findChildren(QLabel) if x.isVisible() and x.text()]
+                self.assertTrue(labels)
+                for label in labels:
+                    self.assertFalse(rect(label).intersects(rect(window.thoughts)), label.text())
+                    needed = label.heightForWidth(label.width()) if label.wordWrap() else label.sizeHint().height()
+                    self.assertGreaterEqual(label.height(), needed, label.text())
+                self.assertTrue(window.technique.isVisible())
+                self.assertGreater(rect(window.technique).top(), rect(window.thoughts).bottom())
         finally:
             window.close()
 
@@ -423,16 +428,16 @@ class DesktopSmokeTest(unittest.TestCase):
 
     def test_corrupt_history_is_not_overwritten(self):
         self.store.path.write_bytes(b'broken database')
-        with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
-            window = MainWindow()
+        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+            window = PromptaWindow()
         self.assertFalse(window.history_notice.isHidden())
         self.assertEqual(self.store.path.read_bytes(), b'broken database')
         window.close()
 
     def test_api_settings_and_thoughts_label(self):
         from app import QLabel, QLineEdit
-        with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
-            window = MainWindow()
+        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+            window = PromptaWindow()
         labels = {label.text(): label for label in window.findChildren(QLabel)}
         self.assertNotIn('THOUGHTS', labels)
         self.assertEqual(window.thoughts.placeholderText(), 'Describe what you need')
@@ -484,8 +489,8 @@ class DesktopSmokeTest(unittest.TestCase):
             self.assertNotIn('history.sqlite3', entry['path'])
             if entry.get('expected_hash'):
                 self.assertIn('Matches saved source hash', read_material(ROOT, entry)[0])
-        with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
-            window = MainWindow()
+        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+            window = PromptaWindow()
         try:
             window.settings_tabs.setCurrentIndex(1)
             self.assertEqual(window.settings_tabs.tabText(1), 'Library')
@@ -557,8 +562,8 @@ class DesktopSmokeTest(unittest.TestCase):
             popup.close()
 
     def test_clear_workspace_preserves_settings_history_and_discards_pending_result(self):
-        with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
-            window = MainWindow()
+        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+            window = PromptaWindow()
         try:
             window.thoughts.setPlainText('Draft to clear')
             window.chatgpt_only.setChecked(True)
@@ -646,8 +651,8 @@ class DesktopSmokeTest(unittest.TestCase):
         editor.close()
 
     def test_open_model_dropdown_excludes_other_targets_and_routes_request(self):
-        with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
-            window = MainWindow()
+        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+            window = PromptaWindow()
         try:
             self.assertEqual(sum(1 for i in range(window.prompt_model.count()) if window.prompt_model.itemData(i)), 15)
             window.chatgpt_only.setChecked(True)
@@ -673,8 +678,8 @@ class DesktopSmokeTest(unittest.TestCase):
             window.close()
 
     def test_open_model_history_entry_restores_target_model(self):
-        with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
-            window = MainWindow()
+        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+            window = PromptaWindow()
         try:
             model_index = window.prompt_model.findData('glm-5-3')
             name = window.prompt_model.itemText(model_index)
@@ -742,8 +747,8 @@ class DesktopSmokeTest(unittest.TestCase):
             safe_path(root, '../outside.md')
 
     def test_claude_toggle_preserves_generator_and_excludes_generic_techniques(self):
-        with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
-            window = MainWindow()
+        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+            window = PromptaWindow()
         self.assertFalse(window.claude_only.isChecked())
         model = window.model.current_key()
         provider = window.provider.current_key()
@@ -771,7 +776,7 @@ class DesktopSmokeTest(unittest.TestCase):
         result = {'brief': brief, 'choice': {'key': 'zero_shot', 'name': 'Zero-shot', 'reason': 'r', 'confidence': 0.5},
                   'synthesis': {'prompt': 'Find job titles across Europe and report them with dates.', 'config': {'temperature': 0.2, 'top_p': 0.95, 'max_tokens': '1024'}, 'warnings': []},
                   'rejected': []}
-        with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
+        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
             window = PromptaWindow()
         window.thoughts.setPlainText("Find job titles")
         window.render(result)
@@ -834,16 +839,16 @@ class DesktopSmokeTest(unittest.TestCase):
                 'rules': [{'id': 'clear', 'source_section': 'Be clear and direct', 'rule_text': 'Be clear',
                            'source_url': 'https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#be-clear-and-direct'}]},
         }
-        with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
-            first = MainWindow()
+        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+            first = PromptaWindow()
         first.thoughts.setPlainText('Synthetic parity request')
         first.api_key.setText('synthetic-secret-not-for-history')
         first.on_finished({'ok': True, 'result': result})
         self.assertTrue(any('href=' in label.text() for label in first.findChildren(QLabel)))
         first.close()
         self.assertNotIn(b'synthetic-secret-not-for-history', self.store.path.read_bytes())
-        with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
-            reopened = MainWindow()
+        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+            reopened = PromptaWindow()
         reopened.history_search.setText('test-version')
         reopened.history.setCurrentIndex(1)
         self.assertTrue(reopened.claude_only.isChecked())
@@ -856,8 +861,8 @@ class DesktopSmokeTest(unittest.TestCase):
         query = 'Я хочу чтобы нейросеть разбирала заметки встреч и находила уникальный_срок'
         payload = {'brief': {'topic': 'Итоги встреч', 'goal': 'Извлечение решений задач ответственных из заметок встреч'}}
         self.store.add('Old technique label', 'pipeline', query, payload)
-        with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
-            window = MainWindow()
+        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+            window = PromptaWindow()
         self.assertEqual(window.history.itemText(1), 'Итоги встреч')
         window.history_search.setText('уникальный_срок')
         self.assertEqual(window.history.count(), 2)
@@ -871,8 +876,8 @@ class DesktopSmokeTest(unittest.TestCase):
     def test_target_checkboxes_are_exclusive_and_keep_generator_model(self):
         for target in ('chatgpt', 'gemini', 'grok'):
             with self.subTest(target=target):
-                with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
-                    window = MainWindow()
+                with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+                    window = PromptaWindow()
                 model, provider = window.model.current_key(), window.provider.current_key()
                 self.assertFalse(window.chatgpt_only.isChecked())
                 self.assertFalse(window.gemini_only.isChecked())
@@ -900,8 +905,8 @@ class DesktopSmokeTest(unittest.TestCase):
 
     def test_chatgpt_and_gemini_history_restore_their_own_sources_and_target(self):
         from app import QLabel
-        with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
-            window = MainWindow()
+        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+            window = PromptaWindow()
         for target, source in (
             ('chatgpt', 'https://learn.chatgpt.com/docs/prompting#prompts'),
             ('gemini', 'https://aistudio.google.com/docs/prompting-strategies#clear-and-specific-instructions'),
@@ -918,8 +923,8 @@ class DesktopSmokeTest(unittest.TestCase):
             }})
         window.close()
         self.assertNotIn(b'synthetic-key-not-for-storage', self.store.path.read_bytes())
-        with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
-            reopened = MainWindow()
+        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+            reopened = PromptaWindow()
         for target in ('chatgpt', 'gemini', 'grok'):
             reopened.history_search.setText(target)
             self.assertEqual(reopened.history.count(), 2)
@@ -927,8 +932,7 @@ class DesktopSmokeTest(unittest.TestCase):
             reopened.history.setCurrentIndex(1)
             self.assertEqual(reopened._selected_target(), target)
             self.assertEqual(reopened.thoughts.toPlainText(), f'{target} synthetic parity task')
-            labels = [reopened.output_layout.itemAt(i).widget() for i in range(reopened.output_layout.count())]
-            self.assertTrue(any(isinstance(label, QLabel) and 'href=' in label.text() for label in labels))
+            self.assertTrue(any('href=' in label.text() for label in reopened.output_holder.findChildren(QLabel) if label.isVisibleTo(reopened.output_holder)))
         reopened.close()
 
     def test_cancel_before_launch_does_not_spawn(self):
@@ -1035,8 +1039,8 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
         editor.close()
 
     def test_each_variant_copies_its_own_prompt(self):
-        with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
-            window = MainWindow()
+        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+            window = PromptaWindow()
         config = {'temperature': 0.2, 'top_p': 0.95, 'max_tokens': '1024', 'rationale': 'test'}
         choice = {'name': 'Test', 'key': 'test', 'confidence': 1, 'reason': 'test', 'whyNotCheaper': 'test'}
         def synthesis(text):
@@ -1053,9 +1057,12 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
         from app import QPlainTextEdit
         editors = window.output_holder.findChildren(QPlainTextEdit)
         self.assertEqual(len(editors), 4)
-        self.assertEqual(editors[0].accessibleName(), 'Zero-shot baseline prompt')
-        self.assertNotIn('First prompt', editors[0].toPlainText())
-        buttons = [editor.copy_button for editor in editors[1:]]
+        zero = [editor for editor in editors if editor.accessibleName() == 'Zero-shot baseline prompt']
+        self.assertEqual(len(zero), 1)
+        self.assertNotIn('First prompt', zero[0].toPlainText())
+        variants = sorted((editor for editor in editors if editor not in zero), key=lambda editor: editor.toPlainText())
+        self.assertEqual([editor.toPlainText() for editor in variants], ['First prompt', 'Second prompt', 'Third prompt'])
+        buttons = [editor.copy_button for editor in variants]
         self.assertEqual(len(buttons), 3)
         window.show()
         self.app.processEvents()
@@ -1068,17 +1075,16 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
             self.assertLess(editor.viewport().geometry().top(), 20)
         clipboard = Mock()
         with patch('app.QGuiApplication.clipboard', return_value=clipboard):
-            zero_copy = editors[0].copy_button
-            zero_copy.click()
-            clipboard.setText.assert_called_with(editors[0].toPlainText())
+            zero[0].copy_button.click()
+            clipboard.setText.assert_called_with(zero[0].toPlainText())
             for index in (2, 0, 1, 2):
                 buttons[index].click()
                 clipboard.setText.assert_called_with(['First prompt', 'Second prompt', 'Third prompt'][index])
         window.close()
 
     def test_manual_history_error_and_input_validation(self):
-        with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
-            window = MainWindow()
+        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+            window = PromptaWindow()
         window.run_pipeline()
         self.assertIsNone(window.worker)
         self.assertEqual(window.status.text(), 'Enter your thoughts')
@@ -1099,7 +1105,7 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
         window.close()
 
     def _prompta_window(self):
-        with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
+        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
             return PromptaWindow()
 
     def test_prompt_edits_are_saved_to_history_and_survive_restart(self):
