@@ -59,14 +59,21 @@ QScrollArea#outputScroll, QWidget#outputContent { background: transparent; borde
 QLabel#title { font-family: 'Avenir Next'; font-size: 17px; letter-spacing: -0.2px; color: #202632; }
 QLabel#subtitle { color: #74694f; font-size: 13px; }
 QLabel#section { font-weight: 600; color: #332e24; font-size: 13px; }
-QLabel#fieldLabel { color: #74694f; font-size: 10px; font-weight: 500; letter-spacing: 1px; }
+QLabel#fieldLabel { color: #74694f; font-size: 10px; font-weight: 500; letter-spacing: 2px; }
 QLabel#muted { color: #665d49; font-size: 12px; }
 QLabel#goal { font-size: 15px; font-weight: 600; color: #332e24; }
 QLabel#chip { color: #5b6574; background: #f2e6c5; border: 1px solid #dfd0a8; border-radius: 8px; padding: 3px 8px; font-size: 11px; }
 QLabel#warn { color: #8a5300; background: #fffaf0; border: 1px solid #f6e2bd; border-radius: 8px; padding: 8px 10px; font-size: 12px; }
 QLabel#error { color: #b03a2e; background: #fff5f5; border: 1px solid #f5c2c2; border-radius: 8px; padding: 8px 10px; }
 QLabel#status { color: #74694f; font-size: 12px; }
-QPlainTextEdit { font-size: 13px; background: rgba(255, 248, 226, 232); border: 1px solid #d8c593; border-radius: 10px; padding: 10px; selection-background-color: #fff9e3; }
+QPlainTextEdit { font-size: 13px; background: rgba(255, 248, 226, 232); border: 1px solid #d8c593; border-radius: 10px; padding: 10px; selection-background-color: #f4ca38; selection-color: #352b10; }
+QLineEdit { selection-background-color: #f4ca38; selection-color: #352b10; }
+/* Context menus (Copy, Paste…) in our light style: the system dark menu would get our dark text. */
+QMenu { background: #fffaf0; color: #332e24; border: 1px solid #d8c593; border-radius: 8px; padding: 4px; font-size: 13px; }
+QMenu::item { padding: 5px 22px 5px 12px; border-radius: 5px; background: transparent; }
+QMenu::item:selected { background: #f4ca38; color: #352b10; }
+QMenu::item:disabled { color: #b3a88a; }
+QMenu::separator { height: 1px; background: #eadfc0; margin: 4px 6px; }
 QPlainTextEdit:focus { border-color: #c69b12; }
 QPlainTextEdit#prompt { padding: 10px; background: #454545; color: #f5f5f5; border: 1px solid #565656; font-family: 'Helvetica Neue'; font-size: 13px; selection-background-color: #675b32; selection-color: #ffffff; }
 QLineEdit, QComboBox { font-size: 13px; background: rgba(255, 248, 226, 240); border: 1px solid #d8c593; border-radius: 8px; padding: 7px 10px; min-height: 18px; }
@@ -104,7 +111,7 @@ QPushButton#articleLink:hover { background: #f8f4e7; }
 QPushButton#articleLink:focus { border: 1px solid #c69b12; }
 QPushButton#picker {
   font-size: 13px; background: rgba(255, 248, 226, 240); color: #4a4232; border: 1px solid #d8c593; border-radius: 8px;
-  padding: 7px 10px; min-height: 18px; text-align: left;
+  padding: 7px 28px 7px 10px; min-height: 18px; text-align: left;
 }
 QPushButton#picker:hover { border-color: #d6cfb5; }
 QPushButton#picker:pressed { background: #f6f0dc; }

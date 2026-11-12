@@ -99,8 +99,9 @@ CATEGORY_LABELS = {
 
 class TechniqueItem(QFrame):
     clicked = pyqtSignal(str)
+    deleteRequested = pyqtSignal(str)
 
-    def __init__(self, key: str, name: str, hint: str = "", sources: list | None = None) -> None:
+    def __init__(self, key: str, name: str, hint: str = "", sources: list | None = None, deletable: bool = False) -> None:
         super().__init__()
         self.key = key
         self.setObjectName("techItem")
@@ -128,6 +129,17 @@ class TechniqueItem(QFrame):
             article.setToolTip("Read the source article\n" + "\n".join(s['title'] for s in self.sources))
             article.clicked.connect(lambda: self._show_sources(name))
             title_row.addWidget(article, 0, Qt.AlignmentFlag.AlignTop)
+        if deletable:  # e.g. history rows: the same cross as elsewhere in the app
+            remove = QPushButton()
+            remove.setObjectName("deleteItem")
+            remove.setIcon(QIcon(str(ROOT / "desktop" / "close.svg")))
+            remove.setIconSize(QSize(10, 10))
+            remove.setFixedSize(22, 22)
+            remove.setCursor(Qt.CursorShape.PointingHandCursor)
+            remove.setToolTip("Delete")
+            remove.setAccessibleName(f"Delete {name}")
+            remove.clicked.connect(lambda: self.deleteRequested.emit(self.key))
+            title_row.addWidget(remove, 0, Qt.AlignmentFlag.AlignTop)
         layout.addLayout(title_row)
 
         if hint:
@@ -206,6 +218,7 @@ class Dropdown(QPushButton):
     """
 
     changed = pyqtSignal(str)
+    deleteRequested = pyqtSignal(str)  # a row's cross, for lists with "deletable" items
 
     def __init__(
         self,
@@ -229,7 +242,17 @@ class Dropdown(QPushButton):
         self._multi = False
         self._selected: list[str] = []
         self._item_widgets: dict[str, TechniqueItem] = {}
+        self._align_right = False  # icon pickers at the right edge open their panel leftwards
         self.clicked.connect(self._open)
+        # Every picker shows it opens a list: one chevron at the right edge (text keeps clear of it via padding).
+        chevron = QLabel()
+        chevron.setObjectName("pickerChevron")
+        chevron.setPixmap(QIcon(str(ROOT / "desktop" / "chevron-down.svg")).pixmap(12, 12))
+        chevron.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        chevron_row = QHBoxLayout(self)
+        chevron_row.setContentsMargins(0, 0, 10, 0)
+        chevron_row.addStretch(1)
+        chevron_row.addWidget(chevron, 0, Qt.AlignmentFlag.AlignVCenter)
 
     # ── данные ───────────────────────────────────────────────────
     def set_multi(self, multi: bool) -> None:
@@ -337,6 +360,8 @@ class Dropdown(QPushButton):
             search = QLineEdit()
             search.setPlaceholderText(self._search_placeholder)
             search.setClearButtonEnabled(True)
+            # The window style sets min-height 0 on fields, which collapsed this one to a line; its own rule wins.
+            search.setStyleSheet("QLineEdit { min-height: 20px; padding: 3px 10px; }")
             outer.addWidget(search)
 
         scroll = QScrollArea(popup)
@@ -373,12 +398,13 @@ class Dropdown(QPushButton):
             grid_items: list[TechniqueItem] = []
             for index, item in enumerate(items):
                 label = item.get("label") or item.get("name") or item["key"]
-                widget = TechniqueItem(item["key"], label, item.get("hint", ""), item.get("sources"))
+                widget = TechniqueItem(item["key"], label, item.get("hint", ""), item.get("sources"), bool(item.get("deletable")))
+                widget.deleteRequested.connect(self.deleteRequested.emit)
                 widget.clicked.connect(self._toggle if self._multi else self._choose)
                 self._item_widgets[item["key"]] = widget
                 widget.set_selected(item["key"] in self.current_keys())  # single mode marks the current one too
                 grid.addWidget(widget, index // self._columns, index % self._columns)
-                entries.append((widget, f"{label} {item.get('hint','')} {category}".lower()))
+                entries.append((widget, f"{label} {item.get('hint','')} {category} {item.get('search','')}".lower()))
                 grid_items.append(widget)
             for column in range(self._columns):
                 grid.setColumnStretch(column, 1)
@@ -437,7 +463,7 @@ class Dropdown(QPushButton):
             height += 44
         available = self.screen().availableGeometry()
         popup.resize(min(self._popup_width, available.width() - 24), min(560, max(120, height), available.height() - 24))
-        position = self.mapToGlobal(QPoint(0, self.height() + 6))
+        position = self.mapToGlobal(QPoint(self.width() - popup.width() if self._align_right else 0, self.height() + 6))
         if position.y() + popup.height() > available.bottom() - 12:
             above = self.mapToGlobal(QPoint(0, -popup.height() - 6)).y()
             position.setY(max(available.top() + 12, above))
@@ -451,6 +477,27 @@ class Dropdown(QPushButton):
         self.set_current(key, emit=True)
         if self._popup is not None:
             self._popup.close()
+
+
+class IconDropdown(Dropdown):
+    """A picker shown as a toolbar icon: the same panel as every dropdown, no label or chevron on the button."""
+
+    def __init__(self, icon: str, tooltip: str, **options) -> None:
+        super().__init__("", **options)
+        self.setObjectName("settings")  # the toolbar icon style, like trash and settings
+        self.setIcon(QIcon(str(ROOT / "desktop" / icon)))
+        self.setIconSize(QSize(17, 17))
+        self.setFixedSize(28, 28)
+        self.setToolTip(tooltip)
+        self.setAccessibleName(tooltip)
+        self._align_right = True
+        chevron = self.findChild(QLabel, "pickerChevron")
+        if chevron is not None:
+            chevron.hide()
+
+    def set_current(self, key: str, emit: bool = False) -> None:
+        super().set_current(key, emit)
+        self.setText("")  # an icon, never a label
 
 
 class ExecutionProfileDropdown(Dropdown):
@@ -480,7 +527,7 @@ class BackgroundWidget(QWidget):
             painter.drawPixmap((self.width() - image.width()) // 2,
                                (self.height() - image.height()) // 2, image)
             # Cream veil over the photo: higher alpha = fainter photo.
-            painter.fillRect(self.rect(), QColor(255, 248, 222, 228))
+            painter.fillRect(self.rect(), QColor(255, 248, 222, 242))
         else:
             painter.fillRect(self.rect(), QColor("#f5f6f8"))
 

@@ -1,4 +1,4 @@
-import { briefAssumptions } from './brief.ts';
+import { briefAssumptions, isNoInput } from './brief.ts';
 import { sourceBlock } from './sources.ts';
 import { unwrapFence } from './json.ts';
 import { executionContext, ONE_SHOT_INSTRUCTION, promptRequirements } from './prompt-defaults.ts';
@@ -54,6 +54,15 @@ export function valuesFromBrief(brief: TaskBrief): Record<string, string> {
     role: `Expert in the task: ${trimDot(brief.goal)}`,
     rules: buildRules(brief),
   };
+}
+
+const MATERIAL_SLOT_LINE = /\{\{\s*(input|text|context|document|external_text)\s*\}\}/;
+
+/** The technique skeleton for this brief: with no input material, lines that only carry the material slot
+ *  ("Input: {{input}}") go, so the prompt does not say «Input: нет». */
+export function templateForBrief(template: string, brief: TaskBrief): string {
+  if (!isNoInput(brief.input)) return template;
+  return template.split('\n').filter((line) => !MATERIAL_SLOT_LINE.test(line)).join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
 export interface FillResult {
@@ -143,14 +152,11 @@ const MATERIAL_INPUT = /документ|текст|письм|почт|отзы
 
 /** Защита нужна, когда промпт реально обрабатывает чужой материал (документ, текст, контекст,
  *  вывод инструментов), а не просто потому что техника лежит в категории «контекст». */
-/** The brief says there is no input material: «нет», "none", «отсутствует»… */
-const NO_INPUT = /^\s*(нет|none|no|n\/a|пусто|отсутству\w*|не требуется|без входн\w*|—|-)?\s*[.;:]?\s*$|^\s*(нет|none|отсутству\w*)\b/i;
-
 export function needsInjectionGuard(brief: TaskBrief, technique: Technique): boolean {
   const materialSlot = /\{\{\s*(document|text|context|external_text)\s*\}\}/;
   return materialSlot.test(technique.template ?? '')
     || MATERIAL_TASK_TYPES.has(brief.task_type)
-    || (!NO_INPUT.test(brief.input ?? '') && MATERIAL_INPUT.test(brief.input ?? ''))
+    || (!isNoInput(brief.input) && MATERIAL_INPUT.test(brief.input ?? ''))
     || brief.constraints.some((c) => /посторонние инструкции|untrusted instructions/i.test(c));
 }
 
@@ -172,7 +178,7 @@ export function synthesizeDeterministic(brief: TaskBrief, technique: Technique):
   if (!technique.template) {
     throw new PipelineError(`${technique.key}: No template (status=index-only)`, 'synthesize');
   }
-  const { text, missing } = fillTemplate(technique.template, valuesFromBrief(brief));
+  const { text, missing } = fillTemplate(templateForBrief(technique.template, brief), valuesFromBrief(brief));
   const warnings = [...budgetWarnings(brief, technique), ...languageWarning(brief, technique)];
   const guarded = needsInjectionGuard(brief, technique) ? text + injectionGuard(brief.language) : text;
   if (guarded !== text) warnings.push('Prompt-injection guard added: input material is treated as data');
@@ -197,7 +203,7 @@ ${technique.when_to_use}
 
 Каркас техники (адаптируй к задаче; бриф имеет приоритет):
 """
-${technique.template}
+${templateForBrief(technique.template ?? '', brief)}
 """
 
 Пример из первоисточника (ориентир по качеству и уровню детализации, не копировать дословно):
@@ -217,7 +223,7 @@ ${draft}
 - Формат ответа: ${brief.output_format}
 - Ограничения: ${brief.constraints.join('; ') || 'нет'}
 - Допущения задачи: ${JSON.stringify(briefAssumptions(brief))}
-- Язык финального промпта: ${brief.language}
+- Язык финального промпта: ${brief.language}. Весь промпт — на языке ${brief.language}: переводи и подписи каркаса (Input, Return only the answer, Steps и т. п.). По-английски оставляй только ключевые слова протокола техники (Thought/Action/Observation), имена инструментов и код.
 ${technique.when_not ? `- Чего избегать (техника вредит в этом случае): ${technique.when_not}` : ''}
 
 Требования:
@@ -247,7 +253,7 @@ export async function synthesizeWithLLM(
   if (!technique.template) {
     throw new PipelineError(`${technique.key}: No template (status=index-only)`, 'synthesize');
   }
-  const draft = fillTemplate(technique.template, valuesFromBrief(brief));
+  const draft = fillTemplate(templateForBrief(technique.template, brief), valuesFromBrief(brief));
   const raw = await llm(buildSynthesisPrompt(brief, technique, draft.text, oneShot, capabilities), { temperature: 0.2 });
   let prompt = unwrapFence(raw ?? '');
 

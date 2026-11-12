@@ -566,3 +566,16 @@ test('внешнее ```-ограждение вокруг готового пр
   const twoBlocks = '```\na\n```\nтекст\n```\nb\n```';
   assert.equal(unwrapFence(twoBlocks), twoBlocks);
 });
+
+test('без входного материала строка «Input: …» не попадает в промпт, а подписи каркаса велено переводить', async () => {
+  const { templateForBrief, synthesizeDeterministic, buildSynthesisPrompt } = await import('./synthesize.ts');
+  const zeroShot = catalog.techniques.find((t) => t.key === 'zero_shot')!;
+  const ideas = { ...brief, goal: 'Придумать идеи приложений', input: 'нет', output_format: 'Нумерованный список из 10 идей', language: 'ru' };
+  assert.ok(!templateForBrief(zeroShot.template!, ideas).includes('{{input}}'));
+  assert.ok(templateForBrief(zeroShot.template!, { ...ideas, input: 'текст письма' }).includes('{{input}}'), 'material keeps its line');
+  const offline = synthesizeDeterministic(ideas, zeroShot).prompt;
+  assert.ok(!/Input:/.test(offline) && !offline.includes('нет\n'));
+  const request = buildSynthesisPrompt(ideas, zeroShot, 'черновик');
+  assert.ok(request.includes('переводи и подписи каркаса'));
+  assert.ok(!request.includes('Input: {{input}}'));
+});

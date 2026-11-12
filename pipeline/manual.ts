@@ -2,6 +2,7 @@ import { executionContext, ONE_SHOT_INSTRUCTION, promptRequirements } from './pr
 import { sourceBlock } from './sources.ts';
 import { unwrapFence } from './json.ts';
 import { briefAssumptions, briefToJson } from './brief.ts';
+import { templateForBrief } from './synthesize.ts';
 import type { ExecutionCapabilities, LLM, TaskBrief, Technique } from './types.ts';
 
 /** Промпт «преврати мысли в промпт по методике техники» для ручного режима.
@@ -17,8 +18,9 @@ ${technique.when_not ? `\nГде она вредит (не тащи это в п
 
 Каркас техники — адаптируй блоки к цели, источникам и итоговому формату задачи:
 """
-${technique.template}
+${brief ? templateForBrief(technique.template ?? '', brief) : technique.template}
 """
+Весь промпт — на языке ${brief?.language ?? 'пользователя'}: переводи и подписи каркаса (Input, Return only the answer, Steps и т. п.). По-английски оставляй только ключевые слова протокола техники (Thought/Action/Observation), имена инструментов и код.
 
 Пример промпта этой техники из первоисточника (ориентир по структуре, не копировать дословно):
 """

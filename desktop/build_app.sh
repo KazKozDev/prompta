@@ -82,5 +82,27 @@ LAUNCH
 
 chmod +x "$APP/Contents/MacOS/launch"
 
+# Microphone helper: the launcher becomes the system Python, which has no microphone usage text, so macOS
+# would silently hand dictation silence. prompta-mic carries its own Info.plist and asks for access itself.
+if command -v clang >/dev/null && command -v codesign >/dev/null; then
+  MIC_PLIST="$ICON_TMP/mic-Info.plist"
+  cat > "$MIC_PLIST" <<MICPLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleIdentifier</key><string>dev.prompta.mic</string>
+  <key>CFBundleName</key><string>Prompta Dictation</string>
+  <key>NSMicrophoneUsageDescription</key><string>Prompta uses the microphone for local Whisper dictation. Audio is not uploaded.</string>
+</dict>
+</plist>
+MICPLIST
+  clang -O2 -Wall -o "$APP/Contents/MacOS/prompta-mic" "$ROOT/desktop/mic_helper.c" \
+    -sectcreate __TEXT __info_plist "$MIC_PLIST"
+  codesign --force --sign - --identifier dev.prompta.mic "$APP/Contents/MacOS/prompta-mic" 2>/dev/null
+else
+  echo "⚠️  clang/codesign не найдены — диктовка может не получить доступ к микрофону." >&2
+fi
+
 echo "✓ собрано: $APP"
 echo "  запуск: open \"$APP\""

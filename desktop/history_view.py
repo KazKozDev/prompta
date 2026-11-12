@@ -109,6 +109,8 @@ class HistoryMixin:
         target = self.history.findData(current)
         self.history.setCurrentIndex(max(0, target))
         self.history.blockSignals(False)
+        if hasattr(self, "_sync_history_row"):
+            self._sync_history_row()
 
     def _delete_history(self, row: int) -> None:
         removed = self.history.itemData(row)
@@ -127,6 +129,8 @@ class HistoryMixin:
         if isinstance(current, int) and current >= 0:
             current = -1 if current == removed else current - (current > removed)
         self._filter_history(self.history_search.text(), selected=current)
+        if not self.history.isVisible():
+            return  # PromptaWindow deletes from its history picker, which reopens itself
         if self.history.count() > 1:
             self.history.showPopup()  # rebuild the open list without the deleted row
         else:
@@ -288,5 +292,8 @@ class HistoryMixin:
         previous = self.prompt_model.blockSignals(True)
         self.prompt_model.setCurrentIndex(model_index)
         self.prompt_model.blockSignals(previous)
+        self._open_mode = selected == "openModel"
         for key in PROMPT_TARGETS:
             getattr(self, f"{key}_only").setChecked(key == selected)
+        if hasattr(self, "_sync_segments"):
+            self._sync_segments()

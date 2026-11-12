@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from html import escape
 from urllib.parse import urlparse, urlencode
@@ -20,7 +21,7 @@ from pathlib import Path
 
 
 from PyQt6.QtCore import QModelIndex, QEvent, QObject, QPoint, QRect, QRectF, QSize, Qt, QUrl, QProcess, QThread, QTimer, QPropertyAnimation, QEasingCurve, pyqtSignal
-from PyQt6.QtGui import QStandardItem, QStandardItemModel, QColor, QCursor, QPainter, QPalette, QPen, QFont, QGuiApplication, QIcon, QPixmap, QKeySequence, QShortcut, QDesktopServices, QTextDocument
+from PyQt6.QtGui import QStandardItem, QStandardItemModel, QColor, QCursor, QPainter, QPalette, QPen, QFont, QGuiApplication, QIcon, QPixmap, QKeySequence, QShortcut, QDesktopServices, QTextDocument, QTextCursor
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QAbstractScrollArea,
@@ -352,14 +353,16 @@ class HistoryComboBox(QComboBox):
         listing.itemClicked.connect(choose)
         listing.itemActivated.connect(choose)
         available = self.screen().availableGeometry()
-        width = min(max(240, self.width()), available.width() - 16)
+        # A hidden picker can open under another control (the Open target segment row).
+        anchor = getattr(self, "popup_anchor", None) or self
+        width = min(max(240, anchor.width()), available.width() - 16)
         height = min(460, max(46, self.count() * 32 + 14), available.height() - 16)
         popup.resize(width, height)
-        position = self.mapToGlobal(QPoint(0, self.height() + 4))
+        position = anchor.mapToGlobal(QPoint(0, anchor.height() + 4))
         x = max(available.left() + 8, min(position.x(), available.right() - width - 8))
         y = position.y()
         if y + height > available.bottom() - 8:
-            y = max(available.top() + 8, self.mapToGlobal(QPoint(0, -height - 4)).y())
+            y = max(available.top() + 8, anchor.mapToGlobal(QPoint(0, -height - 4)).y())
         popup.move(x, y)
         popup.show()
         listing.setFocus()
@@ -428,38 +431,33 @@ class ThoughtsEdit(QPlainTextEdit):
         self.voice_state = "idle"
         self.voice_buffer = ""
         self.microphone_icon.setStyleSheet("background: transparent; border: none;")
-        self.bottom_panel: QWidget | None = None
-
-    def set_bottom_panel(self, panel: QWidget | None) -> None:
-        """Dock a widget inside the field, under the text (the clarifying questions); None removes it."""
-        if self.bottom_panel is not None:
-            self.bottom_panel.hide()
-            self.bottom_panel.deleteLater()
-        self.bottom_panel = panel
-        if panel is not None:
-            panel.setParent(self)
-            panel.installEventFilter(self)  # re-place whenever its contents change height
-            panel.show()
-        self._place_bottom_panel()
+        self.microphone_icon.raise_()
+        # A press over the icon starts dictation even if a neighbour (the field's text area, an overlay
+        # scrollbar) received it; presses near the icon are logged so a miss can be traced.
+        self.installEventFilter(self)
+        self.viewport().installEventFilter(self)
 
     def eventFilter(self, watched, event) -> bool:  # noqa: N802 - Qt naming
-        if watched is self.bottom_panel and event.type() == QEvent.Type.LayoutRequest:
-            QTimer.singleShot(0, self._place_bottom_panel)  # once the layout has taken the new sizes
+        if event.type() == QEvent.Type.MouseButtonPress and watched in (self, self.viewport()):
+            point = watched.mapTo(self, event.position().toPoint()) if watched is not self else event.position().toPoint()
+            hit = self.microphone_icon.geometry().adjusted(-6, -6, 6, 6)
+            if point.x() > self.width() - 90 and point.y() < 60:
+                self._voice_log(f"press at {point.x()},{point.y()} on {type(watched).__name__} · icon {hit.getRect()}")
+            if hit.contains(point) and self.microphone_icon.isEnabled():
+                self._toggle_dictation()
+                return True
         return super().eventFilter(watched, event)
 
-    def _place_bottom_panel(self) -> None:
-        panel = self.bottom_panel
-        if panel is None:
-            self.setViewportMargins(0, 0, 52, 0)
-            return
-        inset = 8
-        width = max(0, self.width() - 2 * inset)
-        layout = panel.layout()
-        height = layout.totalHeightForWidth(width) if layout is not None and layout.hasHeightForWidth() else panel.sizeHint().height()
-        height = min(height, max(0, self.height() - 90))  # the user's text keeps a few lines above the panel
-        panel.setGeometry(inset, self.height() - height - inset, width, height)
-        panel.raise_()
-        self.setViewportMargins(0, 0, 52, height + inset)
+    @staticmethod
+    def _voice_log(message: str) -> None:
+        """Dictation events and errors only (no audio, no recognised text), for diagnosing microphone problems."""
+        try:
+            folder = Path(os.environ.get("PROMPTA_LOG_DIR") or Path.home() / "Library" / "Logs" / "Prompta")
+            folder.mkdir(parents=True, exist_ok=True)
+            with open(folder / "voice.log", "a", encoding="utf-8") as log:
+                log.write(f"{datetime.now().isoformat(timespec='seconds')} {message}\n")
+        except OSError:
+            pass
 
     def _toggle_dictation(self) -> None:
         if self.voice_process is not None:
@@ -468,14 +466,25 @@ class ThoughtsEdit(QPlainTextEdit):
                 self._voice_state("transcribing")
             return
         interpreter = ROOT / ".venv-whisper/bin/python"
+        self._voice_log(f"click: start · interpreter {'found' if interpreter.exists() else 'MISSING'}")
         if not interpreter.exists():
             self.setToolTip("Whisper is not installed. See desktop/README.md.")
+            self._voice_failure("Whisper is not installed. See desktop/README.md.")
             return
         self.voice_process = QProcess(self)
-        self.voice_process.setProgram(str(interpreter))
-        self.voice_process.setArguments([str(ROOT / "desktop/voice_input.py")])
+        # Through prompta-mic when it is built: it carries the microphone usage text the system Python lacks,
+        # so macOS asks for access instead of silently recording silence.
+        helper = ROOT / "release/Prompta.app/Contents/MacOS/prompta-mic"
+        script = str(ROOT / "desktop/voice_input.py")
+        if helper.exists():
+            self.voice_process.setProgram(str(helper))
+            self.voice_process.setArguments([str(interpreter), script])
+        else:
+            self.voice_process.setProgram(str(interpreter))
+            self.voice_process.setArguments([script])
+        self._voice_log(f"worker via {'prompta-mic' if helper.exists() else 'python directly'}")
         self.voice_process.readyReadStandardOutput.connect(self._voice_output)
-        self.voice_process.readyReadStandardError.connect(lambda: self.voice_process.readAllStandardError() if self.voice_process else None)
+        self.voice_process.readyReadStandardError.connect(self._voice_stderr)
         self.voice_process.finished.connect(self._voice_finished)
         self.voice_process.errorOccurred.connect(self._voice_process_error)
         self.voice_buffer = ""
@@ -483,7 +492,14 @@ class ThoughtsEdit(QPlainTextEdit):
         self._voice_state("starting")
         self.voice_process.start()
 
+    def _voice_stderr(self) -> None:
+        if self.voice_process is not None:
+            text = bytes(self.voice_process.readAllStandardError()).decode("utf-8", errors="replace").strip()
+            if text:
+                self._voice_log("stderr: " + text[-600:].replace("\n", " | "))
+
     def _voice_state(self, state: str) -> None:
+        self._voice_log(f"state: {state}")
         self.voice_state = state
         active = state != "idle"
         self.microphone_icon.setIcon(QIcon(str(ROOT / "desktop" / ("stop-recording.svg" if active else "microphone.svg"))))
@@ -500,25 +516,61 @@ class ThoughtsEdit(QPlainTextEdit):
                 event = json.loads(line)
                 state = event.get("state")
                 if state in ("recording", "transcribing"):
+                    if state == "recording":
+                        self._begin_live_text()
                     self._voice_state(state)
+                elif state == "partial":
+                    text = event.get("text", "")
+                    if isinstance(text, str):
+                        self._show_live_text(text)  # what was said so far, refined as dictation goes on
                 elif state == "done":
                     text = event.get("text", "")
+                    self._voice_log(f"done: {len(text) if isinstance(text, str) else 0} characters recognised")
                     if isinstance(text, str) and text.strip():
-                        self.appendPlainText(text.strip())
-                        self.ensureCursorVisible()
+                        self._show_live_text(text)
+                        self._dictation_base = None  # the final text stays
                     else:
+                        self._end_live_text()
                         self.setToolTip("No speech detected. Please try again.")
                 elif state == "error":
                     self._voice_failure(str(event.get("message", "Voice input failed.")))
             except (ValueError, AttributeError):
                 continue
 
+    def _begin_live_text(self) -> None:
+        """Dictated text goes after what is already typed; the field is read-only until dictation ends."""
+        current = self.toPlainText()
+        self._dictation_original = current
+        self._dictation_base = current.rstrip("\n") + "\n" if current.strip() else ""
+        self.setReadOnly(True)
+
+    def _show_live_text(self, text: str) -> None:
+        base = getattr(self, "_dictation_base", None)
+        if base is None:
+            self._begin_live_text()
+            base = self._dictation_base
+        self.setPlainText(base + text.strip())
+        cursor = self.textCursor()
+        cursor.movePosition(QTextCursor.MoveOperation.End)
+        self.setTextCursor(cursor)
+        self.ensureCursorVisible()
+
+    def _end_live_text(self) -> None:
+        """No final text (error, silence, nothing said): put the request back as it was."""
+        if getattr(self, "_dictation_base", None) is not None:
+            self.setPlainText(getattr(self, "_dictation_original", ""))
+            self._dictation_base = None
+        self.setReadOnly(False)
+
     def _voice_process_error(self, error) -> None:
+        self._voice_log(f"process error: {error}")
         self._voice_failure("Whisper could not run. Check microphone access in macOS Privacy & Security.")
         if error == QProcess.ProcessError.FailedToStart:
             self._voice_finished()
 
     def _voice_failure(self, message: str) -> None:
+        self._voice_log("error: " + message)
+        self._end_live_text()
         self.setToolTip(message)
         hints = getattr(QApplication.instance(), "hint_filter", None)
         if hints is not None:  # the app's own hint, not the black-framed system tooltip
@@ -530,6 +582,7 @@ class ThoughtsEdit(QPlainTextEdit):
     def _voice_finished(self, code=0, status=None) -> None:
         process = self.voice_process
         self.voice_process = None
+        self._end_live_text()  # keeps a final text; only undoes an unfinished live one
         self._voice_state("idle")
         if process:
             process.deleteLater()
@@ -538,16 +591,16 @@ class ThoughtsEdit(QPlainTextEdit):
 
     def stop_dictation(self) -> None:
         if self.voice_process:
-            self.voice_process.kill()
-            self.voice_process.waitForFinished(2000)
+            self.voice_process.terminate()  # prompta-mic passes this on to the worker; a kill would orphan it
+            if not self.voice_process.waitForFinished(2000):
+                self.voice_process.kill()
+                self.voice_process.waitForFinished(1000)
 
     def resizeEvent(self, event) -> None:  # noqa: N802
         super().resizeEvent(event)
         if hasattr(self, "microphone_icon"):
-            self.microphone_icon.move(self.width() - self.verticalScrollBar().sizeHint().width() - 29, 7)
+            self.microphone_icon.move(self.width() - self.verticalScrollBar().sizeHint().width() - 19, 7)
             self.microphone_icon.raise_()
-        if getattr(self, "bottom_panel", None) is not None:
-            self._place_bottom_panel()
 
 
 def paint_dashed_scrollbar(bar: QScrollBar) -> None:

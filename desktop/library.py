@@ -1,4 +1,4 @@
-"""Read-only inventory of Promptа's source corpus and pipeline implementation."""
+"""Read-only inventory of the sources Prompta builds prompts from."""
 from __future__ import annotations
 
 import hashlib
@@ -7,141 +7,127 @@ import re
 from pathlib import Path
 
 
-PIPELINE_MATERIALS = {
-    'brief.ts': 'Thoughts → structured brief: compiler instructions, schema and validation.',
-    'catalog.ts': 'Load the catalog and English display metadata; filter techniques by task, modality, budget and available input.',
-    'select.ts': 'Brief + eligible techniques → ranked technique choices.',
-    'synthesize.ts': 'Selected technique + brief → final prompt and settings.',
-    'manual.ts': 'Manual technique generation and output validation.',
-    'official.ts': 'Official-rule compiler, source validation and rule-usage metadata.',
-    'claude.ts': 'Claude target scope and compiler policy.',
-    'chatgpt.ts': 'ChatGPT target scope and compiler policy.',
-    'gemini.ts': 'Gemini target scope and compiler policy.',
-    'hermes.ts': 'Hermes Agent compiler policy and official snapshot integrity checks.',
-    'grok.ts': 'Grok target scope and compiler policy.',
-    'open-model.ts': 'Model-specific compilation from pinned official open-weight model cards with integrity verification.',
-    'prompt-defaults.ts': 'Product default: opening worked example. This is a product instruction, not a source recommendation.',
-    'zero-shot.ts': 'Additional standalone baseline prompt built from the task.',
-    'index.ts': 'Pipeline orchestration, routing, variants and progress.',
-    'json.ts': 'JSON parsing, repair and validation helpers.',
-    'llm.ts': 'Generator adapters and request settings; no API keys are stored in this file.',
-    'types.ts': 'Brief, technique, result and provenance data contracts.',
-    'cli.ts': 'Command-line pipeline entry point. Reference; not the desktop generation route.',
-    'README.md': 'Pipeline overview and usage documentation.',
-}
-
-
 def safe_path(root: Path, relative: str) -> Path:
     path = (root / relative).resolve()
     path.relative_to(root.resolve())
     return path
 
 
+CATEGORY_TITLES = {
+    "context": "Context and framing", "reasoning": "Reasoning", "thought_generation": "Thought generation",
+    "decomposition": "Decomposition", "icl": "Examples", "zero_shot_boost": "Zero-shot boosts", "ensembling": "Ensembles",
+    "self_critique": "Self-critique", "optimization": "Prompt optimization", "answer_engineering": "Answer extraction",
+    "agents": "Agents", "rag": "Retrieval", "automation": "Automation and code", "pedagogy": "Teaching",
+    "procedure": "Procedures", "security": "Security",
+}
+OFFICIAL_TARGETS = [("claude_prompt_rules", "Claude", "Anthropic"), ("chatgpt_prompt_rules", "ChatGPT", "OpenAI"),
+                    ("gemini_prompt_rules", "Gemini", "Google"), ("grok_prompt_rules", "Grok", "xAI"),
+                    ("hermes_agent_prompt_guides", "Hermes Agent", "Nous Research")]
+
+
+def _ts_object(text: str, name: str) -> dict:
+    """The JSON object literal assigned to `name` in a generated .ts file ({} when absent)."""
+    match = re.search(r'export const ' + name + r'[^=]*=\s*', text)
+    if not match:
+        return {}
+    start = match.end()
+    end = text.rfind('};')
+    try:
+        return json.loads(text[start:end + 1])
+    except ValueError:
+        return {}
+
+
+def _ts_strings(text: str, name: str) -> dict:
+    """key: 'value' pairs of a hand-written string map in a .ts file."""
+    block = re.search(r'export const ' + name + r'[^{]*\{(.*?)\n\};', text, re.S)
+    if not block:
+        return {}
+    return {key: value.replace("\\'", "'") for key, value in re.findall(r"^\s*(\w+):\s*'((?:[^'\\]|\\.)*)',?\s*$", block.group(1), re.M)}
+
+
+def _technique_page(technique: dict, hint: str, sources: dict) -> str:
+    lines = [technique['name'], '']
+    if hint:
+        lines += ['When to use', hint, '']
+    if technique.get('when_to_use'):
+        lines += ['How it helps', technique['when_to_use'], '']
+    if technique.get('when_not'):
+        lines += ['When it hurts', technique['when_not'], '']
+    if technique.get('template'):
+        lines += ['Prompt skeleton', technique['template'], '']
+    if technique.get('procedure'):
+        lines += ['Steps'] + [f'{i}. {step}' for i, step in enumerate(technique['procedure'], 1)] + ['']
+    if technique.get('example'):
+        lines += ['Example', technique['example'], '']
+    for excerpt in sources.get('excerpts', []):
+        lines += [f"From the sources · {excerpt['source']} ({excerpt['ref']})", excerpt['text'].strip(), '']
+    if sources.get('paper'):
+        lines += ['Original paper', sources['paper'], '']
+    return '\n'.join(lines).strip() + '\n'
+
+
+def _rules_page(label: str, organization: str, data: dict) -> str:
+    rules = [rule for rule in data.get('rules', []) if rule.get('status') == 'active']
+    lines = [f'{label} · official {organization} prompting rules', f"Checked {data.get('verified_at', 'unknown')} · {len(rules)} rules", '']
+    for rule in rules:
+        lines.append(f"{rule.get('id')} — {rule.get('rule_text', '').strip()}")
+        condition = rule.get('condition', 'always')
+        lines.append(f"  Applies: {'always' if condition == 'always' else condition}")
+        if rule.get('source_url'):
+            lines.append(f"  Source: {rule.get('source_section', 'section')} · {rule['source_url']}")
+        lines.append('')
+    return '\n'.join(lines).strip() + '\n'
+
+
 def library_entries(root: Path) -> list[dict]:
+    """Only what prompts are built from, in readable form: techniques, official rules, open-model cards.
+    Snapshots, registries, licences, scripts, PDFs and code are not prompt material and stay in the repository."""
     entries: list[dict] = []
 
     def add(category: str, title: str, relative: str, use: str, **metadata) -> None:
-        try:
-            safe_path(root, relative)
-        except (ValueError, OSError):
-            return
-        entries.append(dict(category=category, title=title, path=relative, use=use, **metadata))
+        if (root / relative).is_file():
+            entries.append(dict(category=category, title=title, path=relative, use=use, **metadata))
 
-    for file, title, use in (
-        ('catalog.json', 'Technique catalog', 'Active general-mode input: templates, applicability, costs, settings and source references.'),
-        ('display.en.ts', 'English technique labels', 'Names and hints displayed in the picker and supplied to technique selection.'),
-        ('source-links.json', 'Technique → source links', 'Source documents and page references for every technique; used by article icons.'),
-    ):
-        add('Technique catalog', title, 'catalog/' + file, use)
-    add('Technique catalog', 'Technique source map', 'archive-org-prompting/techniques-map.md', 'Human-readable technique → document/page map. Reference material behind the catalog.')
-    add('Technique catalog', 'Archive collection notes', 'archive-org-prompting/README.md', 'Acquisition method, document list and limitations. Reference only.')
-
-    for path in sorted((root / 'archive-org-prompting/md').glob('*.md')):
-        text = path.read_text(encoding='utf-8')
-        front = text.split('---', 2)[1] if text.startswith('---') else ''
-        def field(name: str) -> str:
-            match = re.search(r'^' + name + r':\s*(.+)$', front, re.M)
-            return match.group(1).strip().strip('"') if match else ''
-        title = field('title') or path.stem
-        add('Technique documents', title, str(path.relative_to(root)), 'Extracted source text supporting catalog entries; not injected wholesale into generation.', url=field('archive_item') or field('source'), reference=field('year'))
-        add('Technique documents', title + ' · original PDF', f'archive-org-prompting/pdf/{path.stem}.pdf', 'Original document for checking the extracted text, tables and cited pages.', url=field('pdf_url'))
-
-    for target, label in [('claude', 'Claude'), ('chatgpt', 'ChatGPT'), ('gemini', 'Gemini'), ('grok', 'Grok')]:
-        folder = f'{target}_prompt_rules'
-        category = label + ' official sources'
-        for name, use in (
-            ('rules.json', 'Active prompt-level rules are supplied to this target compiler. Status, condition and application fields determine eligibility.'),
-            ('sources.json', 'Source registry: URLs, sections, retrieval dates and expected SHA-256 hashes.'),
-            ('sections.json', 'Archived full sections and examples for tracing each recommendation. Reference, not injected wholesale.'),
-            ('coverage.json', 'Scope, exclusions and review criteria; explains what is not covered.'),
-            ('README.md', 'Bundle scope, provenance and usage notes.'),
-        ):
-            add(category, label + ' · ' + name, folder + '/' + name, use)
-        for name in ('official-manual.md', 'llms.txt', 'refresh_sources.py'):
-            if (root / folder / name).exists():
-                add(category, label + ' · ' + name, folder + '/' + name, 'Reference or source-maintenance material; not a separate generation rule.')
-        try:
-            registry = json.loads(safe_path(root, folder + '/sources.json').read_text())
-            for source in registry['sources']:
-                add(category, source['title'], folder + '/' + source['snapshot'],
-                    'Downloaded original. Rules derived from this source are listed in rules.json; scope: ' + source.get('scope', 'see rule conditions') + '.',
-                    url=source.get('url', ''), expected_hash=source.get('sha256'), reference=source.get('retrieved_at', ''))
-        except (OSError, ValueError, KeyError, TypeError):
-            add(category, 'Source registry unavailable', folder + '/sources.json', 'Registry could not be read. Inspect the saved file; no source checks are claimed.')
-
-    hermes_folder = 'hermes_agent_prompt_guides'
-    hermes_category = 'Hermes Agent official sources'
-    for name, use in (
-        ('rules.json', 'Active Hermes Agent prompting rules used by the target compiler.'),
-        ('sources.json', 'Source registry and saved SHA-256 hashes.'),
-        ('README.md', 'Collection scope and guidance for Prompta.'),
-        ('LICENSE', 'Upstream documentation license.'),
-    ):
-        add(hermes_category, name, f'{hermes_folder}/{name}', use)
     try:
-        registry = json.loads(safe_path(root, f'{hermes_folder}/sources.json').read_text())
-        for source in registry['sources']:
-            add(hermes_category, source['title'], f"{hermes_folder}/{source['snapshot']}",
-                'Downloaded official documentation. See rules.json for guidance used during generation.',
-                url=source['url'], expected_hash=source['sha256'], reference=source['retrieved_at'])
-    except (OSError, ValueError, KeyError, TypeError):
-        add(hermes_category, 'Source registry unavailable', f'{hermes_folder}/sources.json',
-            'Inspect the saved source registry.')
+        catalog = json.loads((root / 'catalog/catalog.json').read_text(encoding='utf-8'))
+        display = (root / 'catalog/display.en.ts').read_text(encoding='utf-8')
+        excerpts = _ts_object((root / 'catalog/source-excerpts.ts').read_text(encoding='utf-8'), 'sourceExcerpts')
+    except (OSError, ValueError):
+        catalog, display, excerpts = {'techniques': []}, '', {}
+    hints, names = _ts_strings(display, 'hints'), _ts_strings(display, 'names')
+    usable = [t for t in catalog.get('techniques', []) if t.get('status') in ('ready', 'procedure')
+              and t.get('kind') in ('technique', 'prompt_type', 'procedure')]
+    for technique in sorted(usable, key=lambda t: (CATEGORY_TITLES.get(t.get('category'), 'Other'), names.get(t['key'], t['name']).casefold())):
+        technique = {**technique, 'name': names.get(technique['key'], technique['name'])}
+        hint = hints.get(technique['key'], '')
+        add('Techniques · ' + CATEGORY_TITLES.get(technique.get('category'), 'Other'), technique['name'], 'catalog/catalog.json',
+            hint or 'Prompting technique from the catalog.', content=_technique_page(technique, hint, excerpts.get(technique['key'], {})))
 
-    open_models = root / 'open_model_prompt_guides/manifest.json'
-    if open_models.exists():
-        add('Open-weight models · collection', 'Selection, versions & provenance', 'open_model_prompt_guides/manifest.json', 'Dated selection of 15 leading models, not an absolute benchmark ranking. Records official repositories, licenses, revisions and download limitations.')
-        add('Open-weight models · collection', 'Collection scope & model list', 'open_model_prompt_guides/README.md', 'Scope and acquisition notes. Select a model on the main screen to enable its model-card prompting mode.')
+    for folder, label, organization in OFFICIAL_TARGETS:
         try:
-            manifest = json.loads(open_models.read_text())
-            for model in manifest['models']:
-                category = model['name'] + ' · open weights'
-                folder = 'open_model_prompt_guides/' + model['id']
-                summary = f"{model['role']}. License: {model.get('license', 'unknown')}. Revision: {model['revision']}. Available to model-specific prompting when explicitly selected on the main screen."
-                add(category, 'Prompting manual · source excerpts', folder + '/prompting-manual.md', model['guidance_kind'] + '. ' + summary, url=model['url'])
-                add(category, 'Model version, license & download status', folder + '/model.json', summary, url=model['url'])
-                add(category, 'Prompting sections & source references', folder + '/prompting-sections.json', 'Verbatim excerpts with source line numbers and hashes; no invented recommendations.', url=model['url'])
-                for source in model['files']:
-                    add(category, source['title'], 'open_model_prompt_guides/' + source['snapshot'],
-                        source.get('scope', source.get('extraction', 'Original file from the developer-owned model repository, pinned to a commit.')) + ' ' + summary,
-                        url=source['url'], expected_hash=source['sha256'], reference=model['retrieved_at'])
-        except (OSError, ValueError, KeyError, TypeError):
-            add('Open-weight models · collection', 'Collection registry unavailable', 'open_model_prompt_guides/manifest.json', 'Inspect the saved manifest; no verification is claimed.')
+            data = json.loads((root / folder / 'rules.json').read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            continue
+        add('Official rules', label, f'{folder}/rules.json',
+            f'The rules used when the prompt is written for {label}.', content=_rules_page(label, organization, data))
 
-    for name, use in PIPELINE_MATERIALS.items():
-        add('Pipeline instructions & logic', name, 'pipeline/' + name, use)
-    add('Pipeline instructions & logic', 'Desktop bridge', 'desktop/bridge.ts', 'UI requests → validation, source-mode routing and generator invocation.')
-    add('Runtime & traceability', 'Desktop application', 'desktop/app.py', 'Request flags, UI defaults, result rendering and source links. Runtime code, not an LLM source document.')
-    add('Runtime & traceability', 'History storage', 'desktop/history.py', 'History and source metadata persistence. Code only; saved user queries are excluded from this library.')
-    for relative in ('catalog/README.md', 'catalog/build_catalog.py', 'catalog/validate.py'):
-        add('Catalog maintenance', Path(relative).name, relative, 'Catalog construction or validation material; not an LLM instruction.')
-    for path in sorted((root / 'eval').glob('*')):
-        if path.suffix in ('.ts', '.json', '.md') and not path.name.endswith('.test.ts'):
-            add('Evaluation · separate from generation', path.name, str(path.relative_to(root)), 'Evaluation harness, grading criteria or fixtures; not used by the normal generation call.')
+    try:
+        manifest = json.loads((root / 'open_model_prompt_guides/manifest.json').read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        manifest = {'models': []}
+    for model in sorted(manifest.get('models', []), key=lambda m: m['name'].casefold()):
+        card = next((f for f in model.get('files', []) if f.get('snapshot') == f"{model['id']}/README.md"), None)
+        if card:
+            add('Open-weight models', model['name'], 'open_model_prompt_guides/' + card['snapshot'],
+                'Official model card, used in full when the prompt is written for this model.',
+                url=card.get('url') or model.get('url'), expected_hash=card.get('sha256'))
     return entries
 
 
 def read_material(root: Path, entry: dict) -> tuple[str, str]:
+    if entry.get('content') is not None:  # a readable page built from the data the pipeline uses
+        return f"Built from {entry['path']}", entry['content']
     path = safe_path(root, entry['path'])
     try:
         data = path.read_bytes()
@@ -176,14 +162,14 @@ class LibraryWidget(QWidget):
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 18, 0, 0)  # air under the tab bar, same on every Settings tab
         outer.setSpacing(10)
-        intro = QLabel('Inspect the saved sources, rules and instructions used by Promptа. Source hashes verify saved copies, not the truth of a recommendation.')
+        intro = QLabel('What Prompta builds prompts from: the prompting techniques, the official rules for each model and the open-weight model cards.')
         intro.setWordWrap(True)
         intro.setObjectName('muted')
         outer.addWidget(intro)
         outer.addSpacing(6)
         search_row = QHBoxLayout()
         self.search = QLineEdit()
-        self.search.setPlaceholderText('Find a source, rule bundle or pipeline stage')
+        self.search.setPlaceholderText('Find a technique, rule or model')
         self.search.setClearButtonEnabled(True)
         self.search.setAccessibleName('Search library')
         self.search.textChanged.connect(self._filter)
@@ -307,11 +293,12 @@ class LibraryWidget(QWidget):
             'docs.mistral.ai', 'docs.z.ai',
         ):
             source = f'<br><a href="{escape(url, quote=True)}">Original source ↗</a>'
-        self.info.setText(f'<b>{escape(entry["title"])}</b><br>{escape(entry["use"])}<br>'
-                          f'<span style="color:#8a7d60">{escape(entry["path"])}<br>{escape(entry.get("reference", ""))}</span>{source}')
+        where = '' if entry.get('content') is not None else f'<br><span style="color:#8a7d60">{escape(entry["path"])}</span>'
+        self.info.setText(f'<b>{escape(entry["title"])}</b><br>{escape(entry["use"])}{where}{source}')
         metadata, content = read_material(self.root, entry)
         self.integrity.setText(metadata)
         self.preview.setPlainText(content)
+        self.open_button.setVisible(entry.get('content') is None)  # a built page has no file of its own to open
         self.open_button.setEnabled(safe_path(self.root, entry['path']).is_file())
         self.open_button.setText('Open file' if Path(entry['path']).suffix.lower() in ('.pdf', '.md', '.txt', '.json') else 'Open folder')
 

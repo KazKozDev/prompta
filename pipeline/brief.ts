@@ -34,6 +34,11 @@ export const BRIEF_SCHEMA = `{
   "budget_calls": "число вызовов LLM, которое пользователь готов потратить, или null"
 }`;
 
+/** The brief says there is no input material («нет», "none", «отсутствует»…). */
+export function isNoInput(input: string | undefined): boolean {
+  return /^\s*(нет|none|no|n\/a|пусто|отсутству\w*|не требуется|без входн\w*|—|-)?\s*[.;:]?\s*$|^\s*(нет|none|отсутству\w*)\b/i.test(input ?? '');
+}
+
 /** Промпт для стадии 1: сырые мысли → бриф. */
 export function buildBriefPrompt(thoughts: string): string {
   return `Ты разбираешь сырой поток мыслей пользователя и превращаешь его в техническое задание для генерации промпта.

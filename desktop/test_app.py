@@ -4,6 +4,8 @@ os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 import tempfile as _tempfile
 from PyQt6.QtCore import QSettings as _QSettings
 _QSettings.setPath(_QSettings.Format.IniFormat, _QSettings.Scope.UserScope, _tempfile.mkdtemp())  # never touch real prefs
+import os as _os
+_os.environ['PROMPTA_LOG_DIR'] = _tempfile.mkdtemp()  # nor the real dictation log
 import subprocess
 import tempfile
 from pathlib import Path
@@ -11,7 +13,7 @@ from history import HistoryStore, history_topic
 import unittest
 from unittest.mock import Mock, patch
 
-from app import QApplication, MainWindow, PromptaWindow, Worker, QPushButton, QLabel, QModelIndex, QListWidget, QPlainTextEdit
+from app import QApplication, MainWindow, PromptaWindow, Worker, QPushButton, QLabel, QModelIndex, QListWidget, QPlainTextEdit, QScrollArea
 import app as app_module
 
 
@@ -461,17 +463,22 @@ class DesktopSmokeTest(unittest.TestCase):
         self.assertFalse(self.store.path.exists())
         window.close()
 
-    def test_library_contains_actual_sources_and_pipeline_and_filters_them(self):
+    def test_library_contains_prompt_sources_only_and_filters_them(self):
         from app import ROOT
         from library import library_entries, read_material
         entries = library_entries(ROOT)
         paths = {e['path'] for e in entries}
         self.assertIn('catalog/catalog.json', paths)
-        self.assertIn('catalog/source-links.json', paths)
-        self.assertIn('pipeline/prompt-defaults.ts', paths)
-        self.assertIn('pipeline/official.ts', paths)
+        self.assertFalse([p for p in paths if p.startswith(('pipeline/', 'eval/', 'desktop/'))], 'no developer code or evaluation')
+        self.assertFalse([p for p in paths if p.endswith(('.pdf', 'LICENSE', '.jinja', '.py', 'sources.json', 'coverage.json'))],
+                         'no snapshots, licences, templates or tooling')
         for target in ('claude', 'chatgpt', 'gemini', 'grok'):
             self.assertIn(f'{target}_prompt_rules/rules.json', paths)
+        cot = next(e for e in entries if e['title'].startswith('Chain-of-Thought'))
+        self.assertTrue(cot['category'].startswith('Techniques · '))
+        self.assertIn('When it hurts', read_material(ROOT, cot)[1], 'techniques read as pages, not JSON')
+        claude = next(e for e in entries if e['category'] == 'Official rules' and e['title'] == 'Claude')
+        self.assertIn('Applies:', read_material(ROOT, claude)[1])
         for entry in entries:
             self.assertTrue((ROOT / entry['path']).is_file(), entry['path'])
             self.assertNotIn('history.sqlite3', entry['path'])
@@ -483,7 +490,7 @@ class DesktopSmokeTest(unittest.TestCase):
             window.settings_tabs.setCurrentIndex(1)
             self.assertEqual(window.settings_tabs.tabText(1), 'Library')
             self.assertTrue(window.library.preview.isReadOnly())
-            self.assertIn('catalog.json', window.library.info.text())
+            self.assertTrue(window.library.info.text())
             window.library.search.setText('Grok')
             visible = []
             for i in range(window.library.tree.topLevelItemCount()):
@@ -605,6 +612,39 @@ class DesktopSmokeTest(unittest.TestCase):
         process.deleteLater.assert_called_once()
         editor.close()
 
+    def test_dictation_shows_text_live_and_keeps_only_the_final(self):
+        from app import ThoughtsEdit
+        import json
+        editor = ThoughtsEdit()
+        editor.setPlainText('Existing thoughts')
+        process = Mock()
+        events = [{'state': 'recording'}, {'state': 'partial', 'text': 'Привет'}, {'state': 'partial', 'text': 'Привет мир как'},
+                  {'state': 'transcribing'}, {'state': 'done', 'text': 'Привет, мир, как дела?'}]
+        process.readAllStandardOutput.side_effect = [(json.dumps(e) + '\n').encode() for e in events]
+        editor.voice_process = process
+        editor._voice_output()
+        self.assertTrue(editor.isReadOnly(), 'no typing into text that is still being recognised')
+        editor._voice_output()
+        self.assertEqual(editor.toPlainText(), 'Existing thoughts\nПривет')
+        editor._voice_output()
+        self.assertEqual(editor.toPlainText(), 'Existing thoughts\nПривет мир как', 'the live text is replaced, not appended')
+        editor._voice_output()
+        editor._voice_output()
+        self.assertEqual(editor.toPlainText(), 'Existing thoughts\nПривет, мир, как дела?')
+        editor._voice_finished()
+        self.assertFalse(editor.isReadOnly())
+        self.assertEqual(editor.toPlainText(), 'Existing thoughts\nПривет, мир, как дела?')
+
+        editor.setPlainText('Draft')
+        process.readAllStandardOutput.side_effect = [(json.dumps(e) + '\n').encode() for e in
+                                                     [{'state': 'recording'}, {'state': 'partial', 'text': 'шум'}, {'state': 'error', 'message': 'x'}]]
+        editor.voice_process = process
+        for _ in range(3):
+            editor._voice_output()
+        self.assertEqual(editor.toPlainText(), 'Draft', 'a failed dictation leaves the request as it was')
+        self.assertFalse(editor.isReadOnly())
+        editor.close()
+
     def test_open_model_dropdown_excludes_other_targets_and_routes_request(self):
         with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
             window = MainWindow()
@@ -678,7 +718,7 @@ class DesktopSmokeTest(unittest.TestCase):
         for model in models:
             self.assertTrue(model['weight_files_present'])
             self.assertEqual(len(model['revision']), 40)
-            self.assertIn(f"open_model_prompt_guides/{model['id']}/prompting-manual.md", paths)
+            self.assertIn(f"open_model_prompt_guides/{model['id']}/README.md", paths, 'the model card the prompt uses')
             for source in model['files']:
                 path = root / source['snapshot']
                 self.assertTrue(path.resolve().is_relative_to(root.resolve()))
@@ -735,8 +775,9 @@ class DesktopSmokeTest(unittest.TestCase):
             window = PromptaWindow()
         window.thoughts.setPlainText("Find job titles")
         window.render(result)
-        card = window.thoughts.bottom_panel
-        self.assertIs(card.parentWidget(), window.thoughts, 'one card, under the request')
+        card = window.assumptions_card
+        self.assertIsNot(card.parentWidget(), window.thoughts, 'its own block under the request, not inside the field')
+        self.assertFalse(card.findChildren(QScrollArea), 'no scroll inside the card')
         self.assertFalse([e for e in window.findChildren(QPlainTextEdit)
                           if e.toPlainText() == 'Leftover assumption' and not card.isAncestorOf(e)],
                          'no second assumptions box beside the prompt')
@@ -772,11 +813,13 @@ class DesktopSmokeTest(unittest.TestCase):
             window.run_pipeline()
             self.assertEqual(worker.call_args.args[0]['brief']['assumptions'], ['Senior roles only', 'Include direct sources'],
                              'Build sends the edited brief')
+            self.assertEqual(window.run_button.text(), 'Stop', 'the same button stops a running build')
+            window.worker = None
         window.thoughts.setPlainText('Find job titles in Asia')
         self.assertEqual(window.run_button.text(), window.build_label, 'a changed request is a fresh build')
         self.assertIsNone(window._card_revision())
         window.clear_workspace()
-        self.assertIsNone(window.thoughts.bottom_panel, 'a new request starts without old questions')
+        self.assertIsNone(window.assumptions_card, 'a new request starts without old questions')
         window.close()
 
     def test_claude_sources_and_mode_survive_history_restart_without_api_key(self):
@@ -1108,7 +1151,7 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
             window.thoughts.setPlainText('Build a snake game')
             window.model.set_current('test-model')
             buttons = {b.property('target'): b for b in window.segments.buttons()}
-            self.assertEqual([b.text() for b in window.segments.buttons()], ['Any', 'Claude', 'ChatGPT', 'Gemini', 'Grok', 'Hermes'])
+            self.assertEqual([b.text() for b in window.segments.buttons()], ['Any', 'Claude', 'ChatGPT', 'Gemini', 'Grok', 'Hermes', 'Open'])
             self.assertTrue(buttons['general'].isChecked())
 
             def payload():
@@ -1139,7 +1182,10 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
             request = payload()
             self.assertFalse(request['hermesOnly'])
             self.assertEqual(request['openModel'], window.prompt_model.currentData())
-            self.assertFalse(any(b.isChecked() for b in window.segments.buttons()))
+            self.assertEqual([b.property('target') for b in window.segments.buttons() if b.isChecked()], ['openModel'])
+            self.assertFalse(window.prompt_model.isVisibleTo(window), 'one control: no second open-model field')
+            self.assertIn(window.prompt_model.currentText(), window.open_caption.text(), 'the chosen model is named under the switch')
+            self.assertTrue(window.open_caption.isVisibleTo(window))
             buttons['general'].click()
             request = payload()
             self.assertFalse(any(request[k] for k in ('claudeOnly', 'chatgptOnly', 'geminiOnly', 'grokOnly')))
@@ -1235,6 +1281,24 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
             self.assertEqual(len(notes()), 1)
             window._flag_outdated({})
             self.assertEqual(len(notes()), 2, 'results saved before versions were recorded are old too')
+        finally:
+            window.close()
+
+    def test_open_needs_a_model_and_one_button_runs_and_stops(self):
+        window = self._prompta_window()
+        try:
+            self.assertFalse([b for b in window.findChildren(QPushButton) if b.objectName() == 'example'], 'no empty-state examples')
+            self.assertTrue(window.model_line.text())
+            self.assertFalse(window.cancel_button.isVisibleTo(window), 'one button: Build turns into Stop')
+            open_segment = window.segments.buttons()[-1]
+            with patch.object(window.prompt_model, 'showPopup'):
+                open_segment.click()
+                self.assertFalse(window.advanced.isVisibleTo(window), 'techniques are for Any only')
+                window.model.set_current('test-model')
+                with patch('app.Worker') as worker:
+                    window.run_pipeline()
+                    worker.assert_not_called()
+                self.assertEqual(window.status.text(), 'Choose an open-weight model')
         finally:
             window.close()
 
@@ -1363,7 +1427,8 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
         finally:
             window.close()
 
-    def test_history_search_shows_live_results_and_opens_the_match(self):
+    def test_history_is_a_standard_picker_searchable_by_prompt_text(self):
+        from app import QLineEdit, Dropdown
         window = self._prompta_window()
         try:
             for thoughts, prompt in [('игра змейка в питоне', 'Snake prompt with pygame'), ('прогноз офиса в Барселоне', 'Forecast prompt')]:
@@ -1372,27 +1437,38 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
                     'technique': {'key': 't', 'name': 'Tech', 'category': 'x'}, 'prompt': prompt, 'topic': thoughts.title(),
                     'config': {'temperature': 0.2, 'top_p': 0.9, 'rationale': 'r'}, 'source_ref': 's'}})
             window.clear_workspace()
-            window.history_search.setFocus()
-            window.history_search.textEdited.emit('PYGAME')  # matches the prompt text, case-insensitive
-            popup = window.history_completer.popup()
-            self.assertTrue(popup.isVisible())
-            self.assertEqual(window.history_matches.rowCount(), 1)
-            self.assertTrue(window.history_matches.item(0).text().startswith('Игра Змейка В Питоне'))
-            window.history_completer.activated[QModelIndex].emit(window.history_matches.index(0, 0))
-            self.assertFalse(popup.isVisible())
+            picker = window.history_picker
+            self.assertIsInstance(picker, Dropdown, 'the same picker as every other dropdown')
+            self.assertFalse(window.history_search.isVisibleTo(window))
+            self.assertEqual([item['label'] for item in picker._items], ['Прогноз Офиса В Барселоне', 'Игра Змейка В Питоне'])
+            picker._open()
+            search = picker._popup.findChild(QLineEdit)
+            search.setText('PYGAME')  # matches the prompt text, case-insensitive
+            shown = [key for key, widget in picker._item_widgets.items() if not widget.isHidden()]
+            self.assertEqual(shown, ['0'])
+            picker._choose('0')
             self.assertEqual(window.thoughts.toPlainText(), 'игра змейка в питоне')
             self.assertIn('Snake prompt', window.prompt_edit.toPlainText())
-            self.assertEqual(window.history_search.text(), '')
+            self.assertEqual(picker.current_key(), '0', 'the opened entry is the current one')
+            self.assertEqual(picker.text(), '', 'a toolbar icon, no label')
+        finally:
+            window.close()
 
-            window.history_search.setText('барселон')
-            window.history_search.textEdited.emit('барселон')
-            popup.hide()
-            window.history_search.returnPressed.emit()
-            self.assertEqual(window.thoughts.toPlainText(), 'прогноз офиса в Барселоне')
-
-            window.history_search.textEdited.emit('nothing like this')
-            self.assertEqual(window.history_matches.item(0).text(), 'No matches')
-            self.assertFalse(window.history_matches.item(0).isEnabled())
+    def test_history_picker_rows_can_be_deleted(self):
+        window = self._prompta_window()
+        try:
+            for thoughts in ('first request', 'second request'):
+                window.thoughts.setPlainText(thoughts)
+                window.on_finished({'ok': True, 'manual': {
+                    'technique': {'key': 't', 'name': 'Tech', 'category': 'x'}, 'prompt': 'A prompt for ' + thoughts + ' with detail.',
+                    'topic': thoughts, 'config': {'temperature': 0.2, 'top_p': 0.9, 'rationale': 'r'}, 'source_ref': 's'}})
+            picker = window.history_picker
+            self.assertTrue(all(item.get('deletable') for item in picker._items))
+            with patch.object(window.history, 'showPopup') as native_popup:
+                picker.deleteRequested.emit('0')
+                native_popup.assert_not_called()  # the hidden old list must not pop up
+            self.assertEqual([entry['thoughts'] for entry in window._history_items], ['second request'])
+            self.assertEqual([item['label'] for item in picker._items], ['second request'])
         finally:
             window.close()
 

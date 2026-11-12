@@ -1,6 +1,7 @@
 import { hints, names, procedures, rationales } from '../catalog/display.en.ts';
 import type { Catalog, ExecutionCapabilities, Modality, TaskBrief, Technique } from './types.ts';
 import { PipelineError } from './types.ts';
+import { isNoInput } from './brief.ts';
 
 /** Разбор «цены» техники: 1 | "5–10" | "3+" | "10–40" → [min, max]. */
 export function costRange(cost: number | string): [number, number] {
@@ -85,7 +86,6 @@ const NEEDS_CODE = new Set(['pal', 'program_of_thoughts', 'faithful_cot', 'tora'
 const NEEDS_TOOLS = new Set(['react', 'ircot', 'iterative_retrieval', 'demonstrate_search_predict', 'decomposed_prompting']);
 /** Open-ended learning agents with a skill library: a research system, not a prompt for one task. */
 const OPEN_ENDED = /навык|skill|curriculum|open-ended|lifelong|minecraft/i;
-const NO_INPUT = /^\s*(нет|none|no|n\/a|пусто|отсутству\w*|—|-)?\s*[.;:]?\s*$/i;
 
 /** Techniques that are not a way to write the prompt for this task; null when the technique may be offered. */
 function misfit(t: Technique, brief: TaskBrief, capabilities: ExecutionCapabilities = {}): string | null {
@@ -100,7 +100,7 @@ function misfit(t: Technique, brief: TaskBrief, capabilities: ExecutionCapabilit
     return 'Relies on running code, which the target environment cannot do';
   }
   const noTools = (['web', 'files', 'code', 'integrations'] as const).every((tool) => capabilities[tool] === 'unavailable');
-  if (NEEDS_TOOLS.has(t.key) && (noTools || (capabilities.web === 'unavailable' && NO_INPUT.test(brief.input ?? '')))) {
+  if (NEEDS_TOOLS.has(t.key) && (noTools || (capabilities.web === 'unavailable' && isNoInput(brief.input)))) {
     return 'Relies on search or tool calls, which the target environment cannot make';
   }
   if (t.category === 'security' && !SECURITY_TASK.test(`${brief.goal} ${brief.constraints.join(' ')}`)) {
