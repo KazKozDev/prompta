@@ -6,7 +6,7 @@ Turn a messy stream of thoughts into a ready prompt, with a zero-shot baseline t
 python3 -m pip install PyQt6
 ```
 
-![Prompta desktop app turning a rough request into a structured prompt](https://raw.githubusercontent.com/KazKozDev/prompta/main/docs/preview-desktop.png)
+![Prompta desktop app turning a rough request into a structured prompt](https://raw.githubusercontent.com/KazKozDev/prompta/master/docs/preview-desktop.png)
 
 Runs on Ollama, no key · Official guides with source links · MIT
 
