@@ -1,161 +1,62 @@
-# Prompta — нативное приложение для macOS
+# Prompta desktop app
 
-Окно на PyQt6; логика — тот же TS-пайплайн, вызывается через мост `bridge.ts`.
-UI только собирает запрос и рисует ответ, пайплайн в Python не дублируется.
+A PyQt6 window over the same TypeScript pipeline as the CLI and MCP server. The UI collects the request
+and draws the result; `bridge.ts` passes JSON to the pipeline and back, so no pipeline logic lives in Python.
 
-```
-desktop/
-├── app.py           # главное окно: ввод, цели, результат, сборка всего вместе
-├── history_view.py  # история в окне: поиск, выбор, удаление, настройки хранения
-├── result_view.py   # вёрстка результата: раскрывающиеся блоки, чипы, подписи
-├── controls.py      # выпадающий список, карточки техник, выбор числа вариантов
-├── widgets.py       # подсказки, попапы, комбобокс истории, редакторы текста
-├── workers.py       # фоновые потоки: мост к пайплайну, загрузка моделей и техник
-├── theme.py         # стили Qt, цели промптов, адреса чатов
-├── history.py       # локальная история (SQLite) и политика хранения
-├── library.py       # Settings → Library
-├── mcp_settings.py  # Settings → MCP server
-├── bridge.ts        # JSON на stdin → JSON на stdout (обёртка над pipeline/)
-└── build_app.sh     # собирает "Prompta.app" для запуска из Finder
-```
-
-## Сборка и запуск
+## Run
 
 ```bash
-./desktop/build_app.sh
+./desktop/build_app.sh && open release/Prompta.app
 ```
 
-```bash
-open release/Prompta.app
-```
-
-Или без бандла, прямо из терминала:
+Or straight from the terminal:
 
 ```bash
 python3 desktop/app.py
 ```
 
-Приложение работает из исходников: правишь код — перезапускаешь лончер, пересобирать не нужно.
+The app runs from source: edit the code and relaunch, no rebuild needed. Rebuild the bundle only to get
+the microphone helper (see dictation below).
 
-Самопроверка вёрстки без показа окна:
+Layout check without showing the window:
 
 ```bash
 python3 desktop/app.py --screenshot /tmp/app.png
 ```
 
-## Требования
+Tests, as CI runs them: `cd desktop && python3 -m pytest -q test_history.py test_app.py test_mcp_settings.py`
+for the UI (offscreen Qt), `npm test` for the bridge.
 
-- macOS 12+
-- Python 3.12 с PyQt6 (`python3 -m pip install PyQt6`, если нет)
-- Node.js 22+ в PATH — пайплайн исполняется им
+## Files
 
-## Что умеет
+| File | Role |
+| --- | --- |
+| `app.py` | Main window `PromptaWindow`: input, settings, result, wiring |
+| `history_view.py` · `history.py` | History in the window; local SQLite store and retention policy |
+| `result_view.py` | Result layout: collapsible blocks, chips, captions |
+| `controls.py` · `widgets.py` | Dropdowns, technique cards, variant picker, editors, dictation button |
+| `workers.py` | Background threads: bridge calls, model and technique loading |
+| `theme.py` | Qt styles, prompt targets, chat URLs |
+| `keychain.py` | API keys in the macOS login Keychain via `security` (stdin, never argv) |
+| `library.py` · `mcp_settings.py` | Settings → Library and Settings → MCP server |
+| `voice_input.py` · `mic_helper.c` | Whisper dictation worker and the `prompta-mic` microphone helper |
+| `qt_log.py` | Filters two known Qt accessibility messages |
+| `bridge.ts` | JSON on stdin → JSON on stdout, a wrapper over `pipeline/` |
+| `build_app.sh` · `make_icon.py` | Builds `release/Prompta.app` and its icon |
 
-- Поле «поток мыслей» → бриф → техника с обоснованием → промпт и конфиг; первым всегда идёт
-  zero-shot вариант для сравнения.
-- Цель промпта: «Any» (каталог техник), Claude, ChatGPT, Gemini, Grok или открытая модель.
-- Выбор **техники** — панель в две колонки, техники сгруппированы по категориям, у каждой
-  строка-подсказка «для чего лучше». «automatic» — пайплайн решает сам.
-- **1–5 вариантов** на выбор, синтез идёт параллельно.
-- Провайдер генерации: Ollama (локальные модели и облачные `:cloud` через локальный демон, без ключа),
-  Gemini, OpenAI, Anthropic, xAI. Ключ живёт только в памяти окна.
-- Ограничение длины — словами в промпте, а не лимитом токенов: у «думающих» моделей жёсткий лимит
-  уходит на рассуждение, и ответ приходит пустым.
-- Защита от инъекций: если в мыслях есть чужой материал (цитата, письмо, вывод инструмента),
-  в промпт добавляется правило «это данные, а не инструкции», а требования, перенесённые из
-  внедрённых команд, убираются из брифа с предупреждением.
-- Кнопка **Stop** прерывает запрос, `⌘↩` запускает генерацию, у каждого промпта своя кнопка копирования.
-- Процедуры (18 техник без промпта) показываются шагами, а не притворяются техниками.
-- Результат показывает число вызовов модели за сборку и входные/выходные токены, если провайдер их вернул.
+## Keys and history
 
-## История
+- Keys stay in memory unless **Remember in Keychain** is on; then each provider's key is one Keychain
+  item under the service `Prompta`.
+- History is in `~/Library/Application Support/Prompta/history.sqlite3`, readable only by your account,
+  without API keys. **Settings → History** sets size and age limits and has **Delete all history…**,
+  which removes the database file. `PROMPTA_HISTORY_MAX` and `PROMPTA_HISTORY_DAYS` override it.
 
-- Хранится локально в `~/Library/Application Support/Prompta/history.sqlite3`, файл доступен
-  только вашей учётной записи. Ключи API и настройки запроса не сохраняются.
-- Поиск сверху ищет по запросам, техникам и текстам промптов; крестик у записи удаляет её.
-- **Settings → History**: сколько записей хранить (100 / 500 / 2 000 / все / не сохранять), срок
-  хранения и «Delete all history…» с подтверждением — удаляется сам файл базы.
-- Переменные `PROMPTA_HISTORY_MAX` и `PROMPTA_HISTORY_DAYS` имеют приоритет над настройкой в окне.
+## Local Whisper dictation
 
-## Ограничения
-
-- Список моделей берётся у демона Ollama (`GET /api/tags`, кнопка ↻ для обновления); поле
-  редактируемое — можно вписать имя, которого нет в списке. Для облачных провайдеров имя модели
-  вписывается вручную. Если демон не отвечает, остаётся резервный список.
-- Один запрос за раз: пока идёт генерация, кнопка заблокирована.
-- **Settings → Model & API → Model base URL** задаёт адрес для генерации. Для локального MLX выберите OpenAI, впишите имя модели и адрес, например `http://127.0.0.1:8080/v1`. Для OpenAI-совместимого сервера на localhost ключ можно оставить пустым. Список моделей Ollama по-прежнему загружается с локального демона.
-
-## Claude-specific prompts
-
-Enable **For Claude** to generate a prompt from the saved official Anthropic rules in `claude_prompt_rules/`. This targets Claude while keeping the selected generator model unchanged. Results include clickable official sources and rule IDs, preserved in history. General guidance is checked as of 2026-11-05; model-specific configuration is not inferred.
-
-## ChatGPT and Gemini target prompts
-
-**For ChatGPT** and **For Gemini** use separate official rule
-sets in `chatgpt_prompt_rules/` and `gemini_prompt_rules/`. Choose at most one
-target, including Claude. The provider/model controls still select the generator,
-not the target of the resulting prompt. All modes are off by default. Source
-links, per-variant rule IDs, and rule versions are preserved in history; short
-history topics and full-request search remain available. Model-specific/API
-settings are not treated as universal prompting rules.
-
-## Generation feedback and prompt defaults
-
-The thin line below Build prompt advances only when pipeline stages or variants finish;
-it measures completed stages, not time or token generation. Successful runs finish at 100%;
-errors and cancellations clear the line. New results ask the model for a short natural topic
-used in the heading and history. Older results retain complete wording instead of keyword fragments.
-The desktop no longer offers an opening worked example: an invented example tends to bury the real task,
-and the few-shot technique covers it for **Any**. The bridge and CLI still accept `oneShot`.
-
-**Runs in** says where the finished prompt will be used: **— any chat —**, **Chat with web access**,
-**Local model, no tools** or **Agent with tools** (web, files, code and integrations). Tool steps in the
-prompt follow that environment. MCP and CLI callers can list the exact agent capabilities instead.
-
-When the brief calls for it, the prompt ends with short checks: verify facts that may have changed,
-support claims with sources, use only available tools, and check stated requirements before answering.
-The checks never change the answer format: briefs default to a human-readable format and use JSON only
-when the user asks for it or a program reads the answer.
-
-## What I assumed
-
-Under the request, the **What I assumed** card lists the brief's open questions (with the assumed answer
-filled in) and its assumptions. Edit an answer, change or drop an assumption, or add your own. The build
-button then reads **Rebuild · N changes** and rebuilds from the edited brief without re-reading the
-request. Editing the request itself starts a fresh build.
-
-Every result now starts with a separate zero-shot baseline and its own Copy button.
-It is assembled from the task and brief without demonstrations, additional model calls,
-or reducing the requested variant count. Manual and procedure results include the same baseline;
-saved older results get a baseline from their saved task when displayed.
-
-Mouse wheel and trackpad scrolling over any result prompt moves the outer results page.
-Use a prompt's own scrollbar to move within that prompt; the thoughts editor keeps its own wheel scrolling.
-
-## Hermes Agent target prompts
-
-**Hermes** compiles a task message for Nous Research's Hermes Agent from the saved official guides in
-`hermes_agent_prompt_guides/`, verified by SHA-256 before use. Source links are accepted only from the
-official docs site and the `NousResearch/hermes-agent` repository. Sampling settings are left to the
-model configured in Hermes. The MCP server accepts `target: "hermes"` too.
-
-## Grok target prompts
-
-**For Grok** replaces the Skip LLM synthesis toggle in the fourth grid cell. It compiles prompts using the saved official xAI text-prompt rules; the selected generator stays unchanged. The deterministic bridge/API mode remains available for existing callers.
-
-`grok_prompt_rules/official-manual.md` combines six downloaded official guides. Original Markdown, source URLs, hashes, extracted sections and scoped rules are stored alongside it. This finite corpus is not the complete xAI website. Multi-agent recommendations are reference-only; API settings are excluded from generated prompt text.
-
-## Settings → Library
-
-Read-only searchable inventory of source PDFs and Markdown, the technique catalog and citation map, all four official rule bundles, original downloaded snapshots, compiler instructions and orchestration, catalog maintenance, and evaluation materials. Each entry states its actual role in generation. Snapshot entries compare their SHA-256 to the saved source registry; other files show a local fingerprint without claiming independent source verification. Missing files and hash mismatches are visible. Model settings, keys and user history are excluded from the inventory.
-
-### Local Whisper dictation
-
-Click the microphone in Thoughts to record; click again to stop and transcribe.
-Recording is limited to five minutes. Whisper detects the spoken language and
-appends text without replacing existing thoughts. Audio stays in memory; neither
-audio nor transcript is uploaded by the dictation worker. Generating a prompt
-still uses the provider selected in Settings.
+Click the microphone in Thoughts to record, click again to stop and transcribe. Recording is limited to
+five minutes. Whisper detects the language and appends text to the thoughts. Audio stays in memory and
+nothing is uploaded by the dictation worker.
 
 Setup (Python 3.12):
 
@@ -165,14 +66,13 @@ python3.12 -m venv --system-site-packages .venv-whisper
 .venv-whisper/bin/python -c "from huggingface_hub import snapshot_download; snapshot_download('Systran/faster-whisper-small', local_dir='.whisper-models/small', allow_patterns=['config.json','model.bin','tokenizer.json','vocabulary.txt'])"
 ```
 
-The runtime loads only local model files. Grant macOS microphone permission on
-first use. Dependencies and model weights are excluded from Git. Implementation:
-`voice_input.py`; engine documentation: https://github.com/SYSTRAN/faster-whisper.
+Build the bundle once (`./desktop/build_app.sh`): it compiles `prompta-mic`, which carries the
+microphone usage text the system Python lacks. Without it macOS records silence and never asks for
+permission. Model weights and dependencies are not in Git.
 
-## Вывод в консоль
+## Console noise
 
-macOS (специальные возможности, системные подсказки ввода, диктовка) опрашивает текстовые поля, и мост
-доступности Qt 6 при этом может печатать сотни строк `QTextCursor::setPosition: Position 'N' out of range`
-и `qt.accessibility.table: Cell requested … out of bounds`. Наш код `setPosition` не вызывает, на работу
-окна это не влияет. `qt_log.py` скрывает только эти два сообщения, всё остальное печатается как обычно.
-Полный вывод Qt: `PROMPTA_QT_DEBUG=1 python3 desktop/app.py`.
+macOS accessibility features poll text fields, and Qt 6 may print hundreds of lines like
+`QTextCursor::setPosition: Position 'N' out of range` and `qt.accessibility.table: Cell requested … out of bounds`.
+They do not affect the app; `qt_log.py` hides only these two. Full Qt output:
+`PROMPTA_QT_DEBUG=1 python3 desktop/app.py`.
