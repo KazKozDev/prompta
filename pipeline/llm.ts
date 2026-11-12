@@ -151,12 +151,15 @@ export function createLLM(opts: LLMOptions): LLM {
   }
 
   if (provider === 'openai' || provider === 'xai') {
-    if (!apiKey) throw new Error(`An API key is required for ${provider}`);
+    if (!apiKey && !(provider === 'openai' && opts.baseUrl && isLocalHost(opts.baseUrl))) {
+      throw new Error(`An API key is required for ${provider}`);
+    }
     // xAI совместим с форматом chat/completions — отличается только адрес.
-    const base = opts.baseUrl || (provider === 'xai' ? 'https://api.x.ai' : 'https://api.openai.com');
+    const base = (opts.baseUrl || (provider === 'xai' ? 'https://api.x.ai' : 'https://api.openai.com')).replace(/\/+$/, '');
+    const apiRoot = base.endsWith('/v1') ? base : `${base}/v1`;
     return async (prompt, o = {}) => {
       const data = (await postJson(
-        `${base}/v1/chat/completions`,
+        `${apiRoot}/chat/completions`,
         {
           model,
           messages: [{ role: 'user', content: prompt }],
@@ -164,7 +167,7 @@ export function createLLM(opts: LLMOptions): LLM {
           ...(o.maxTokens ? { max_tokens: o.maxTokens } : {}),
           ...(o.json ? { response_format: { type: 'json_object' } } : {}),
         },
-        { authorization: `Bearer ${apiKey}` },
+        apiKey ? { authorization: `Bearer ${apiKey}` } : {},
         http,
       )) as {
         choices?: { message?: { content?: string } }[];

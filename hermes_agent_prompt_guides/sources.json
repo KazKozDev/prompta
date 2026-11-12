@@ -1,0 +1,64 @@
+{
+  "sources": [
+    {
+      "id": "tips",
+      "title": "Tips & Best Practices",
+      "url": "https://hermes-agent.nousresearch.com/docs/guides/tips/",
+      "snapshot": "snapshots/tips.md",
+      "scope": "general",
+      "sha256": "1c5108bc9a14a829bd83308eb2ddc98971cd07889fdb8ca8f447f83741929b87",
+      "retrieved_at": "2026-11-11",
+      "sections": [
+        {
+          "title": "Getting the Best Results",
+          "url": "https://hermes-agent.nousresearch.com/docs/guides/tips/"
+        }
+      ]
+    },
+    {
+      "id": "context-files",
+      "title": "Context Files",
+      "url": "https://hermes-agent.nousresearch.com/docs/user-guide/features/context-files",
+      "snapshot": "snapshots/context-files.md",
+      "scope": "general",
+      "sha256": "0a35eac7c2ea5d0451eeb174348ded0abb9f6af5f3657d7a03d843b3ca4f7009",
+      "retrieved_at": "2026-11-11",
+      "sections": [
+        {
+          "title": "Supported Context Files",
+          "url": "https://hermes-agent.nousresearch.com/docs/user-guide/features/context-files"
+        }
+      ]
+    },
+    {
+      "id": "use-soul-with-hermes",
+      "title": "Use SOUL.md with Hermes",
+      "url": "https://hermes-agent.nousresearch.com/docs/guides/use-soul-with-hermes",
+      "snapshot": "snapshots/use-soul-with-hermes.md",
+      "scope": "general",
+      "sha256": "2e6e10cfb9f13e51727c4035e25769cf26afe542d61177f0fbc6367bdd7b3fc2",
+      "retrieved_at": "2026-11-11",
+      "sections": [
+        {
+          "title": "What SOUL.md is for",
+          "url": "https://hermes-agent.nousresearch.com/docs/guides/use-soul-with-hermes"
+        }
+      ]
+    },
+    {
+      "id": "prompt-assembly",
+      "title": "Prompt Assembly",
+      "url": "https://github.com/NousResearch/hermes-agent/blob/main/website/docs/developer-guide/prompt-assembly.md",
+      "snapshot": "snapshots/prompt-assembly.md",
+      "scope": "general",
+      "sha256": "b0333ed28aaccaf5e7e480c0c9000b80ac3db1e7e5c8b2971b1742c48a613c5f",
+      "retrieved_at": "2026-11-11",
+      "sections": [
+        {
+          "title": "Cached system prompt layers",
+          "url": "https://github.com/NousResearch/hermes-agent/blob/main/website/docs/developer-guide/prompt-assembly.md"
+        }
+      ]
+    }
+  ]
+}

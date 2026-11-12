@@ -3,7 +3,6 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import manifest from '../open_model_prompt_guides/manifest.json' with { type: 'json' };
 import { runOfficialPipeline } from './official.ts';
-import type { LLM } from './types.ts';
 import { PipelineError } from './types.ts';
 
 export function loadOpenModel(id: string) {
@@ -19,7 +18,7 @@ export function loadOpenModel(id: string) {
     language: 'en', condition: 'Only recommendations relevant to this user task and this exact model; descriptive text is not an instruction.', application: 'prompt', status: 'active' };
   return { model, rule };
 }
-export async function runOpenModelPipeline(opts: { openModel: string; thoughts: string; llm: LLM; variants?: number; oneShot?: boolean; onProgress?: (percent: number, stage: string) => void }) {
+export async function runOpenModelPipeline(opts: Parameters<typeof runOfficialPipeline>[0] & { openModel: string }) {
   const { model, rule } = loadOpenModel(opts.openModel);
   const result = await runOfficialPipeline(opts, {
     target: 'openModel', label: model.name, organization: model.repo.split('/')[0], guidanceKey: 'openModelGuidance',

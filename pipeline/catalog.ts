@@ -68,6 +68,22 @@ export interface Gated {
 }
 
 /** Детерминированный отсев ДО вызова LLM: тип записи, статус, бюджет, модальность. */
+/** The task itself is about prompt security: only then is a defense technique a prompt variant. */
+const SECURITY_TASK = /инъекц|injection|jailbreak|джейлбрейк|взлом промпт|prompt (security|hacking|attack)|защит\w* (от атак|промпт)/i;
+/** Answer-engineering techniques parse a model's answer into labels or structured data for a program. */
+const MACHINE_FORMAT = /json|yaml|csv|xml|tsv|метк|label|класс|class|регуляр|regex|enum|одно слово|single word/i;
+
+/** Categories that are never a way to write the prompt for this task; null when the technique may be offered. */
+function misfit(t: Technique, brief: TaskBrief): string | null {
+  if (t.category === 'security' && !SECURITY_TASK.test(`${brief.goal} ${brief.constraints.join(' ')}`)) {
+    return 'Security guard is added automatically when the prompt processes external material';
+  }
+  if (t.category === 'answer_engineering' && !MACHINE_FORMAT.test(brief.output_format)) {
+    return 'Parses answers into machine-readable output; this task needs a human-readable answer';
+  }
+  return null;
+}
+
 export function gateTechniques(brief: TaskBrief, catalog: Catalog, opts: GateOptions = {}): Gated {
   const budget = opts.budgetCalls ?? brief.budget_calls;
   const rejected: { key: string; reason: string }[] = [];
@@ -91,6 +107,11 @@ export function gateTechniques(brief: TaskBrief, catalog: Catalog, opts: GateOpt
     }
     if (t.status !== 'ready') {
       rejected.push({ key: t.key, reason: `${t.status}: No synthesis template` });
+      continue;
+    }
+    const unfit = misfit(t, brief);
+    if (unfit) {
+      rejected.push({ key: t.key, reason: unfit });
       continue;
     }
     // Тип задачи: техника, заявленная для других задач, в короткий список не попадает.
@@ -131,6 +152,7 @@ export function gateTechniques(brief: TaskBrief, catalog: Catalog, opts: GateOpt
         t.status === 'ready' &&
         ['technique', 'prompt_type'].includes(t.kind) &&
         (t.kind !== 'prompt_type' || brief.task_type === 'teaching') &&
+        !misfit(t, brief) &&
         (!opts.derivablePlaceholders || placeholdersOf(t.template ?? '').every((name) => opts.derivablePlaceholders!.has(name))) &&
         (bestEffortBudget(t, budget)) &&
         (brief.task_type !== 'qa_over_docs' ||

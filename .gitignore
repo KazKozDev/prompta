@@ -8,3 +8,12 @@ __pycache__/
 
 .venv-whisper/
 .whisper-models/
+.pytest_cache/
+
+# Local tool config and personal scratch, not part of Prompta
+.serena/
+.qodo/
+.zencoder/
+.zenflow/
+generated_images/
+speak_siri.py

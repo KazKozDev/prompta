@@ -11,7 +11,7 @@ import json
 import os
 import re
 from html import escape
-from urllib.parse import urlparse, urlencode
+from urllib.parse import urlencode
 import shutil
 import sqlite3
 from datetime import datetime
@@ -32,7 +32,7 @@ except ImportError:
     from mcp_settings import McpSettingsWidget
 
 from PyQt6.QtCore import QModelIndex, QEvent, QObject, QPoint, QRect, QRectF, QSize, Qt, QUrl, QProcess, QThread, QTimer, QPropertyAnimation, QEasingCurve, pyqtSignal
-from PyQt6.QtGui import QStandardItem, QStandardItemModel, QColor, QCursor, QPainter, QPalette, QPen, QFont, QGuiApplication, QIcon, QPixmap, QKeySequence, QShortcut, QDesktopServices, QTextDocument
+from PyQt6.QtGui import QStandardItem, QStandardItemModel, QColor, QCursor, QTextCursor, QPainter, QPalette, QPen, QFont, QGuiApplication, QIcon, QPixmap, QKeySequence, QShortcut, QDesktopServices, QTextDocument
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QAbstractScrollArea,
@@ -71,10 +71,10 @@ from PyQt6.QtWidgets import (
 )
 
 try:
-    from .theme import CHAT_URLS, DARK_SCROLL_QSS, PROMPT_TARGETS, QSS, ROOT
+    from .theme import CHAT_URLS, DARK_SCROLL_QSS, PROMPT_TARGETS, QSS, ROOT, is_official_source
     from .widgets import *  # noqa: F401,F403 — базовые виджеты, вынесенные из этого файла
 except ImportError:
-    from theme import CHAT_URLS, DARK_SCROLL_QSS, PROMPT_TARGETS, QSS, ROOT
+    from theme import CHAT_URLS, DARK_SCROLL_QSS, PROMPT_TARGETS, QSS, ROOT, is_official_source
     from widgets import *  # noqa: F401,F403
 
 try:
@@ -89,6 +89,97 @@ except ImportError:
     from result_view import *  # noqa: F401,F403
     from history_view import HistoryMixin
     import qt_log
+
+class WrappingField(QPlainTextEdit):
+    """One-paragraph field that wraps: grows to fit its text up to `max_lines`, Enter submits instead of breaking the line."""
+    returnPressed = pyqtSignal()
+
+    def __init__(self, text: str = "", max_lines: int = 2) -> None:
+        super().__init__()
+        self.max_lines = max_lines
+        self.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setTabChangesFocus(True)
+        self.document().setDocumentMargin(2)
+        self.setText(text)
+        # Plain-text layout reports its height in wrapped lines: refit whenever Qt re-wraps the text.
+        self.document().documentLayout().documentSizeChanged.connect(self._schedule_fit)
+
+    def _schedule_fit(self, *_: object) -> None:
+        QTimer.singleShot(0, self._fit)  # after the pending re-wrap, not halfway through it
+
+    def resizeEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        super().resizeEvent(event)
+        self._schedule_fit()
+
+    def text(self) -> str:  # same reading and writing as QLineEdit, so callers need not care which field it is
+        return self.toPlainText()
+
+    def setText(self, text: str) -> None:  # noqa: N802 - Qt naming
+        self.setPlainText(text)
+        self.moveCursor(QTextCursor.MoveOperation.Start)  # show the beginning, not the tail
+
+    def keyPressEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            self.returnPressed.emit()
+            return
+        super().keyPressEvent(event)
+
+    def insertFromMimeData(self, source) -> None:  # noqa: N802 - Qt naming
+        self.insertPlainText(" ".join(source.text().split()))  # pasted line breaks become spaces
+
+    def _fit(self, *_: object) -> None:
+        wrapped = max(1, round(self.document().size().height()))
+        lines = min(self.max_lines, wrapped)
+        # Line height from the laid-out text itself: font metrics can disagree with the styled font.
+        block = self.blockBoundingRect(self.document().firstBlock()).height()
+        line = block / wrapped if block > 0 else self.fontMetrics().lineSpacing()
+        frame = self.height() - self.viewport().height()  # border and padding from the stylesheet
+        height = int(lines * line + 0.999) + 2 * int(self.document().documentMargin()) + frame
+        if height != self.height():
+            self.setFixedHeight(height)
+        self.setToolTip(self.toPlainText() if wrapped > self.max_lines else "Click to edit")
+
+
+class FitScrollArea(QScrollArea):
+    """Scroll area that asks for its content's full height, so a parent can shrink it and only then scroll."""
+
+    def __init__(self, content: QWidget) -> None:
+        super().__init__()
+        self.setWidget(content)
+        self.setWidgetResizable(True)
+        self.setFrameShape(QFrame.Shape.NoFrame)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setObjectName("fitScroll")
+        # Transparent all the way down: the card's colour shows through, not the default grey viewport.
+        self.setStyleSheet("QScrollArea { background: transparent; border: none; }"
+                           " QScrollArea > QWidget > QWidget { background: transparent; }")
+        self.viewport().setAutoFillBackground(False)
+        content.installEventFilter(self)
+        size_policy = self.sizePolicy()
+        size_policy.setHeightForWidth(True)
+        self.setSizePolicy(size_policy)
+
+    def eventFilter(self, watched, event) -> bool:  # noqa: N802 - Qt naming
+        if watched is self.widget() and event.type() == QEvent.Type.LayoutRequest:
+            self.updateGeometry()  # a row was added, removed or re-wrapped: tell the card
+        return super().eventFilter(watched, event)
+
+    def hasHeightForWidth(self) -> bool:  # noqa: N802 - Qt naming
+        return True
+
+    def heightForWidth(self, width: int) -> int:  # noqa: N802 - Qt naming
+        content = self.widget()
+        layout = content.layout() if content is not None else None
+        return layout.totalHeightForWidth(width) if layout is not None else 0
+
+    def sizeHint(self) -> QSize:  # noqa: N802 - Qt naming
+        return QSize(super().sizeHint().width(), self.heightForWidth(max(1, self.viewport().width())))
+
+    def minimumSizeHint(self) -> QSize:  # noqa: N802 - Qt naming
+        return QSize(0, 60)
+
 
 class MainWindow(HistoryMixin, QMainWindow):
     def __init__(self) -> None:
@@ -196,6 +287,7 @@ class MainWindow(HistoryMixin, QMainWindow):
         box.setSizeConstraint(QLayout.SizeConstraint.SetMinimumSize)
 
         self.thoughts = ThoughtsEdit()
+        self.thoughts.textChanged.connect(lambda: self._sync_build_label())  # an edited request means a fresh build
         QApplication.instance().aboutToQuit.connect(self.thoughts.stop_dictation)
         self.thoughts.setAccessibleName("Thoughts")
         use_step_scroll(self.thoughts)
@@ -278,10 +370,21 @@ class MainWindow(HistoryMixin, QMainWindow):
         self.api_key.setPlaceholderText("Enter your API key")
         self.api_key.setAccessibleName("API key")
         settings_layout.addWidget(self.api_key)
-        key_hint = QLabel("Required for Gemini, OpenAI, Anthropic and xAI. Not needed for Ollama (local or :cloud models).\nYour key stays in memory and is not saved to disk.")
+        key_hint = QLabel("Use a key for cloud providers. Local Ollama and local OpenAI-compatible servers can run without one.\nYour key stays in memory.")
         key_hint.setObjectName("muted")
         key_hint.setWordWrap(True)
         settings_layout.addWidget(key_hint)
+        settings_layout.addWidget(self._mini_label("Model base URL"))
+        self.model_base_url = QLineEdit()
+        self.model_base_url.setPlaceholderText("Optional · http://127.0.0.1:8080/v1")
+        self.model_base_url.setAccessibleName("Model base URL")
+        self.model_base_url.setToolTip("Requests and any API key you enter go to this endpoint. "
+                                       "For local MLX, choose OpenAI and enter the model name manually.")
+        settings_layout.addWidget(self.model_base_url)
+        url_hint = QLabel("For local MLX, choose OpenAI and enter your model name and server URL.")
+        url_hint.setObjectName("muted")
+        url_hint.setWordWrap(True)
+        settings_layout.addWidget(url_hint)
         settings_layout.addStretch(1)
         self.settings_tabs.addTab(model_page, "Model && API")
         self.library = LibraryWidget(ROOT)
@@ -330,7 +433,7 @@ class MainWindow(HistoryMixin, QMainWindow):
             self.prompt_model.setEnabled(False)
         self.prompt_model.setToolTip("Build a prompt using the selected model's saved official documentation. The generator model stays the same.")
         self.prompt_model.currentIndexChanged.connect(self._on_prompt_model_changed)
-        target_grid.addWidget(self.prompt_model, 2, 0, 1, 2)
+        target_grid.addWidget(self.prompt_model, 3, 0, 1, 2)
         target_grid.setColumnStretch(0, 1)
         target_grid.setColumnStretch(1, 1)
         box.addLayout(target_grid)
@@ -351,10 +454,11 @@ class MainWindow(HistoryMixin, QMainWindow):
 
         actions = QHBoxLayout()
         actions.setSpacing(8)
-        self.run_button = QPushButton("Build prompt")
+        self.build_label = "Build prompt"
+        self.run_button = QPushButton(self.build_label)
         self.run_button.setObjectName("buildPrompt")
         self.run_button.setFixedHeight(42)
-        self.run_button.clicked.connect(self.run_pipeline)
+        self.run_button.clicked.connect(lambda: self.run_pipeline())
         actions.addWidget(self.run_button, 1)
 
         self.cancel_button = QPushButton("Cancel")
@@ -463,10 +567,11 @@ class MainWindow(HistoryMixin, QMainWindow):
         self.models_hint.setText(f"{len(names)} models loaded")
 
     def _on_provider_changed(self, provider: str) -> None:
+        self.model_base_url.clear()
         if provider == "ollama":
             self.load_models()
         else:
-            self.models_hint.setText("Enter the model name for your cloud provider")
+            self.models_hint.setText("Enter the model name used by your provider")
 
     # ── правая колонка ────────────────────────────────────────────
     def _build_output(self) -> QWidget:
@@ -534,6 +639,7 @@ class MainWindow(HistoryMixin, QMainWindow):
 
         clear(self.output_layout)
         self.thoughts.set_bottom_panel(None)  # the questions belong to the result being replaced
+        self._sync_build_label()
 
     def _show_placeholder(self) -> None:
         # Empty output area stays blank: no hint text.
@@ -569,9 +675,27 @@ class MainWindow(HistoryMixin, QMainWindow):
             self.worker.cancel()
             self.status.setText("Cancelling")
 
-    def run_pipeline(self) -> None:
+    def _card_revision(self) -> dict | None:
+        """The edited brief from the assumptions card, if the user changed it and the request is the one it belongs to."""
+        card = self.thoughts.bottom_panel
+        revise = getattr(card, "revised_brief", None)
+        return revise() if revise is not None else None
+
+    def _sync_build_label(self) -> None:
+        """One button: it says Rebuild when the card has edits, so the user knows the request is not re-read."""
+        if not hasattr(self, "run_button"):
+            return
+        card = self.thoughts.bottom_panel
+        count = card.change_count() if card is not None and hasattr(card, "change_count") else 0
+        base = getattr(self, "build_label", "Build prompt")
+        shortcut = base[len("Build prompt"):]
+        self.run_button.setText(f"Rebuild · {count} change{'s' if count != 1 else ''}{shortcut}" if count else base)
+
+    def run_pipeline(self, *, revised_brief: dict | None = None) -> None:
         if self.worker and self.worker.isRunning():
             return
+        if revised_brief is None:
+            revised_brief = self._card_revision()  # edited assumptions rebuild from the brief, not a new one
 
         thoughts = self.thoughts.toPlainText().strip()
         if not thoughts:
@@ -585,7 +709,8 @@ class MainWindow(HistoryMixin, QMainWindow):
         if not model:
             self.status.setText("Choose a model")
             return
-        if provider != "ollama" and not api_key:
+        base_url = self.model_base_url.text().strip()
+        if provider != "ollama" and not api_key and not (provider == "openai" and base_url):
             self.status.setText("Add an API key in Settings")
             return
 
@@ -595,13 +720,20 @@ class MainWindow(HistoryMixin, QMainWindow):
             "provider": provider,
             "model": model,
             "apiKey": api_key,
+            "baseUrl": base_url,
             "claudeOnly": self.claude_only.isChecked(),
             "chatgptOnly": self.chatgpt_only.isChecked(),
             "geminiOnly": self.gemini_only.isChecked(),
             "grokOnly": self.grok_only.isChecked(),
+            "hermesOnly": self.hermes_only.isChecked(),
             "variants": self.variants.value(),
-            "oneShot": bool(getattr(self, "one_shot", None) and self.one_shot.isChecked()),
         }
+        execution_profile = getattr(self, "execution_profile", None)
+        if execution_profile is not None:
+            profile = execution_profile.current_key()
+            payload["executionProfile"] = profile
+            if profile == "agent":
+                payload["agentCapabilities"] = list(execution_profile.AGENT_CAPABILITIES)
         if self.openModel_only.isChecked():
             payload["openModel"] = self.prompt_model.currentData()
         if technique_keys and self._selected_target() is None:
@@ -609,6 +741,8 @@ class MainWindow(HistoryMixin, QMainWindow):
                 payload["manualTechnique"] = technique_keys[0]
             else:
                 payload["manualTechniques"] = technique_keys
+        if revised_brief is not None:
+            payload["brief"] = revised_brief
 
         self.run_button.setEnabled(False)
         self.cancel_button.setEnabled(True)
@@ -618,6 +752,7 @@ class MainWindow(HistoryMixin, QMainWindow):
         target_label = self.prompt_model.currentText() if selected == "openModel" else PROMPT_TARGETS[selected][0] if selected else ""
         self.status.setText(f"Building {target_label} prompt from official sources" if selected else "Brief → technique selection → synthesis")
 
+        self._rebuilding_brief = revised_brief is not None
         self._active_thoughts = thoughts
         self._discard_result = False
         self.worker = Worker(payload)
@@ -646,6 +781,9 @@ class MainWindow(HistoryMixin, QMainWindow):
         self.run_button.setEnabled(True)
         self.cancel_button.setEnabled(False)
         if not data.get("ok"):
+            if getattr(self, "_rebuilding_brief", False):
+                self.status.setText(f"Rebuild failed: {data.get('error', 'unknown error')}")
+                return
             self._clear_output()
             error = QLabel(f"Error: {data.get('error', 'unknown error')}")
             error.setObjectName("error")
@@ -663,16 +801,29 @@ class MainWindow(HistoryMixin, QMainWindow):
             return
 
         if data.get("manual"):
-            self.render_manual(data["manual"])
+            self.render_manual(data["manual"], source_thoughts=self._active_thoughts)
             self._push_history(data["manual"]["technique"]["name"], "manual", data["manual"])
             self.status.setText(f"{data['manual']['technique']['name']} · built using this method")
             return
 
-        self.render(data["result"])
+        self.render(data["result"], source_thoughts=self._active_thoughts)
         self._push_history(data["result"]["choice"]["name"], "pipeline", data["result"])
         choice = data["result"]["choice"]
         warnings = len(data["result"]["synthesis"]["warnings"])
         self.status.setText(f"{choice['name']} · warnings: {warnings}")
+
+    def _add_usage(self, payload: dict) -> None:
+        usage = payload.get("usage")
+        if not isinstance(usage, dict):
+            return
+        calls = usage["calls"]
+        input_tokens, output_tokens = usage["inputTokens"], usage["outputTokens"]
+        tokens = (f"{input_tokens:,} input · {output_tokens:,} output tokens"
+                  if input_tokens or output_tokens else "Token counts unavailable")
+        label = muted_label(f"{calls} model {'call' if calls == 1 else 'calls'} · {tokens}")
+        label.setToolTip("Token counts come from the model provider. Calls count generation attempts, "
+                         "including format retries. HTTP retries are counted within the same call.")
+        self.output_layout.addWidget(label)
 
     def _add_zero_shot(self, payload: dict) -> None:
         text = payload.get("zeroShotPrompt")
@@ -725,6 +876,7 @@ class MainWindow(HistoryMixin, QMainWindow):
         meta.setObjectName("muted")
         meta.setWordWrap(True)
         self.output_layout.addWidget(meta)
+        self._add_usage(procedure)
         self._add_zero_shot(procedure)
 
         explain = QLabel(
@@ -748,7 +900,7 @@ class MainWindow(HistoryMixin, QMainWindow):
 
         self.output_layout.addStretch(1)
 
-    def render_manual(self, manual: dict) -> None:
+    def render_manual(self, manual: dict, *, source_thoughts: str | None = None) -> None:
         self._clear_output()
 
         technique = manual["technique"]
@@ -778,7 +930,7 @@ class MainWindow(HistoryMixin, QMainWindow):
         self.output_layout.addStretch(1)
 
     # ── рендер результата ─────────────────────────────────────────
-    def render(self, result: dict) -> None:
+    def render(self, result: dict, *, source_thoughts: str | None = None) -> None:
         self._clear_output()
         brief = result["brief"]
         choice = result["choice"]
@@ -929,8 +1081,7 @@ class MainWindow(HistoryMixin, QMainWindow):
                 self.output_layout.addWidget(usage)
             for rule in guidance.get("rules", []):
                 url = rule.get("source_url", "")
-                parsed = urlparse(url)
-                if parsed.scheme != "https" or parsed.hostname not in PROMPT_TARGETS[source_target][1] or parsed.username or parsed.password:
+                if not is_official_source(url, source_target):
                     continue
                 label = QLabel(f"<a href=\"{escape(url, quote=True)}\">{escape(rule.get('id', ''))} · {escape(rule.get('source_section', 'Source'))}</a>")
                 label.setOpenExternalLinks(True)
@@ -997,7 +1148,8 @@ class PromptaWindow(MainWindow):
         self._variants_before_manual: int | None = None
         super().__init__()
         self._restyle_input()
-        self.run_button.setText("Build prompt   ⌘↵")
+        self.build_label = "Build prompt   ⌘↵"
+        self.run_button.setText(self.build_label)
         self.run_button.setToolTip("⌘↵ builds the prompt")
         self.cancel_button.setText("Stop")
         self.history_search.setPlaceholderText("Search history")
@@ -1123,7 +1275,7 @@ class PromptaWindow(MainWindow):
             self.segments.addButton(button)
             row_layout.addWidget(button, 1)
         self.segments.buttonClicked.connect(self._on_segment_clicked)
-        grid.addWidget(self._mini_label("Target model"), 0, 0, 1, 2)
+        grid.addWidget(self._mini_label("Prompt target"), 0, 0, 1, 2)
         grid.addWidget(row, 1, 0, 1, 2)
         self.prompt_model.setItemText(0, "— or open-weight model —")
         for key in PROMPT_TARGETS:
@@ -1171,23 +1323,34 @@ class PromptaWindow(MainWindow):
         actions = find_layout(card_layout, self.run_button)
         index = next(i for i in range(card_layout.count()) if card_layout.itemAt(i).layout() is actions)
         card_layout.insertWidget(index, self.advanced)
-        # Off by default: an invented example at the top tends to bury the real task.
-        self.one_shot = QCheckBox("Add a sample answer to the prompt")
-        self.one_shot.setObjectName("oneShot")
-        self.one_shot.setToolTip(
-            "The prompt opens with one made-up input and its ideal answer, labelled as an example; "
-            "your real task follows. Skipped if the technique already has examples.")
-        card_layout.insertWidget(index + 1, self.one_shot)
-        hint = muted_label("Shows the model the exact format to copy. Helps with tables, JSON, fixed templates; "
-                           "skip for open-ended or creative tasks.", "oneShotHint")
-        hint.setContentsMargins(22, 0, 0, 0)  # under the checkbox text, not the box
-        card_layout.insertWidget(index + 2, hint)
+        # Where the finished prompt runs: decides which tool steps the prompt may rely on.
+        runs_in = QVBoxLayout()
+        runs_in.setContentsMargins(0, 0, 0, 8)
+        runs_in.setSpacing(8)
+        runs_in.addWidget(self._mini_label("Runs in"))
+        self.execution_profile = ExecutionProfileDropdown()
+        self.execution_profile.setAccessibleName("Where will the prompt run?")
+        self.execution_profile.setFixedHeight(CONTROL_HEIGHT)
+        self.execution_profile.setToolTip("Where the generated prompt will be used. "
+                                          "Tool steps in the prompt follow what that environment can do.")
+        self.execution_profile.setStyleSheet("QPushButton#picker { padding-right: 26px; }")
+        chevron_layout = QHBoxLayout(self.execution_profile)
+        chevron_layout.setContentsMargins(0, 0, 10, 0)
+        chevron_layout.addStretch()
+        chevron = QLabel()
+        chevron.setPixmap(QIcon(str(ROOT / "desktop" / "chevron-down.svg")).pixmap(12, 12))
+        chevron.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        chevron_layout.addWidget(chevron, 0, Qt.AlignmentFlag.AlignVCenter)
+        runs_in.addWidget(self.execution_profile)
+        card_layout.insertLayout(index + 1, runs_in)
         self.technique.changed.connect(self._update_advanced_title)
         self.variants.buttons.idClicked.connect(self._update_advanced_title)
         self.advanced.button.toggled.connect(self._update_advanced_title)
         self.technique_label.hide()  # its count moves into the Advanced title
         # One control height for fields and segmented tracks so rows line up.
-        for widget in (self.history_search, self.history, self.prompt_model, self.technique, self.target_track, self.variants):
+        for widget in (self.history_search, self.history, self.prompt_model, self.technique, self.target_track, self.variants,
+                       self.execution_profile):
+            widget.ensurePolished()  # its own stylesheet would reset the minimum height when polished later
             widget.setFixedHeight(CONTROL_HEIGHT)
         for button in [*self.segments.buttons(), *self.variants.buttons.buttons()]:
             button.setFixedHeight(CONTROL_HEIGHT - 4)
@@ -1423,10 +1586,6 @@ class PromptaWindow(MainWindow):
         if brief.get("topic"):  # without a topic the goal is already the heading
             box.addWidget(muted_label(brief["goal"], "briefGoal"))
         box.addWidget(keyed_label("Format", brief["output_format"]))
-        assumptions = [a for a in brief.get("assumptions") or [] if isinstance(a, str) and a.strip()]
-        if assumptions:
-            text = assumptions[0] if len(assumptions) == 1 else "\n".join(f"• {a}" for a in assumptions)
-            box.addWidget(keyed_label("Assumed", text, stacked=len(assumptions) > 1))
         row = FlowLayout()
         meta = muted_label(f"{brief['task_type']} · {brief['stakes']} stakes · {brief['language']}", "briefMeta")
         meta.setWordWrap(False)  # one chip-like run in the flow, not a wrapped column
@@ -1434,6 +1593,153 @@ class PromptaWindow(MainWindow):
         box.addSpacing(2)
         box.addLayout(row)
         return box, row
+
+    def _add_brief_refinement(self, brief: dict | None, source_thoughts: str | None) -> None:
+        """One card under the request: what the brief assumed, as answers and items the user can change.
+        Rebuilding sends the edited brief back, so nothing is re-guessed and no edit is lost."""
+        if not brief:
+            return
+        original_request = source_thoughts if source_thoughts is not None else self.thoughts.toPlainText().strip()
+        questions = self._brief_questions(brief)
+        assumptions = [item.strip() for item in brief.get("assumptions") or [] if isinstance(item, str) and item.strip()]
+        if not questions and not assumptions:
+            return
+
+        box = QFrame()
+        box.setObjectName("questionsCard")
+        layout = QVBoxLayout(box)
+        layout.setContentsMargins(16, 14, 16, 16)
+        layout.setSpacing(0)
+        title = QLabel("What I assumed")
+        title.setObjectName("cardTitle")
+        layout.addWidget(title)
+        layout.addSpacing(8)
+
+        # The list scrolls inside the card when the request field is short; the button below stays in view.
+        body = QWidget()
+        body.setObjectName("assumptionsBody")
+        body_layout = QVBoxLayout(body)
+        body_layout.setContentsMargins(0, 0, 4, 0)
+        body_layout.setSpacing(0)
+        scroll = FitScrollArea(body)
+        layout.addWidget(scroll, 1)
+
+        answers: list[tuple[str, str, WrappingField]] = []
+        for question, default in questions:
+            label = muted_label(question, "question")
+            answer = WrappingField(default)
+            answer.setObjectName("answer")
+            answer.setPlaceholderText("Your answer (optional)")
+            answer.setAccessibleName(question)
+            body_layout.addWidget(label)
+            body_layout.addSpacing(4)
+            body_layout.addWidget(answer)
+            body_layout.addSpacing(10)
+            answers.append((question, default, answer))
+        if questions and assumptions:
+            body_layout.addSpacing(2)
+
+        rows_layout = QVBoxLayout()
+        rows_layout.setSpacing(2)
+        body_layout.addLayout(rows_layout)
+        rows: list[dict] = []  # {"original": str | None, "field": WrappingField, "removed": bool}
+
+        def changes() -> int:
+            count = sum(answer.text().strip() != default for _, default, answer in answers)
+            for row in rows:
+                text = row["field"].text().strip()
+                if row["original"] is None:
+                    count += bool(text) and not row["removed"]
+                else:
+                    count += row["removed"] or text != row["original"]
+            return count
+
+        def sync() -> None:
+            self._sync_build_label()
+
+        def add_row(text: str | None) -> WrappingField:
+            line = QWidget()
+            line_layout = QHBoxLayout(line)
+            line_layout.setContentsMargins(0, 0, 0, 0)
+            line_layout.setSpacing(4)
+            bullet = muted_label("•", "assumptionBullet")
+            bullet.setWordWrap(False)  # a wrapping label reports a tall height-for-width and stretches the row
+            bullet.setContentsMargins(0, 4, 0, 0)  # level with the first line of text
+            field = WrappingField(text or "")
+            field.setObjectName("assumption")
+            field.setPlaceholderText("Your assumption")
+            field.setAccessibleName("Assumption")
+            remove = QPushButton()
+            remove.setObjectName("removeAssumption")
+            remove.setIcon(QIcon(str(ROOT / "desktop" / "close.svg")))
+            remove.setIconSize(QSize(10, 10))
+            remove.setFixedSize(22, 22)
+            remove.setCursor(Qt.CursorShape.PointingHandCursor)
+            remove.setToolTip("Drop this assumption")
+            remove.setAccessibleName("Remove assumption")
+            line_layout.addWidget(bullet, 0, Qt.AlignmentFlag.AlignTop)
+            line_layout.addWidget(field, 1)
+            line_layout.addWidget(remove, 0, Qt.AlignmentFlag.AlignTop)
+            row = {"original": text, "field": field, "removed": False, "widget": line}
+
+            def drop() -> None:
+                row["removed"] = True
+                line.hide()
+                sync()
+
+            remove.clicked.connect(drop)
+            field.textChanged.connect(sync)
+            field.returnPressed.connect(apply)
+            rows.append(row)
+            rows_layout.addWidget(line)
+            return field
+
+        def add_new() -> None:
+            field = add_row(None)
+            field.setFocus()
+            QTimer.singleShot(0, lambda: scroll.ensureWidgetVisible(field))
+
+        def request_unchanged() -> bool:
+            return self.thoughts.toPlainText().strip() == original_request
+
+        def change_count() -> int:
+            return changes() if request_unchanged() else 0
+
+        def revised_brief() -> dict | None:
+            if not change_count():
+                return None
+            revised_questions = []
+            for question, _, answer in answers:
+                value = answer.text().strip()
+                revised_questions.append({"question": question, "default": value} if value else {"question": question})
+            revised_assumptions = [row["field"].text().strip() for row in rows
+                                   if not row["removed"] and row["field"].text().strip()]
+            return {**brief, "assumptions": revised_assumptions, "questions": revised_questions}
+
+        def apply() -> None:  # Enter in a card field does what the Build button does
+            self.run_pipeline()
+
+        for item in assumptions:
+            add_row(item)
+        add = QPushButton("+ Add assumption")
+        add.setObjectName("addAssumption")
+        add.setCursor(Qt.CursorShape.PointingHandCursor)
+        add.clicked.connect(add_new)
+        body_layout.addSpacing(4)
+        body_layout.addWidget(add, 0, Qt.AlignmentFlag.AlignLeft)
+
+        for _, _, answer in answers:
+            answer.textChanged.connect(sync)
+            answer.returnPressed.connect(apply)
+        title.setToolTip("The prompt is built on these. Change any of them, then Rebuild: the request is not re-read.")
+
+        box.change_count = change_count
+        box.revised_brief = revised_brief
+        self.question_answers = [(question, answer) for question, _, answer in answers]
+        self.assumption_rows = rows
+        self.add_assumption_button = add
+        self.thoughts.set_bottom_panel(box)
+        self._sync_build_label()
 
     @staticmethod
     def _brief_questions(brief: dict | None) -> list[tuple[str, str]]:
@@ -1456,9 +1762,7 @@ class PromptaWindow(MainWindow):
         for rule_id in rule_ids or list(by_id):
             rule = by_id.get(rule_id, {})
             url = rule.get("source_url", "")
-            parsed = urlparse(url)
-            safe = (parsed.scheme == "https" and parsed.hostname in PROMPT_TARGETS[target][1]
-                    and not parsed.username and not parsed.password)
+            safe = is_official_source(url, target)
             if safe:
                 parts.append(f'<a href="{escape(url, quote=True)}">{escape(str(rule_id))}</a>')
                 hints[url] = " — ".join(x for x in (rule.get("source_section", ""), rule.get("rule_text", "")) if x)
@@ -1475,60 +1779,7 @@ class PromptaWindow(MainWindow):
         label.linkHovered.connect(lambda href: QToolTip.showText(QCursor.pos(), hints.get(href, href), label) if href else None)
         return label
 
-    def _questions_block(self, brief: dict | None) -> QWidget | None:
-        """What is missing: each question with the assumption used until it is answered; answers go into the thoughts and rebuild."""
-        questions = self._brief_questions(brief)
-        if not questions:
-            return None
-        box = QFrame()
-        box.setObjectName("questionsCard")
-        layout = QVBoxLayout(box)
-        layout.setContentsMargins(16, 14, 16, 16)
-        layout.setSpacing(0)  # explicit rhythm: a question sits with its field, groups stand apart
-        title = QLabel("Answer to sharpen the prompt")
-        title.setObjectName("cardTitle")
-        layout.addWidget(title)
-        answers: list[tuple[str, QLineEdit]] = []
-        for question, default in questions:
-            layout.addSpacing(12)
-            layout.addWidget(muted_label(question, "question"))
-            layout.addSpacing(5)
-            answer = QLineEdit()
-            answer.setPlaceholderText(f"Assumed: {default}" if default else "Your answer (optional)")
-            if default:
-                answer.setToolTip("Leave empty to keep this assumption")
-            answer.setAccessibleName(question)
-            layout.addWidget(answer)
-            answers.append((question, answer))
-        rebuild = QPushButton("Rebuild with answers")
-        rebuild.setObjectName("rebuild")
-        rebuild.setCursor(Qt.CursorShape.PointingHandCursor)
-        rebuild.setEnabled(False)  # nothing to rebuild with until something is typed
-        ru = (brief or {}).get("language") == "ru"
-
-        def sync() -> None:
-            rebuild.setEnabled(any(a.text().strip() for _, a in answers))
-
-        def apply() -> None:
-            given = [(q, a.text().strip()) for q, a in answers if a.text().strip()]
-            if not given:
-                self.status.setText("Answer at least one question")
-                return
-            head = "Уточнения" if ru else "Clarifications"
-            extra = "\n".join(f"- {q} — {a}" for q, a in given)
-            self.thoughts.setPlainText(f"{self.thoughts.toPlainText().rstrip()}\n\n{head}:\n{extra}")
-            self.run_pipeline()
-        rebuild.clicked.connect(apply)
-        for _, answer in answers:
-            answer.textChanged.connect(sync)
-            answer.returnPressed.connect(apply)
-        layout.addSpacing(16)
-        layout.addWidget(rebuild, 0, Qt.AlignmentFlag.AlignLeft)
-        self.question_answers = answers
-        self.rebuild_button = rebuild
-        return box
-
-    def render(self, result: dict) -> None:
+    def render(self, result: dict, *, source_thoughts: str | None = None) -> None:
         self._clear_output()
         brief = result["brief"]
         choice = result["choice"]
@@ -1549,13 +1800,14 @@ class PromptaWindow(MainWindow):
         metas = ["Zero-shot · baseline without a technique", meta_for(choice)] + [meta_for(a["choice"]) for a in alternatives]
         meta_label = muted_label(metas[1], "meta")
         layout.addWidget(meta_label)
+        self._add_usage(result)
         layout.addSpacing(10)
+        self._add_brief_refinement(brief, source_thoughts)
         prompts = [(choice["name"], synthesis["prompt"])] + [(a["choice"]["name"], a["synthesis"]["prompt"]) for a in alternatives]
         tabs = self._prompt_view(prompts, source_target, self._zero_shot_text(result))
         self._mark_originals(tabs, result)
         layout.addWidget(tabs)
         layout.addSpacing(BLOCK_GAP)  # air between the prompt and what follows
-        self.thoughts.set_bottom_panel(self._questions_block(brief))  # asked where the request is written
         variant_items = [(choice, synthesis)] + [(a["choice"], a["synthesis"]) for a in alternatives]
         pages: list[list[QWidget]] = [[] for _ in range(len(variant_items) + 1)]  # 0 = zero-shot
         self.visible_warnings = []
@@ -1616,7 +1868,7 @@ class PromptaWindow(MainWindow):
         self._follow_tabs(tabs, pages)
         tabs.currentChanged.connect(lambda index: meta_label.setText(metas[index]))  # header names the shown technique
 
-    def render_manual(self, manual: dict) -> None:
+    def render_manual(self, manual: dict, *, source_thoughts: str | None = None) -> None:
         self._clear_output()
         variants = manual.get("variants") or [
             {"technique": manual["technique"], "prompt": manual["prompt"], "config": manual["config"], "source_ref": manual["source_ref"]}
@@ -1626,13 +1878,14 @@ class PromptaWindow(MainWindow):
         metas = ["Zero-shot · baseline without a technique"] + [f"{name} · chosen manually" for name in names]
         meta_label = muted_label(metas[1], "meta")
         self.output_layout.addWidget(meta_label)
+        self._add_usage(manual)
         self.output_layout.addSpacing(10)
+        brief = manual.get("brief") if isinstance(manual.get("brief"), dict) else None
+        self._add_brief_refinement(brief, source_thoughts)
         tabs = self._prompt_view([(v["technique"]["name"], v["prompt"]) for v in variants], None, self._zero_shot_text(manual), named_tabs=True)
         self._mark_originals(tabs, manual)
         self.output_layout.addWidget(tabs)
         self.output_layout.addSpacing(BLOCK_GAP)
-        brief = manual.get("brief") if isinstance(manual.get("brief"), dict) else None
-        self.thoughts.set_bottom_panel(self._questions_block(brief))
         failed = manual.get("failed") or []
         self.visible_warnings = [f"{f['name']}: {f['error']}" for f in failed]
         if failed:
@@ -1724,11 +1977,19 @@ QLabel#chip { background: rgba(120, 96, 30, 20); border: none; border-radius: 7p
 QLabel#warn { background: rgba(244, 170, 40, 36); border: none; border-radius: 10px; }
 QLabel#error { background: rgba(220, 80, 70, 30); border: none; border-radius: 10px; }
 QCheckBox::indicator { border: none; background: rgba(120, 96, 30, 30); border-radius: 4px; }
-QPushButton#rebuild { background: #f4ca38; color: #352b10; border: none; border-radius: 8px; padding: 6px 14px; font-weight: 500; }
-QPushButton#rebuild:hover { background: #f7d65e; }
-QPushButton#rebuild:disabled { background: rgba(244, 202, 56, 90); color: #8f7f52; }
 QFrame#questionsCard { background: rgba(255, 248, 225, 235); border: none; border-radius: 10px; }
 QFrame#questionsCard QLineEdit { background: rgba(255, 255, 255, 185); }
+QFrame#questionsCard QScrollArea#fitScroll, QFrame#questionsCard QWidget#assumptionsBody { background: transparent; }
+QFrame#questionsCard QPlainTextEdit#answer { background: rgba(255, 255, 255, 185); border: 1px solid transparent; border-radius: 8px; padding: 3px 6px; color: #332e24; font-size: 13px; }
+QFrame#questionsCard QPlainTextEdit#answer:hover { border-color: #e6d7ad; }
+QFrame#questionsCard QPlainTextEdit#answer:focus { border-color: #c69b12; }
+QFrame#questionsCard QPlainTextEdit#assumption { background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 1px 2px; color: #4a4232; font-size: 13px; }
+QFrame#questionsCard QPlainTextEdit#assumption:hover { border-color: #e6d7ad; }
+QFrame#questionsCard QPlainTextEdit#assumption:focus { background: rgba(255, 255, 255, 185); border-color: #c69b12; }
+QPushButton#removeAssumption { background: transparent; border: none; border-radius: 6px; }
+QPushButton#removeAssumption:hover { background: rgba(216, 197, 147, 90); }
+QPushButton#addAssumption { background: transparent; border: none; color: #80620a; font-size: 12px; padding: 4px 4px; }
+QPushButton#addAssumption:hover { color: #5c4606; }
 QLabel#cardTitle { color: #3a3121; font-size: 13px; font-weight: 600; }
 QLabel#question { color: #4f4635; font-size: 12px; }
 QLabel#briefGoal { color: #3a3121; font-size: 13px; }

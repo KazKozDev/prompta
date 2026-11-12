@@ -1,5 +1,6 @@
+import { FRESHNESS_CRITERION, QUALITY_CRITERIA } from './prompt-defaults.ts';
 import type { BriefQuestion, LLM, Modality, Stakes, TaskBrief } from './types.ts';
-import { PipelineError } from './types.ts';
+import { CAPABILITIES, PipelineError } from './types.ts';
 import { extractJson, optionalStringArray, requireString } from './json.ts';
 
 const TASK_TYPES = [
@@ -18,14 +19,18 @@ export const BRIEF_SCHEMA = `{
   "topic": "короткая естественная тема, 2–6 слов на языке пользователя: Платформер на Pygame; не обрывок запроса и без вводных слов",
   "goal": "одно предложение: чего хочет пользователь",
   "task_type": ${TASK_TYPES.map((t) => `"${t}"`).join(' | ')},
-  "input": "что именно модель получит на вход (текст, документы, код, пусто)",
-  "output_format": "точный формат ответа: JSON, markdown-таблица, список, число, письмо…",
+  "input": "материал, который будет вставлен в промпт помимо самой задачи (текст, документы, код), или «нет»",
+  "output_format": "точный формат ответа для человека: список, markdown-таблица, письмо, код, число; JSON — только если ответ читает программа",
   "constraints": ["существенные ограничения: объём, стиль, запреты, источники"],
   "language": "язык ответа (ru, en, …)",
   "modality": "text | image | audio | video",
   "stakes": "low | medium | high — цена ошибки",
-  "assumptions": ["что пришлось домыслить и о чём не задан вопрос"],
+  "assumptions": ["до 3 существенных решений, принятых за пользователя и не покрытых вопросами"],
   "questions": [{"question": "короткий вопрос о том, чего не хватает и что заметно изменит результат", "default": "что допущено, пока ответа нет — коротко, 2–8 слов"}],
+  "verify_current_facts": boolean,
+  "require_evidence": boolean,
+  "required_capabilities": ["web" | "files" | "code" | "integrations"],
+  "validate_output": boolean,
   "budget_calls": "число вызовов LLM, которое пользователь готов потратить, или null"
 }`;
 
@@ -35,8 +40,9 @@ export function buildBriefPrompt(thoughts: string): string {
 
 Правила:
 1. Не выдумывай факты. Если чего-то нет — сделай минимальное разумное допущение и запиши его в assumptions.
-2. task_type выбирай по сути работы, а не по словам: «сравни 3 варианта» — reasoning, «вытащи поля» — extraction, «ответь по документам» — qa_over_docs.
-3. output_format должен быть исполнимым: не «хороший ответ», а «JSON с полями X, Y» или «таблица markdown, 3 колонки».
+2. task_type выбирай по сути работы, а не по словам: «сравни 3 варианта» — reasoning, «вытащи поля» — extraction, «ответь по документам» — qa_over_docs. qa_over_docs — только если документы даёт сам пользователь; если материалы нужно найти (новости, веб-поиск, сбор источников), это agentic.
+3. output_format должен быть исполнимым: не «хороший ответ», а «нумерованный список из 10 пунктов с кратким обоснованием» или «таблица markdown, 3 колонки». По умолчанию формат читает человек. JSON, YAML и другие машинные форматы — только если пользователь их просит или ответ явно пойдёт в программу. Проверяемость и ссылки на источники не повод переходить на JSON.
+3а. input — только материал, который пользователь вставит или приложит. Сама просьба пользователя — это задача, а не вход: если материала нет, пиши «нет». Не проси вставлять исходный запрос или ответы на вопросы.
 4. modality — только по тому, что реально нужно на входе или выходе.
 5. questions — только о недостающих фактах, от которых реально зависит ответ (данные, цифры, условия, критерии выбора), на языке пользователя. Не спрашивай о том, что уже сказано или легко допустить. Не больше 3; лучше 0, чем лишний; [] если всё есть. У каждого вопроса default — допущение, с которым строится промпт без ответа; это допущение НЕ повторяй в assumptions.
 6. budget_calls: если пользователь говорит про экономию или скорость — поставь 1; если явно нужен многошаговый разбор — null.
@@ -45,6 +51,11 @@ export function buildBriefPrompt(thoughts: string): string {
 
 Схема:
 ${BRIEF_SCHEMA}
+
+${FRESHNESS_CRITERION}
+${QUALITY_CRITERIA}
+
+Дата составления брифа: ${new Date().toISOString().slice(0, 10)}. Если пользователь просит новости или обзор за текущий незавершённый период, по умолчанию охвати подтверждённые события до даты выполнения. Прогноз нужен только по запросу. Если задача требует найти материалы, укажи это в цели и required_capabilities. Не описывай ещё не собранные материалы как предоставленный вход.
 
 Поток мыслей:
 ${JSON.stringify(thoughts)}
@@ -92,6 +103,8 @@ export function parseBrief(raw: string): TaskBrief {
   const budgetCalls =
     typeof budget === 'number' && Number.isFinite(budget) && budget >= 1 ? Math.floor(budget) : null;
 
+  const capabilities = obj.required_capabilities;
+  const requiredCapabilities = CAPABILITIES.filter((capability) => Array.isArray(capabilities) && capabilities.includes(capability));
   const topic = typeof obj.topic === 'string' ? obj.topic.trim().replace(/\s+/g, ' ') : '';
   return {
     ...(topic && topic.length <= 80 ? { topic } : {}),
@@ -105,6 +118,11 @@ export function parseBrief(raw: string): TaskBrief {
     stakes,
     assumptions: optionalStringArray(obj, 'assumptions'),
     questions: parseQuestions(obj.questions),
+    ...(typeof obj.verify_current_facts === 'boolean' ? { verify_current_facts: obj.verify_current_facts } : {}),
+    ...(obj.require_evidence === true ? { require_evidence: true } : {}),
+    ...(obj.requires_tools === true ? { requires_tools: true } : {}),
+    ...(obj.validate_output === true ? { validate_output: true } : {}),
+    ...(requiredCapabilities.length ? { required_capabilities: requiredCapabilities } : {}),
     budget_calls: budgetCalls,
   };
 }
@@ -137,6 +155,8 @@ export function briefToJson(brief: TaskBrief): string {
       input: brief.input,
       output_format: brief.output_format,
       constraints: brief.constraints,
+      required_capabilities: brief.required_capabilities ?? [],
+      verify_current_facts: brief.verify_current_facts ?? false,
       language: brief.language,
       stakes: brief.stakes,
       budget_calls: brief.budget_calls,

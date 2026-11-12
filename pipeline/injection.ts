@@ -124,14 +124,14 @@ export function isDefensive(constraint: string): boolean {
 }
 
 /** Требование пришло из внедрённой команды: само похоже на атаку или делит с ней ≥2 значимых основы. */
-function fromInjection(constraint: string, segments: string[]): boolean {
+function fromInjection(constraint: string, segments: string[], minimumOverlap = 2): boolean {
   if (isDefensive(constraint)) return false;
   if (STRONG.some((re) => re.test(constraint))) return true;
   const own = stems(constraint);
   return segments.some((seg) => {
     let shared = 0;
     for (const s of stems(seg)) if (own.has(s)) shared += 1;
-    return shared >= 2;
+    return shared >= minimumOverlap;
   });
 }
 
@@ -158,8 +158,24 @@ export const HAS_GUARD = /data,? not instructions|данные, а не инст
  *  недоверенный материал. Возвращает новый бриф и список удалённого — для предупреждения в отчёте. */
 export function sanitizeBrief(brief: TaskBrief, thoughts: string): { brief: TaskBrief; removed: string[] } {
   const segments = injectedSegments(thoughts);
-  const removed = brief.constraints.filter((c) => !/посторонние инструкции/i.test(c) && fromInjection(c, segments));
-  if (segments.length === 0 && removed.length === 0 && !hasThirdPartyMaterial(thoughts)) return { brief, removed };
-  const constraints = brief.constraints.filter((c) => !removed.includes(c) && !/посторонние инструкции/i.test(c));
-  return { brief: { ...brief, constraints: [...constraints, UNTRUSTED_CONSTRAINT] }, removed };
+  const removedConstraints = brief.constraints.filter((c) => !/посторонние инструкции/i.test(c) && fromInjection(c, segments));
+  if (!segments.length && !removedConstraints.length && !hasThirdPartyMaterial(thoughts)) {
+    return { brief, removed: [] };
+  }
+  const removed = new Set(removedConstraints);
+  const isInjected = (value: string) => {
+    if (!segments.length || !fromInjection(value, segments, 3)) return false;
+    removed.add(value);
+    return true;
+  };
+  const assumptions = brief.assumptions.filter((assumption) => !isInjected(assumption));
+  const questions = brief.questions?.flatMap(({ question, default: fallback }) => {
+    if (isInjected(question)) return [];
+    return fallback && !isInjected(fallback) ? [{ question, default: fallback }] : [{ question }];
+  });
+  const constraints = brief.constraints.filter((c) => !removedConstraints.includes(c) && !/посторонние инструкции/i.test(c));
+  return {
+    brief: { ...brief, assumptions, ...(questions ? { questions } : {}), constraints: [...constraints, UNTRUSTED_CONSTRAINT] },
+    removed: [...removed],
+  };
 }

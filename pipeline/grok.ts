@@ -2,7 +2,6 @@ import ruleData from '../grok_prompt_rules/rules.json' with { type: 'json' };
 import sourceData from '../grok_prompt_rules/sources.json' with { type: 'json' };
 import { loadOfficialRules, runOfficialPipeline } from './official.ts';
 import type { OfficialProfile } from './official.ts';
-import type { LLM } from './types.ts';
 
 const profile: OfficialProfile = {
   target: 'grok', label: 'Grok', organization: 'xAI', guidanceKey: 'grokGuidance',
@@ -12,6 +11,6 @@ const profile: OfficialProfile = {
 export function loadGrokRules(raw: unknown = ruleData, sources: unknown = sourceData) {
   return loadOfficialRules(raw, sources, profile);
 }
-export function runGrokPipeline(opts: { thoughts: string; llm: LLM; variants?: number; oneShot?: boolean; onProgress?: (percent: number, stage: string) => void }) {
+export function runGrokPipeline(opts: Parameters<typeof runOfficialPipeline>[0]) {
   return runOfficialPipeline(opts, profile, ruleData, sourceData);
 }

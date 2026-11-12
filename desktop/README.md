@@ -66,6 +66,7 @@ python3 desktop/app.py --screenshot /tmp/app.png
   внедрённых команд, убираются из брифа с предупреждением.
 - Кнопка **Stop** прерывает запрос, `⌘↩` запускает генерацию, у каждого промпта своя кнопка копирования.
 - Процедуры (18 техник без промпта) показываются шагами, а не притворяются техниками.
+- Результат показывает число вызовов модели за сборку и входные/выходные токены, если провайдер их вернул.
 
 ## История
 
@@ -82,6 +83,7 @@ python3 desktop/app.py --screenshot /tmp/app.png
   редактируемое — можно вписать имя, которого нет в списке. Для облачных провайдеров имя модели
   вписывается вручную. Если демон не отвечает, остаётся резервный список.
 - Один запрос за раз: пока идёт генерация, кнопка заблокирована.
+- **Settings → Model & API → Model base URL** задаёт адрес для генерации. Для локального MLX выберите OpenAI, впишите имя модели и адрес, например `http://127.0.0.1:8080/v1`. Для OpenAI-совместимого сервера на localhost ключ можно оставить пустым. Список моделей Ollama по-прежнему загружается с локального демона.
 
 ## Claude-specific prompts
 
@@ -103,11 +105,24 @@ The thin line below Build prompt advances only when pipeline stages or variants 
 it measures completed stages, not time or token generation. Successful runs finish at 100%;
 errors and cancellations clear the line. New results ask the model for a short natural topic
 used in the heading and history. Older results retain complete wording instead of keyword fragments.
-Desktop LLM generation requests an opening worked input/output example by default (one-shot),
-without duplicating an existing technique example. Explicit requests to omit examples take priority;
-offline synthesis and non-generative procedures do not invent demonstrations.
-The example guidance comes from Google Prompt Engineering v7, pp. 15–17, saved in
-`archive-org-prompting/md/google-prompt-engineering-whitepaper-v7.md`.
+The desktop no longer offers an opening worked example: an invented example tends to bury the real task,
+and the few-shot technique covers it for **Any**. The bridge and CLI still accept `oneShot`.
+
+**Runs in** says where the finished prompt will be used: **— any chat —**, **Chat with web access**,
+**Local model, no tools** or **Agent with tools** (web, files, code and integrations). Tool steps in the
+prompt follow that environment. MCP and CLI callers can list the exact agent capabilities instead.
+
+When the brief calls for it, the prompt ends with short checks: verify facts that may have changed,
+support claims with sources, use only available tools, and check stated requirements before answering.
+The checks never change the answer format: briefs default to a human-readable format and use JSON only
+when the user asks for it or a program reads the answer.
+
+## What I assumed
+
+Under the request, the **What I assumed** card lists the brief's open questions (with the assumed answer
+filled in) and its assumptions. Edit an answer, change or drop an assumption, or add your own. The build
+button then reads **Rebuild · N changes** and rebuilds from the edited brief without re-reading the
+request. Editing the request itself starts a fresh build.
 
 Every result now starts with a separate zero-shot baseline and its own Copy button.
 It is assembled from the task and brief without demonstrations, additional model calls,
@@ -116,6 +131,13 @@ saved older results get a baseline from their saved task when displayed.
 
 Mouse wheel and trackpad scrolling over any result prompt moves the outer results page.
 Use a prompt's own scrollbar to move within that prompt; the thoughts editor keeps its own wheel scrolling.
+
+## Hermes Agent target prompts
+
+**Hermes** compiles a task message for Nous Research's Hermes Agent from the saved official guides in
+`hermes_agent_prompt_guides/`, verified by SHA-256 before use. Source links are accepted only from the
+official docs site and the `NousResearch/hermes-agent` repository. Sampling settings are left to the
+model configured in Hermes. The MCP server accepts `target: "hermes"` too.
 
 ## Grok target prompts
 

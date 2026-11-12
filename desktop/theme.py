@@ -11,8 +11,22 @@ PROMPT_TARGETS = {
     "chatgpt": ("ChatGPT", ("developers.openai.com", "platform.openai.com", "learn.chatgpt.com")),
     "gemini": ("Gemini", ("ai.google.dev", "aistudio.google.com", "docs.cloud.google.com", "cloud.google.com")),
     "grok": ("Grok", ("docs.x.ai",)),
+    "hermes": ("Hermes", ("hermes-agent.nousresearch.com", "github.com/NousResearch/hermes-agent")),
     "openModel": ("Open-weight model", ("huggingface.co",)),
 }
+
+
+def is_official_source(url: str, target: str) -> bool:
+    """HTTPS link to a target's official host; a host/path entry admits only that path (one repository on github.com)."""
+    from urllib.parse import urlparse
+    parsed = urlparse(url)
+    if parsed.scheme != "https" or parsed.username or parsed.password or target not in PROMPT_TARGETS:
+        return False
+    for entry in PROMPT_TARGETS[target][1]:
+        host, _, path = entry.partition("/")
+        if parsed.hostname == host and (not path or parsed.path.startswith(f"/{path}/")):
+            return True
+    return False
 
 
 CHAT_URLS = {
@@ -47,7 +61,6 @@ QLabel#subtitle { color: #74694f; font-size: 13px; }
 QLabel#section { font-weight: 600; color: #332e24; font-size: 13px; }
 QLabel#fieldLabel { color: #74694f; font-size: 10px; font-weight: 500; letter-spacing: 1px; }
 QLabel#muted { color: #665d49; font-size: 12px; }
-QLabel#oneShotHint { color: #8a7d5c; font-size: 11px; }
 QLabel#goal { font-size: 15px; font-weight: 600; color: #332e24; }
 QLabel#chip { color: #5b6574; background: #f2e6c5; border: 1px solid #dfd0a8; border-radius: 8px; padding: 3px 8px; font-size: 11px; }
 QLabel#warn { color: #8a5300; background: #fffaf0; border: 1px solid #f6e2bd; border-radius: 8px; padding: 8px 10px; font-size: 12px; }

@@ -17,6 +17,7 @@ PIPELINE_MATERIALS = {
     'claude.ts': 'Claude target scope and compiler policy.',
     'chatgpt.ts': 'ChatGPT target scope and compiler policy.',
     'gemini.ts': 'Gemini target scope and compiler policy.',
+    'hermes.ts': 'Hermes Agent compiler policy and official snapshot integrity checks.',
     'grok.ts': 'Grok target scope and compiler policy.',
     'open-model.ts': 'Model-specific compilation from pinned official open-weight model cards with integrity verification.',
     'prompt-defaults.ts': 'Product default: opening worked example. This is a product instruction, not a source recommendation.',
@@ -87,6 +88,25 @@ def library_entries(root: Path) -> list[dict]:
                     url=source.get('url', ''), expected_hash=source.get('sha256'), reference=source.get('retrieved_at', ''))
         except (OSError, ValueError, KeyError, TypeError):
             add(category, 'Source registry unavailable', folder + '/sources.json', 'Registry could not be read. Inspect the saved file; no source checks are claimed.')
+
+    hermes_folder = 'hermes_agent_prompt_guides'
+    hermes_category = 'Hermes Agent official sources'
+    for name, use in (
+        ('rules.json', 'Active Hermes Agent prompting rules used by the target compiler.'),
+        ('sources.json', 'Source registry and saved SHA-256 hashes.'),
+        ('README.md', 'Collection scope and guidance for Prompta.'),
+        ('LICENSE', 'Upstream documentation license.'),
+    ):
+        add(hermes_category, name, f'{hermes_folder}/{name}', use)
+    try:
+        registry = json.loads(safe_path(root, f'{hermes_folder}/sources.json').read_text())
+        for source in registry['sources']:
+            add(hermes_category, source['title'], f"{hermes_folder}/{source['snapshot']}",
+                'Downloaded official documentation. See rules.json for guidance used during generation.',
+                url=source['url'], expected_hash=source['sha256'], reference=source['retrieved_at'])
+    except (OSError, ValueError, KeyError, TypeError):
+        add(hermes_category, 'Source registry unavailable', f'{hermes_folder}/sources.json',
+            'Inspect the saved source registry.')
 
     open_models = root / 'open_model_prompt_guides/manifest.json'
     if open_models.exists():

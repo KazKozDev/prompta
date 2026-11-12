@@ -438,8 +438,14 @@ class ThoughtsEdit(QPlainTextEdit):
         self.bottom_panel = panel
         if panel is not None:
             panel.setParent(self)
+            panel.installEventFilter(self)  # re-place whenever its contents change height
             panel.show()
         self._place_bottom_panel()
+
+    def eventFilter(self, watched, event) -> bool:  # noqa: N802 - Qt naming
+        if watched is self.bottom_panel and event.type() == QEvent.Type.LayoutRequest:
+            QTimer.singleShot(0, self._place_bottom_panel)  # once the layout has taken the new sizes
+        return super().eventFilter(watched, event)
 
     def _place_bottom_panel(self) -> None:
         panel = self.bottom_panel

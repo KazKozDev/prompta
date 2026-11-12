@@ -2,7 +2,6 @@ import ruleData from '../chatgpt_prompt_rules/rules.json' with { type: 'json' };
 import sourceData from '../chatgpt_prompt_rules/sources.json' with { type: 'json' };
 import { loadOfficialRules, runOfficialPipeline } from './official.ts';
 import type { OfficialProfile } from './official.ts';
-import type { LLM } from './types.ts';
 
 const profile: OfficialProfile = {
   target: 'chatgpt', label: 'ChatGPT', organization: 'OpenAI', guidanceKey: 'chatgptGuidance',
@@ -11,6 +10,6 @@ const profile: OfficialProfile = {
 export function loadChatGPTRules(raw: unknown = ruleData, sources: unknown = sourceData) {
   return loadOfficialRules(raw, sources, profile);
 }
-export function runChatGPTPipeline(opts: { thoughts: string; llm: LLM; variants?: number; oneShot?: boolean; onProgress?: (percent: number, stage: string) => void }) {
+export function runChatGPTPipeline(opts: Parameters<typeof runOfficialPipeline>[0]) {
   return runOfficialPipeline(opts, profile, ruleData, sourceData);
 }

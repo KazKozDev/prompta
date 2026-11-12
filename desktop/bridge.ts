@@ -1,3 +1,5 @@
+import { sanitizeBrief } from '../pipeline/injection.ts';
+import { applyPromptDefaults, localizePromptDefaults, resolveExecutionCapabilities } from '../pipeline/prompt-defaults.ts';
 import { generateZeroShotPrompt } from '../pipeline/zero-shot.ts';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -6,9 +8,9 @@ import { fileURLToPath } from 'node:url';
 import { loadCatalog } from '../pipeline/catalog.ts';
 import { runPipeline } from '../pipeline/index.ts';
 import { extractJson } from '../pipeline/json.ts';
-import { createLLM } from '../pipeline/llm.ts';
+import { createLLM, meterLLM } from '../pipeline/llm.ts';
 import { generateManualPrompt } from '../pipeline/manual.ts';
-import { generateBrief } from '../pipeline/brief.ts';
+import { generateBrief, parseBrief } from '../pipeline/brief.ts';
 import { settleWithLimit } from '../pipeline/limit.ts';
 import type { Provider } from '../pipeline/llm.ts';
 import techniqueSources from '../catalog/source-links.json' with { type: 'json' };
@@ -23,16 +25,21 @@ const MANUAL_CONCURRENCY = 4;
 
 interface BridgeRequest {
   thoughts: string;
+  brief?: unknown;
   reportProgress?: boolean;
   oneShot?: boolean;
+  executionProfile?: string;
+  agentCapabilities?: string[];
   provider?: Provider;
   model?: string;
   apiKey?: string;
+  baseUrl?: string;
   deterministic?: boolean;
   claudeOnly?: boolean;
   chatgptOnly?: boolean;
   geminiOnly?: boolean;
   grokOnly?: boolean;
+  hermesOnly?: boolean;
   openModel?: string;
   budgetCalls?: number | null;
   /** Список техник для выпадающего меню в UI. */
@@ -63,22 +70,37 @@ async function main() {
     throw new Error('Enter your thoughts');
   }
 
-  for (const key of ['claudeOnly', 'chatgptOnly', 'geminiOnly', 'grokOnly'] as const) {
+  for (const key of ['claudeOnly', 'chatgptOnly', 'geminiOnly', 'grokOnly', 'hermesOnly'] as const) {
     if (req[key] !== undefined && typeof req[key] !== 'boolean') throw new Error(`${key} must be a boolean.`);
   }
-  if ([req.claudeOnly, req.chatgptOnly, req.geminiOnly, req.grokOnly, req.openModel].filter(Boolean).length > 1) throw new Error('Choose only one target: Claude, ChatGPT, Gemini, or Grok.');
+  if ([req.claudeOnly, req.chatgptOnly, req.geminiOnly, req.grokOnly, req.hermesOnly, req.openModel].filter(Boolean).length > 1) throw new Error('Choose only one target.');
 
   if (req.openModel !== undefined && (typeof req.openModel !== 'string' || !req.openModel.trim())) throw new Error('Invalid target model.');
   const provider = req.provider ?? 'ollama';
   const model = req.model ?? '';
   if (!model) throw new Error('Choose a model');
-  if (provider !== 'ollama' && !req.apiKey) throw new Error(`An API key is required for ${provider}`);
+  let baseUrl: string | undefined;
+  if (req.baseUrl) {
+    const url = URL.parse(req.baseUrl.trim());
+    if (!url || !['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) {
+      throw new Error('Enter an HTTP or HTTPS model base URL without credentials, query parameters or a fragment.');
+    }
+    baseUrl = url.href.replace(/\/+$/, '');
+  }
 
   const onProgress = req.reportProgress === true
     ? (percent: number, stage: string) => process.stderr.write(`PROMPTA_PROGRESS ${JSON.stringify({ percent, stage })}\n`)
     : undefined;
+  const executionCapabilities = resolveExecutionCapabilities(req.executionProfile, req.agentCapabilities);
+  const revisedBrief = req.brief === undefined ? undefined : parseBrief(JSON.stringify(req.brief));
   const oneShot = req.oneShot === true;  // opt-in: an invented example at the top buries the real task
-  const officialMode = req.claudeOnly || req.chatgptOnly || req.geminiOnly || req.grokOnly || req.openModel;
+  const meter = meterLLM(createLLM({ provider, model, apiKey: req.apiKey, baseUrl }));
+  const { llm, usage } = meter;
+  const getManualBrief = async () => {
+    const brief = revisedBrief ?? await generateBrief(req.thoughts, llm);
+    return brief && sanitizeBrief(brief, req.thoughts).brief;
+  };
+  const officialMode = req.claudeOnly || req.chatgptOnly || req.geminiOnly || req.grokOnly || req.hermesOnly || req.openModel;
   const catalog = officialMode && !req.listTechniques ? { version: 'official-only', techniques: [] } : loadCatalog(JSON.parse(readFileSync(join(root, 'catalog', 'catalog.json'), 'utf8')));
 
   if (req.listTechniques) {
@@ -101,8 +123,6 @@ async function main() {
     return;
   }
 
-  const llm = createLLM({ provider, model, apiKey: req.apiKey });
-
   if (officialMode && req.manualTechniques) {
     throw new Error('Official-guidance targets cannot use generic manual techniques.');
   }
@@ -123,13 +143,14 @@ async function main() {
     });
     onProgress?.(5, 'Techniques loaded');
     // The same brief as automatic choice: format, constraints, assumptions and questions for every prompt.
-    const brief = await generateBrief(req.thoughts, llm);
+    const brief = await getManualBrief();
+    const defaults = await localizePromptDefaults(brief, executionCapabilities, llm);
     onProgress?.(15, 'Brief ready');
-    const zeroShot = generateZeroShotPrompt(req.thoughts, brief, llm);  // Variant 0, by the model too
+    const zeroShot = generateZeroShotPrompt(req.thoughts, brief, llm, executionCapabilities);  // Variant 0, by the model too
     let finished = 0;
     const settled = await settleWithLimit(techniques, MANUAL_CONCURRENCY, async (technique) => {
       try {
-        return await generateManualPrompt(req.thoughts, technique, llm, oneShot, brief);
+        return applyPromptDefaults(await generateManualPrompt(req.thoughts, technique, llm, oneShot, brief, executionCapabilities), brief, executionCapabilities, defaults);
       } finally {
         finished += 1;
         onProgress?.(15 + Math.round(75 * finished / techniques.length), `Prompts ready: ${finished}/${techniques.length}`);
@@ -149,7 +170,7 @@ async function main() {
     onProgress?.(95, 'Topic ready');
     const first = variants[0];
     process.stdout.write(JSON.stringify({ ok: true, manual: {
-      zeroShotPrompt: (await zeroShot).prompt, topic, brief,
+      zeroShotPrompt: applyPromptDefaults((await zeroShot).prompt, brief, executionCapabilities, defaults), topic, brief, usage: usage(),
       // First variant at the top level keeps older readers (and saved history) working.
       technique: first.technique, prompt: first.prompt, config: first.config, source_ref: first.source_ref,
       variants, failed,
@@ -168,16 +189,19 @@ async function main() {
     if (!technique) throw new Error(`Unknown technique: ${req.manualTechnique}`);
 
     if (technique.status === 'procedure') {
+      const brief = await getManualBrief();
+      const defaults = await localizePromptDefaults(brief, executionCapabilities, llm);
       process.stdout.write(
         JSON.stringify({
           ok: true,
           procedure: {
-            zeroShotPrompt: (await generateZeroShotPrompt(req.thoughts, undefined, llm)).prompt,
+            zeroShotPrompt: applyPromptDefaults((await generateZeroShotPrompt(req.thoughts, brief, llm, executionCapabilities)).prompt, brief, executionCapabilities, defaults),
             technique: { key: technique.key, name: technique.name, category: technique.category },
             steps: technique.procedure ?? [],
             when_to_use: technique.when_to_use,
             source_ref: technique.source_ref,
             topic: technique.name,
+            usage: usage(),
           },
         }),
       );
@@ -187,10 +211,11 @@ async function main() {
     if (!technique.template) throw new Error(`${technique.key}: No synthesis template`);
 
     if (req.deterministic) throw new Error('Manual technique selection requires LLM synthesis. Disable Skip LLM synthesis.');
-    const brief = await generateBrief(req.thoughts, llm);
+    const brief = await getManualBrief();
+    const defaults = await localizePromptDefaults(brief, executionCapabilities, llm);
     onProgress?.(30, 'Brief ready');
-    const [prompt, zeroShot] = await Promise.all([generateManualPrompt(req.thoughts, technique, llm, oneShot, brief),
-      generateZeroShotPrompt(req.thoughts, brief, llm)]);
+    const [prompt, zeroShot] = await Promise.all([generateManualPrompt(req.thoughts, technique, llm, oneShot, brief, executionCapabilities),
+      generateZeroShotPrompt(req.thoughts, brief, llm, executionCapabilities)]);
     onProgress?.(85, 'Prompt ready');
     const topic = brief?.topic ?? await topicFor(req.thoughts, llm);
     onProgress?.(95, 'Topic ready');
@@ -199,11 +224,12 @@ async function main() {
       JSON.stringify({
         ok: true,
         manual: {
-          zeroShotPrompt: zeroShot.prompt,
+          zeroShotPrompt: applyPromptDefaults(zeroShot.prompt, brief, executionCapabilities, defaults),
           topic,
           brief,
+          usage: usage(),
           technique: { key: technique.key, name: technique.name, category: technique.category },
-          prompt,
+          prompt: applyPromptDefaults(prompt, brief, executionCapabilities, defaults),
           config: technique.config,
           source_ref: technique.source_ref,
           why: technique.when_to_use,
@@ -216,11 +242,14 @@ async function main() {
   const result = await runPipeline({
     onProgress,
     oneShot,
+    executionCapabilities,
+    brief: revisedBrief,
     thoughts: req.thoughts,
     claudeOnly: req.claudeOnly === true,
     chatgptOnly: req.chatgptOnly === true,
     geminiOnly: req.geminiOnly === true,
     grokOnly: req.grokOnly === true,
+    hermesOnly: req.hermesOnly === true,
     openModel: req.openModel,
     catalog,
     llm,

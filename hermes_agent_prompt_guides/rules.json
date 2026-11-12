@@ -1,0 +1,48 @@
+{
+  "version": "2026-11-11",
+  "verified_at": "2026-11-11",
+  "sources_sha256": {
+    "tips": "1c5108bc9a14a829bd83308eb2ddc98971cd07889fdb8ca8f447f83741929b87",
+    "context-files": "0a35eac7c2ea5d0451eeb174348ded0abb9f6af5f3657d7a03d843b3ca4f7009",
+    "use-soul-with-hermes": "2e6e10cfb9f13e51727c4035e25769cf26afe542d61177f0fbc6367bdd7b3fc2",
+    "prompt-assembly": "b0333ed28aaccaf5e7e480c0c9000b80ac3db1e7e5c8b2971b1742c48a613c5f"
+  },
+  "rules": [
+    {
+      "id": "tips",
+      "rule_text": "State the requested outcome concretely and supply relevant context up front. Give Hermes room to use permitted tools without prescribing every mechanical action.",
+      "source_url": "https://hermes-agent.nousresearch.com/docs/guides/tips/",
+      "source_section": "Getting the Best Results",
+      "source_id": "tips",
+      "source_sha256": "1c5108bc9a14a829bd83308eb2ddc98971cd07889fdb8ca8f447f83741929b87",
+      "language": "en",
+      "condition": "Use for the user task; include only relevant context and respect the execution environment.",
+      "application": "prompt",
+      "status": "active"
+    },
+    {
+      "id": "context-files",
+      "rule_text": "Keep recurring project conventions in project context files such as AGENTS.md.",
+      "source_url": "https://hermes-agent.nousresearch.com/docs/user-guide/features/context-files",
+      "source_section": "Supported Context Files",
+      "source_id": "context-files",
+      "source_sha256": "0a35eac7c2ea5d0451eeb174348ded0abb9f6af5f3657d7a03d843b3ca4f7009",
+      "language": "en",
+      "condition": "Apply only when the user asks for reusable project instructions.",
+      "application": "prompt",
+      "status": "active"
+    },
+    {
+      "id": "use-soul-with-hermes",
+      "rule_text": "Use SOUL.md for instance-wide identity, tone and communication preferences.",
+      "source_url": "https://hermes-agent.nousresearch.com/docs/guides/use-soul-with-hermes",
+      "source_section": "What SOUL.md is for",
+      "source_id": "use-soul-with-hermes",
+      "source_sha256": "2e6e10cfb9f13e51727c4035e25769cf26afe542d61177f0fbc6367bdd7b3fc2",
+      "language": "en",
+      "condition": "Apply only when the user asks to define the persistent persona.",
+      "application": "prompt",
+      "status": "active"
+    }
+  ]
+}

@@ -1,3 +1,5 @@
+import { EXECUTION_PROFILES, resolveExecutionCapabilities } from '../pipeline/prompt-defaults.ts';
+import { CAPABILITIES } from '../pipeline/types.ts';
 /** Prompta as an MCP server (stdio, newline-delimited JSON-RPC 2.0). No SDK, same as the rest of the pipeline.
  *
  *  Agents call it with their current conversation as context:
@@ -22,7 +24,7 @@ import type { Catalog, LLM, PipelineResult } from '../pipeline/types.ts';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SERVER_INFO = { name: 'prompta', version: '0.1.0' };
 const PROTOCOL_VERSIONS = ['2025-06-18', '2025-03-26', '2024-11-05'];
-const TARGETS = ['auto', 'claude', 'chatgpt', 'gemini', 'grok'] as const;
+const TARGETS = ['auto', 'claude', 'chatgpt', 'gemini', 'grok', 'hermes'] as const;
 type Target = (typeof TARGETS)[number];
 
 type Json = Record<string, unknown>;
@@ -42,6 +44,8 @@ const TOOLS = [
         request: { type: 'string', description: 'What the user wants, in their own words (draft prompt or wish).' },
         context: { type: 'string', description: 'Relevant recent conversation: user messages, what was done, files, errors. Plain text.' },
         target: { type: 'string', enum: [...TARGETS], description: 'Model the prompt is for. auto = generic technique catalog.' },
+        execution_profile: { type: 'string', enum: [...EXECUTION_PROFILES], description: 'Environment where the finished prompt will run. Default: universal.' },
+        agent_capabilities: { type: 'array', items: { type: 'string', enum: [...CAPABILITIES] }, description: 'With execution_profile agent: the capabilities the agent has. Unlisted ones are treated as unavailable.' },
         variants: { type: 'integer', minimum: 1, maximum: 3, description: 'How many alternative prompts to return (default 1).' },
       },
       required: ['request'],
@@ -118,15 +122,23 @@ export function createServer(deps: ServerDeps) {
       const target = (str(args, 'target') ?? 'auto') as Target;
       if (!TARGETS.includes(target)) throw new ToolInputError(`"target" must be one of: ${TARGETS.join(', ')}.`);
       const variants = int(args, 'variants', 1, 3, 1);
+      let executionCapabilities;
+      try {
+        executionCapabilities = resolveExecutionCapabilities(str(args, 'execution_profile'), args.agent_capabilities);
+      } catch (error) {
+        throw new ToolInputError(error instanceof Error ? error.message : String(error));
+      }
       const llm = await deps.getLLM();
       const result = await runPipeline({
         thoughts: composeThoughts(request, str(args, 'context')),
         catalog: target === 'auto' ? deps.getCatalog() : { version: 'official-only', techniques: [] },
         llm,
         variants,
+        executionCapabilities,
         claudeOnly: target === 'claude',
         chatgptOnly: target === 'chatgpt',
         geminiOnly: target === 'gemini',
+        hermesOnly: target === 'hermes',
         grokOnly: target === 'grok',
         onProgress: progress,
       });

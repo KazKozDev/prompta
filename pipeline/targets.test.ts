@@ -120,3 +120,27 @@ for (const item of cases) {
     assert.deepEqual(updates, [20, 95]);
   });
 }
+
+test('Hermes Agent routes through saved guidance and preserves the revised brief', async () => {
+  const revised = { ...brief, modality: 'text' as const, stakes: 'low' as const, assumptions: ['Treat zero as even'] };
+  const prompts: string[] = [];
+  const result = await runPipeline({
+    thoughts: 'Classify the input numbers',
+    brief: revised,
+    catalog: { version: 'test', techniques: [] },
+    hermesOnly: true,
+    executionCapabilities: { web: 'available' },
+    llm: async (prompt) => {
+      prompts.push(prompt);
+      if (prompt.includes('Напиши zero-shot')) return 'Classify the supplied integers and return the results as JSON.';
+      return JSON.stringify({ variants: [{
+        prompt: 'Classify each supplied integer by parity and return the labels as JSON.',
+        rule_ids: ['tips'],
+      }] });
+    },
+  });
+  assert.deepEqual(result.brief.assumptions, revised.assumptions);
+  assert.equal(result.hermesGuidance?.rules[0].id, 'tips');
+  assert.equal(result.synthesis.config.temperature, null);
+  assert.ok(prompts.every((prompt) => prompt.includes(revised.assumptions[0]) && prompt.includes('"web":"available"')));
+});

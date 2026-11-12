@@ -11,7 +11,7 @@ from history import HistoryStore, history_topic
 import unittest
 from unittest.mock import Mock, patch
 
-from app import QApplication, MainWindow, PromptaWindow, Worker, QPushButton, QLabel, QModelIndex, QListWidget
+from app import QApplication, MainWindow, PromptaWindow, Worker, QPushButton, QLabel, QModelIndex, QListWidget, QPlainTextEdit
 import app as app_module
 
 
@@ -724,25 +724,57 @@ class DesktopSmokeTest(unittest.TestCase):
         self.assertEqual(window.technique.current_key(), 'zero_shot')
         window.close()
 
-    def test_questions_show_their_assumed_default_and_rebuild_waits_for_an_answer(self):
-        from app import QLineEdit
+    def test_assumptions_card_edits_the_brief_and_rebuilds_without_rebriefing(self):
         brief = {'goal': 'Find job titles', 'task_type': 'agentic', 'language': 'ru', 'stakes': 'medium', 'output_format': 'Report',
-                 'assumptions': ['Leftover assumption'],
+                 'assumptions': ['Leftover assumption', 'Senior roles only'],
                  'questions': [{'question': 'Which countries?', 'default': 'all of Europe'}, 'Which period?']}
         result = {'brief': brief, 'choice': {'key': 'zero_shot', 'name': 'Zero-shot', 'reason': 'r', 'confidence': 0.5},
                   'synthesis': {'prompt': 'Find job titles across Europe and report them with dates.', 'config': {'temperature': 0.2, 'top_p': 0.95, 'max_tokens': '1024'}, 'warnings': []},
                   'rejected': []}
         with patch.object(MainWindow, 'load_models'), patch.object(MainWindow, 'load_techniques'):
             window = PromptaWindow()
+        window.thoughts.setPlainText("Find job titles")
         window.render(result)
+        card = window.thoughts.bottom_panel
+        self.assertIs(card.parentWidget(), window.thoughts, 'one card, under the request')
+        self.assertFalse([e for e in window.findChildren(QPlainTextEdit)
+                          if e.toPlainText() == 'Leftover assumption' and not card.isAncestorOf(e)],
+                         'no second assumptions box beside the prompt')
         fields = [answer for _, answer in window.question_answers]
-        self.assertEqual([f.placeholderText() for f in fields], ['Assumed: all of Europe', 'Your answer (optional)'])
-        self.assertFalse(window.rebuild_button.isEnabled(), 'nothing to rebuild with yet')
+        self.assertEqual([f.text() for f in fields], ['all of Europe', ''], 'the assumed answer is shown as the value')
+        self.assertEqual([row['field'].text() for row in window.assumption_rows], ['Leftover assumption', 'Senior roles only'])
+        self.assertEqual(window.run_button.text(), window.build_label, 'no edits: an ordinary build')
+        self.assertFalse([b for b in window.findChildren(QPushButton) if b.text().startswith('Rebuild')], 'no separate rebuild button')
+
+        fields[0].setText('Germany')
+        window.assumption_rows[0]['widget'].findChild(QPushButton, 'removeAssumption').click()
+        window.add_assumption_button.click()
+        window.assumption_rows[-1]['field'].setText('Include direct sources')
         fields[1].setText('last 12 months')
-        self.assertTrue(window.rebuild_button.isEnabled())
-        texts = [label.text() for label in window.findChildren(QLabel)]
-        self.assertTrue(any('Leftover assumption' in t for t in texts))
-        self.assertIs(window.thoughts.bottom_panel.parentWidget(), window.thoughts, 'asked inside the request field')
+        self.assertTrue(window.run_button.text().startswith('Rebuild · 4 changes'), 'the one button says what it will do')
+        with patch.object(window, 'run_pipeline') as run:
+            revised = window._card_revision()
+            window.run_button.click()
+            run.assert_called_once_with()
+            self.assertEqual(revised, {
+                **brief,
+                'assumptions': ['Senior roles only', 'Include direct sources'],
+                'questions': [{'question': 'Which countries?', 'default': 'Germany'},
+                              {'question': 'Which period?', 'default': 'last 12 months'}],
+            })
+        self.assertEqual(window.thoughts.toPlainText(), 'Find job titles', 'the request is left as typed')
+        fields[0].setText('')
+        self.assertEqual(window._card_revision()['questions'][0], {'question': 'Which countries?'},
+                         'a cleared answer drops that assumption')
+        with patch('app.Worker') as worker:
+            window.model.set_current('test-model')
+            window.worker = None
+            window.run_pipeline()
+            self.assertEqual(worker.call_args.args[0]['brief']['assumptions'], ['Senior roles only', 'Include direct sources'],
+                             'Build sends the edited brief')
+        window.thoughts.setPlainText('Find job titles in Asia')
+        self.assertEqual(window.run_button.text(), window.build_label, 'a changed request is a fresh build')
+        self.assertIsNone(window._card_revision())
         window.clear_workspace()
         self.assertIsNone(window.thoughts.bottom_panel, 'a new request starts without old questions')
         window.close()
@@ -1076,7 +1108,7 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
             window.thoughts.setPlainText('Build a snake game')
             window.model.set_current('test-model')
             buttons = {b.property('target'): b for b in window.segments.buttons()}
-            self.assertEqual([b.text() for b in window.segments.buttons()], ['Any', 'Claude', 'ChatGPT', 'Gemini', 'Grok'])
+            self.assertEqual([b.text() for b in window.segments.buttons()], ['Any', 'Claude', 'ChatGPT', 'Gemini', 'Grok', 'Hermes'])
             self.assertTrue(buttons['general'].isChecked())
 
             def payload():
@@ -1085,6 +1117,12 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
                     window.run_pipeline()
                     return worker.call_args.args[0]
 
+            request = payload()
+            self.assertEqual(request['executionProfile'], 'universal')
+            self.assertNotIn('agentCapabilities', request)
+            window.execution_profile.set_current('agent')
+            self.assertEqual(payload()['agentCapabilities'], ['code', 'files', 'integrations', 'web'], 'an agent has every tool')
+            window.execution_profile.set_current('universal')
             buttons['claude'].click()
             self.assertTrue(payload()['claudeOnly'])
             self.assertFalse(window.technique.isEnabled())
@@ -1092,8 +1130,14 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
             request = payload()
             self.assertTrue(request['grokOnly'])
             self.assertFalse(request['claudeOnly'])
+            buttons['hermes'].click()
+            request = payload()
+            self.assertTrue(request['hermesOnly'])
+            self.assertFalse(request['grokOnly'])
+            self.assertFalse(window.technique.isEnabled())
             window.prompt_model.setCurrentIndex(window.prompt_model.findData('glm-5-3'))
             request = payload()
+            self.assertFalse(request['hermesOnly'])
             self.assertEqual(request['openModel'], window.prompt_model.currentData())
             self.assertFalse(any(b.isChecked() for b in window.segments.buttons()))
             buttons['general'].click()
@@ -1154,6 +1198,20 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
         finally:
             window.close()
 
+    def test_runs_in_has_its_own_label_and_plain_choices(self):
+        window = self._prompta_window()
+        try:
+            labels = [label.text() for label in window.findChildren(QLabel)]
+            self.assertIn('RUNS IN', labels)
+            self.assertEqual(window.execution_profile.text(), '— any chat —')
+            self.assertFalse(hasattr(window, 'one_shot'), 'no worked-example toggle: few-shot covers it')
+            window.execution_profile.set_current('agent')
+            self.assertEqual(window.execution_profile.text(), 'Agent with tools')
+            window.execution_profile.set_current('local')
+            self.assertEqual(window.execution_profile.text(), 'Local model, no tools')
+        finally:
+            window.close()
+
     def test_advanced_section_holds_technique_and_variants(self):
         window = self._prompta_window()
         try:
@@ -1161,13 +1219,11 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
             self.assertIs(window.variants.parentWidget(), window.advanced.body)
             self.assertTrue(window.advanced.body.isVisibleTo(window), 'Advanced never folds')
             self.assertEqual(window.advanced.title(), 'Technique')
-            self.assertFalse(window.one_shot.isChecked(), 'no invented example unless asked')
             window.variants.buttons.button(2).click()
             self.assertEqual(window.advanced.title(), 'Technique', 'the heading stays put')
             self.assertEqual(window.variants.value(), 2)
             window.segments.buttons()[1].click()  # Claude
             self.assertFalse(window.advanced.isVisibleTo(window), 'techniques exist only for Any')
-            self.assertTrue(window.one_shot.isVisibleTo(window), 'the example toggle applies to every target')
             self.assertEqual(window.variants.value(), 1)
             window.segments.buttons()[0].click()  # back to Any
             self.assertTrue(window.advanced.isVisibleTo(window))

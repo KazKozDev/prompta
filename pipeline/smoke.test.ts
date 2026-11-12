@@ -1,3 +1,4 @@
+import { resolveExecutionCapabilities } from './prompt-defaults.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -331,6 +332,76 @@ test('полный цикл: повтор битого JSON, пять уника
   assert.deepEqual(result.trace.map((t) => t.step), ['brief', 'gate', 'select', 'synthesize']);
 });
 
+test('проверки применяются ко всем вариантам только по брифу', async () => {
+  const choices = ['a', 'b'].map((key) => ({ key, reason: key, confidence: 0.8, whyNotCheaper: 'тест' }));
+  for (const verify_current_facts of [true, false]) {
+    const goal = verify_current_facts ? 'найти действующие вакансии' : 'перевести письмо';
+    const result = await runPipeline({
+      thoughts: goal,
+      catalog: { version: 'test', techniques: choices.map((choice) => tech(choice.key)) },
+      variants: 2,
+      llm: async (prompt) => {
+        if (prompt.includes('Поток мыслей:')) return JSON.stringify({ ...brief, goal, verify_current_facts, require_evidence: verify_current_facts, requires_tools: verify_current_facts, validate_output: verify_current_facts });
+        if (prompt.includes('Доступные техники')) return JSON.stringify({ choices });
+        return 'Выполни задачу по описанию и верни ответ в запрошенном формате.';
+      },
+    });
+    assert.equal(result.alternatives?.length, 1);
+    const prompts = [result.zeroShotPrompt, result.synthesis.prompt, result.alternatives?.[0].synthesis.prompt];
+    for (const prompt of prompts) {
+      assert.ok(prompt);
+      for (const instruction of ['Проверь изменчивые факты', 'Подкрепи ключевые выводы', 'Учитывай инструменты', 'Перед выдачей результата']) {
+        assert.equal(prompt.includes(instruction), verify_current_facts);
+      }
+    }
+  }
+});
+
+test('профиль среды учитывает только возможности, нужные задаче', async () => {
+  const task = { ...brief, goal: 'Проверить вакансии по ссылкам', required_capabilities: ['web', 'web', 'invalid'] };
+  for (const [profile, capabilities, expected] of [
+    ['universal', [], null],
+    ['web', [], 'В целевой среде доступны'],
+    ['local', [], 'В целевой среде недоступны'],
+    ['agent', ['web', 'code'], 'В целевой среде доступны'],
+  ] as const) {
+    const result = await runPipeline({
+      thoughts: task.goal,
+      catalog: { version: 'test', techniques: [tech('a')] },
+      techniqueKey: 'a',
+      mode: 'deterministic',
+      executionCapabilities: resolveExecutionCapabilities(profile, capabilities),
+      llm: async () => JSON.stringify(task),
+    });
+    assert.deepEqual(result.brief.required_capabilities, ['web']);
+    for (const prompt of [result.zeroShotPrompt, result.synthesis.prompt]) {
+      assert.ok(prompt);
+      assert.equal(prompt.includes('веб-поиск и открытие ссылок'), expected !== null);
+      if (expected) assert.ok(prompt.includes(expected));
+      assert.ok(!prompt.includes('запуск кода'));
+    }
+  }
+});
+
+test('пересборка передаёт изменённые допущения в zero-shot и синтез без нового брифа', async () => {
+  const assumption = 'Include UK remote roles';
+  const requests: string[] = [];
+  const result = await runPipeline({
+    thoughts: 'Find relevant roles',
+    executionCapabilities: { web: 'unavailable' },
+    brief: { ...brief, assumptions: [assumption] },
+    catalog: { version: 'test', techniques: [tech('a')] },
+    techniqueKey: 'a',
+    llm: async (prompt) => {
+      requests.push(prompt);
+      return 'Find relevant roles using the scope specified in the task brief.';
+    },
+  });
+  assert.equal(requests.length, 2);
+  assert.ok(requests.every((request) => request.includes(assumption) && request.includes('"web":"unavailable"')));
+  assert.deepEqual(result.brief.assumptions, [assumption]);
+});
+
 test('ручной синтез повторяет плохой ответ и отклоняет повторный брак', async () => {
   const { generateManualPrompt } = await import('./manual.ts');
   let calls = 0;
@@ -422,4 +493,57 @@ test('защита от инъекций для задач, где модель 
     assert.ok(synthesizeDeterministic({ ...brief, task_type, input: 'нет' }, zero).warnings.some((w) => w.includes('Prompt-injection')), task_type);
   }
   assert.ok(synthesizeDeterministic({ ...brief, task_type: 'generation', input: 'письмо клиента' }, zero).warnings.some((w) => w.includes('Prompt-injection')));
+});
+
+test('агент без отмеченных возможностей получает их как недоступные, а не как неизвестные', () => {
+  const capabilities = resolveExecutionCapabilities('agent', ['web']);
+  assert.deepEqual(capabilities, { web: 'available', files: 'unavailable', code: 'unavailable', integrations: 'unavailable' });
+  assert.ok(Object.values(resolveExecutionCapabilities('agent', [])).every((status) => status === 'unavailable'));
+});
+
+test('проверки на языке без готового перевода переводятся одним вызовом, иначе остаются английскими', async () => {
+  const { localizePromptDefaults, promptDefaultsText } = await import('./prompt-defaults.ts');
+  const german = { ...brief, language: 'de', verify_current_facts: true, validate_output: true };
+  const english = promptDefaultsText(german);
+  assert.ok(english.startsWith('Verify facts'));
+  const translated = 'Prüfe veränderliche Fakten.\n\nPrüfe vor der Ausgabe das Schema.';
+  assert.equal(await localizePromptDefaults(german, {}, async () => translated), translated);
+  assert.equal(await localizePromptDefaults(german, {}, async () => 'ein Absatz'), english, 'broken paragraphs fall back');
+  assert.equal(await localizePromptDefaults(german, {}, async () => { throw new Error('down'); }), english);
+  let calls = 0;
+  await localizePromptDefaults({ ...german, language: 'ru' }, {}, async () => { calls += 1; return ''; });
+  assert.equal(calls, 0, 'saved languages need no call');
+});
+
+test('ссылки Hermes на GitHub допускаются только из официального репозитория', async () => {
+  const { isOfficialSourceUrl } = await import('./official.ts');
+  assert.ok(isOfficialSourceUrl('https://github.com/NousResearch/hermes-agent/blob/main/README.md', 'hermes'));
+  assert.ok(!isOfficialSourceUrl('https://github.com/someone/hermes-agent/blob/main/README.md', 'hermes'));
+  assert.ok(!isOfficialSourceUrl('https://github.com/NousResearch/hermes-agent-fake/x', 'hermes'));
+  assert.ok(isOfficialSourceUrl('https://hermes-agent.nousresearch.com/docs/guides/tips/', 'hermes'));
+});
+
+test('защитные техники не предлагаются вариантом промпта, если задача не про защиту', () => {
+  const news = { ...brief, task_type: 'agentic', goal: 'Собрать новости о LLM за ноябрь', input: 'нет', output_format: 'Нумерованный список новостей со ссылками' };
+  const { candidates, rejected } = gateTechniques(news, catalog);
+  assert.ok(!candidates.some((t) => t.category === 'security'));
+  assert.ok(rejected.some((r) => r.key === 'injection_defenses' && /added automatically/.test(r.reason)));
+  const defense = { ...news, goal: 'Написать системный промпт бота поддержки, устойчивый к prompt injection' };
+  assert.ok(gateTechniques(defense, catalog).candidates.some((t) => t.key === 'injection_defenses'));
+});
+
+test('разбор ответа в структуру не предлагается для ответа человеку', () => {
+  const digest = { ...brief, task_type: 'qa_over_docs', input: 'статьи, которые вставит пользователь', output_format: 'Markdown-дайджест с датами и ссылками' };
+  assert.ok(!gateTechniques(digest, catalog).candidates.some((t) => t.key === 'separate_llm'));
+  const extraction = { ...digest, task_type: 'extraction', output_format: 'JSON с полями date, title, url' };
+  assert.ok(gateTechniques(extraction, catalog).candidates.some((t) => t.key === 'separate_llm'));
+});
+
+test('защита от инъекций не добавляется, когда входного материала нет', async () => {
+  const { needsInjectionGuard } = await import('./synthesize.ts');
+  const technique = catalog.techniques.find((t) => t.key === 'code_prompting')!;
+  const coding = { ...brief, task_type: 'coding', input: 'нет', constraints: [] };
+  assert.equal(needsInjectionGuard(coding, technique), false);
+  assert.equal(needsInjectionGuard({ ...coding, input: 'Нет.' }, technique), false);
+  assert.equal(needsInjectionGuard({ ...coding, input: 'текст письма клиента' }, technique), true);
 });

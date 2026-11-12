@@ -1,20 +1,20 @@
-import { ONE_SHOT_INSTRUCTION } from './prompt-defaults.ts';
+import { executionContext, ONE_SHOT_INSTRUCTION } from './prompt-defaults.ts';
 import { sourceBlock } from './sources.ts';
 import { briefAssumptions, briefToJson } from './brief.ts';
-import type { LLM, TaskBrief, Technique } from './types.ts';
+import type { ExecutionCapabilities, LLM, TaskBrief, Technique } from './types.ts';
 
 /** Промпт «преврати мысли в промпт по методике техники» для ручного режима.
  *
  *  Ключевое отличие от простой подстановки шаблона: модель обязана построить промпт
  *  по методике (каркас + пример + назначение техники) и не оставлять заглушек. */
-export function buildManualPrompt(thoughts: string, technique: Technique, oneShot = false, brief?: TaskBrief): string {
+export function buildManualPrompt(thoughts: string, technique: Technique, oneShot = false, brief?: TaskBrief, capabilities?: ExecutionCapabilities): string {
   return `Ты — инженер промптов. Преврати сырые мысли пользователя в готовый промпт, построенный ПО МЕТОДИКЕ техники «${technique.name}».
 
 Зачем эта техника нужна (что должен делать промпт):
 ${technique.when_to_use}
 ${technique.when_not ? `\nГде она вредит (не тащи это в промпт): ${technique.when_not}` : ''}
 
-Каркас техники — эти блоки обязаны быть в промпте, порядок сохранить, формулировки свои:
+Каркас техники — адаптируй блоки к цели, источникам и итоговому формату задачи:
 """
 ${technique.template}
 """
@@ -38,9 +38,10 @@ ${briefAssumptions(brief).length ? `Допущения (явно отметь и
    Если нужен сам материал (текст заметок, документ, код) — напиши явную метку: ВСТАВЬ СЮДА: <что именно>.
 3. Структура и лексика должны выдавать именно эту технику: CoT — требование рассуждать по шагам и где именно;
    few-shot — 2–3 конкретных примера под задачу; ToT — ветвление, оценка и откат; ReAct — цикл Thought/Action/Observation;
-   contextual — ограничение «только по материалу» и ссылки на источники.
+   contextual — опора на релевантные материалы и ссылки на источники. Если задача требует найти источники, явно поручай их поиск с доступными инструментами. Ограничивай ответ предоставленным корпусом только при явном требовании задачи.
 4. Если техника требует примеров (few-shot) — придумай их под задачу пользователя, а не абстрактные.
 5. Выведи только текст промпта. Без «Вот промпт:», без markdown-обёртки и пояснений.
+${executionContext(capabilities)}
 ${oneShot ? ONE_SHOT_INSTRUCTION : ''}`;
 }
 
@@ -50,8 +51,8 @@ export function hasPlaceholders(prompt: string): boolean {
 }
 
 /** Общая проверка ручного синтеза для веба и десктопа. */
-export async function generateManualPrompt(thoughts: string, technique: Technique, llm: LLM, oneShot = false, brief?: TaskBrief): Promise<string> {
-  const request = buildManualPrompt(thoughts, technique, oneShot, brief);
+export async function generateManualPrompt(thoughts: string, technique: Technique, llm: LLM, oneShot = false, brief?: TaskBrief, capabilities?: ExecutionCapabilities): Promise<string> {
+  const request = buildManualPrompt(thoughts, technique, oneShot, brief, capabilities);
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const prompt = (await llm(request + (attempt ? '\n\nПерепиши полный промпт: не менее 40 символов, без {{плейсхолдеров}}.' : ''), { temperature: 0.3 })).trim();
     if (prompt.length >= 40 && !hasPlaceholders(prompt)) return prompt;

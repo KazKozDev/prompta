@@ -1,5 +1,6 @@
+import { applyPromptDefaults, localizePromptDefaults, promptDefaultsText } from './prompt-defaults.ts';
 import { buildZeroShotPrompt, generateZeroShotPrompt } from './zero-shot.ts';
-import type { Catalog, LLM, PipelineResult, PipelineTrace, TaskBrief, TechniqueChoice } from './types.ts';
+import type { Catalog, ExecutionCapabilities, LLM, PipelineResult, PipelineTrace, TaskBrief, TechniqueChoice } from './types.ts';
 import { PipelineError } from './types.ts';
 import { briefAssumptions, buildBriefPrompt, parseBrief } from './brief.ts';
 import { gateTechniques, getTechnique } from './catalog.ts';
@@ -11,12 +12,14 @@ import { promptVersion } from './prompt-version.ts';
 
 export interface RunOptions {
   oneShot?: boolean;
+  executionCapabilities?: ExecutionCapabilities;
   /** Completed pipeline stages, not an estimate of elapsed time. */
   onProgress?: (percent: number, stage: string) => void;
   claudeOnly?: boolean;
   chatgptOnly?: boolean;
   geminiOnly?: boolean;
   grokOnly?: boolean;
+  hermesOnly?: boolean;
   openModel?: string;
   thoughts: string;
   catalog: Catalog;
@@ -37,12 +40,26 @@ export interface RunOptions {
 export async function runPipeline(opts: RunOptions): Promise<PipelineResult> {
   const meter = meterLLM(opts.llm);
   const result = await dispatch({ ...opts, llm: meter.llm });
+  const defaults = opts.mode === 'deterministic'
+    ? promptDefaultsText(result.brief, opts.executionCapabilities)
+    : await localizePromptDefaults(result.brief, opts.executionCapabilities, meter.llm);
+  const withDefaults = (prompt: string) => applyPromptDefaults(prompt, result.brief, opts.executionCapabilities, defaults);
+  if (result.zeroShotPrompt) result.zeroShotPrompt = withDefaults(result.zeroShotPrompt);
+  result.synthesis.prompt = withDefaults(result.synthesis.prompt);
+  for (const alternative of result.alternatives ?? []) {
+    alternative.synthesis.prompt = withDefaults(alternative.synthesis.prompt);
+  }
   return { ...result, usage: meter.usage(), promptVersion: promptVersion() };
 }
 
 async function dispatch(opts: RunOptions): Promise<PipelineResult> {
-  if ([opts.claudeOnly, opts.chatgptOnly, opts.geminiOnly, opts.grokOnly, opts.openModel].filter(Boolean).length > 1) {
-    throw new PipelineError('Choose only one target: Claude, ChatGPT, Gemini, or Grok.', 'target');
+  if ([opts.claudeOnly, opts.chatgptOnly, opts.geminiOnly, opts.grokOnly, opts.hermesOnly, opts.openModel].filter(Boolean).length > 1) {
+    throw new PipelineError('Choose only one target.', 'target');
+  }
+  if (opts.hermesOnly) {
+    if (opts.mode === 'deterministic' || opts.techniqueKey) throw new PipelineError('Hermes Agent requires LLM synthesis without a generic technique.', 'hermes');
+    const { runHermesPipeline } = await import('./hermes.ts');
+    return runHermesPipeline(opts);
   }
   if (opts.openModel) {
     if (opts.mode === 'deterministic' || opts.techniqueKey) throw new PipelineError('Model-specific prompting requires synthesis without a generic technique.', 'target');
@@ -95,19 +112,19 @@ async function dispatch(opts: RunOptions): Promise<PipelineResult> {
   }
 
   let brief = opts.brief;
-  let injectionRemoved: string[] = [];
   if (!brief) {
     const start = t0();
     const briefPrompt = buildBriefPrompt(opts.thoughts);
     const { value, raw } = await askJson(briefPrompt, parseBrief);
-    const cleaned = sanitizeBrief(value, opts.thoughts);
-    brief = cleaned.brief;
-    injectionRemoved = cleaned.removed;
+    brief = value;
     push('brief', t0() - start, { prompt: briefPrompt, raw });
   } else {
     push('brief', 0, {});
   }
 
+  const cleaned = sanitizeBrief(brief, opts.thoughts);
+  brief = cleaned.brief;
+  const injectionRemoved = cleaned.removed;
   opts.onProgress?.(20, 'Brief ready');
   const gateStart = t0();
   const { candidates, rejected } = gateTechniques(brief, opts.catalog, {
@@ -158,7 +175,7 @@ async function dispatch(opts: RunOptions): Promise<PipelineResult> {
   // Variant 0 is written by the model too, in parallel with the technique variants.
   const zeroShot = mode === 'deterministic'
     ? Promise.resolve({ prompt: buildZeroShotPrompt(opts.thoughts, brief), byModel: false })
-    : generateZeroShotPrompt(opts.thoughts, brief, opts.llm);
+    : generateZeroShotPrompt(opts.thoughts, brief, opts.llm, opts.executionCapabilities);
   const built = await Promise.all(
     choices.map(async (item) => {
       const technique = getTechnique(opts.catalog, item.key);
@@ -166,7 +183,7 @@ async function dispatch(opts: RunOptions): Promise<PipelineResult> {
       const synthesis =
         mode === 'deterministic'
           ? synthesizeDeterministic(brief, technique)
-          : await synthesizeWithLLM(brief, technique, opts.llm, opts.oneShot);
+          : await synthesizeWithLLM(brief, technique, opts.llm, opts.oneShot, opts.executionCapabilities);
       if (mode === 'deterministic' && opts.oneShot) {
         synthesis.warnings.push('The opening one-shot example requires LLM synthesis and is omitted in offline mode.');
       }

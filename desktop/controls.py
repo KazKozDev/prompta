@@ -33,7 +33,6 @@ from PyQt6.QtWidgets import (
     QAbstractScrollArea,
     QApplication,
     QButtonGroup,
-    QCheckBox,
     QComboBox,
     QCompleter,
     QDialog,
@@ -159,8 +158,8 @@ class TechniqueItem(QFrame):
         dialog.setWindowTitle(f"{name} — sources")
         dialog.setMinimumWidth(560)  # room for the source descriptions
         outer = QVBoxLayout(dialog)
-        outer.setContentsMargins(24, 24, 24, 24)
-        outer.setSpacing(14)
+        outer.setContentsMargins(16, 12, 16, 12)
+        outer.setSpacing(8)
         # Descriptions make the list long: it scrolls, the Done button stays in view.
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -169,7 +168,7 @@ class TechniqueItem(QFrame):
         holder = QWidget()
         layout = QVBoxLayout(holder)
         layout.setContentsMargins(0, 0, 12, 0)
-        layout.setSpacing(18)
+        layout.setSpacing(12)
         scroll.setWidget(holder)
         use_step_scroll(scroll)
         outer.addWidget(scroll, 1)
@@ -188,11 +187,15 @@ class TechniqueItem(QFrame):
                 about.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
                 block.addWidget(about)
             layout.addLayout(block)
+        layout.addStretch(1)
         close = QPushButton("Done")
         close.setObjectName("ghost")
         close.clicked.connect(dialog.accept)
         outer.addWidget(close, 0, Qt.AlignmentFlag.AlignRight)
-        dialog.resize(600, min(640, holder.sizeHint().height() + 110))
+        width = 600
+        content_width = width - outer.contentsMargins().left() - outer.contentsMargins().right()
+        chrome_height = outer.contentsMargins().top() + outer.contentsMargins().bottom() + outer.spacing() + close.sizeHint().height()
+        dialog.resize(width, min(640, layout.totalHeightForWidth(content_width) + chrome_height))
         dialog.exec()
 
 
@@ -426,7 +429,8 @@ class Dropdown(QPushButton):
         width = min(self._popup_width, self.screen().availableGeometry().width() - 24)
         body.activate()
         height = content.heightForWidth(width - 2 * POPUP_MARGIN) if content.hasHeightForWidth() else -1
-        height = max(height, content.sizeHint().height()) + 2 * POPUP_MARGIN + 2
+        # The size hint is measured at the natural (narrow) width, where wrapped hints run tall: trust the real width.
+        height = (height if height > 0 else content.sizeHint().height()) + 2 * POPUP_MARGIN + 2
         if self._searchable:
             height += search.sizeHint().height() + outer.spacing()
         if self._multi:
@@ -447,6 +451,20 @@ class Dropdown(QPushButton):
         self.set_current(key, emit=True)
         if self._popup is not None:
             self._popup.close()
+
+
+class ExecutionProfileDropdown(Dropdown):
+    """Where the finished prompt runs. Each choice says what it means; an agent is assumed to have every tool."""
+    AGENT_CAPABILITIES = ("code", "files", "integrations", "web")
+
+    def __init__(self) -> None:
+        super().__init__("— any chat —", popup_width=300)
+        self.set_items([
+            {"key": "universal", "label": "— any chat —", "hint": "Unknown environment"},
+            {"key": "web", "label": "Chat with web access", "hint": "Web search and opening links"},
+            {"key": "local", "label": "Local model, no tools", "hint": "Only what is in the prompt"},
+            {"key": "agent", "label": "Agent with tools", "hint": "Web, files, code and integrations"},
+        ], keep="universal")
 
 
 class BackgroundWidget(QWidget):

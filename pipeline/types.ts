@@ -60,9 +60,18 @@ export interface BriefQuestion {
 }
 
 /** Разбор входного потока мыслей. Всё, что модель домыслила, — в `assumptions`. */
+export const CAPABILITIES = ['web', 'files', 'code', 'integrations'] as const;
+export type Capability = typeof CAPABILITIES[number];
+export type ExecutionCapabilities = Partial<Record<Capability, 'available' | 'unavailable' | 'unknown'>>;
+
 export interface TaskBrief {
   /** Short model-written topic for the result and history. */
   topic?: string;
+  verify_current_facts?: boolean;
+  require_evidence?: boolean;
+  requires_tools?: boolean;
+  required_capabilities?: Capability[];
+  validate_output?: boolean;
   goal: string;
   task_type: string;
   input: string;
@@ -119,6 +128,7 @@ export interface PipelineResult {
   chatgptGuidance?: OfficialGuidance;
   geminiGuidance?: OfficialGuidance;
   grokGuidance?: OfficialGuidance;
+  hermesGuidance?: OfficialGuidance;
   openModelGuidance?: OfficialGuidance;
   brief: TaskBrief;
   choice: TechniqueChoice;
