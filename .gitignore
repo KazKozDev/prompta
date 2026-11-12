@@ -17,3 +17,6 @@ __pycache__/
 .zenflow/
 generated_images/
 speak_siri.py
+
+# Source PDFs: local only, originals are linked from archive-org-prompting/README.md
+archive-org-prompting/pdf/
