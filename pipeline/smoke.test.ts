@@ -10,7 +10,7 @@ import { PipelineError } from './types.ts';
 import { costRange, gateTechniques, loadCatalog, projectForSelection } from './catalog.ts';
 import { briefAssumptions, parseBrief } from './brief.ts';
 import { parseChoice } from './select.ts';
-import { fillTemplate, maxTokensFor, synthesizeDeterministic, synthesizeWithLLM } from './synthesize.ts';
+import { buildSynthesisPrompt, fillTemplate, finalAnswerTokens, maxTokensFor, synthesizeDeterministic, synthesizeWithLLM, toolLoopSteps } from './synthesize.ts';
 import { formatResult, runPipeline } from './index.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -226,6 +226,24 @@ test('лимит вывода зависит от типа исполнения'
   assert.match(maxTokensFor(single), /1024/);
   assert.match(maxTokensFor(multi), /per step/);
   assert.equal(new Set([maxTokensFor(single), maxTokensFor(multi)]).size, 2);
+});
+
+test('ReAct: лимит шагов и финального ответа считается от объёма задачи', () => {
+  const react = catalog.techniques.find((t) => t.key === 'react')!;
+  const jobs: TaskBrief = { ...brief, task_type: 'agentic',
+    output_format: 'Markdown-отчёт: 1) стратегия; 2) таблица 5–10 актуальных вакансий; 3) чек-лист; 4) рекомендации' };
+  assert.equal(toolLoopSteps(jobs), 13);
+  assert.equal(finalAnswerTokens(jobs), 2560);
+  assert.match(maxTokensFor(react, jobs), /up to 13 steps \(final answer 2560\)/);
+  const res = synthesizeDeterministic(jobs, react);
+  assert.match(res.prompt, /Max steps: 13\b/);
+  assert.equal(res.missing.includes('max_steps'), false);
+  assert.match(buildSynthesisPrompt(jobs, react, res.prompt), /Лимит шагов цикла: 13/);
+  const simple: TaskBrief = { ...brief, output_format: 'короткий ответ', goal: 'узнать курс евро', constraints: [] };
+  assert.equal(toolLoopSteps(simple), 5);
+  assert.equal(finalAnswerTokens(simple), 1024);
+  const dated: TaskBrief = { ...simple, goal: 'новости за 2026-11-13' };
+  assert.equal(toolLoopSteps(dated), 5, 'даты не считаются диапазоном');
 });
 
 test('шаблоны не дублируют плейсхолдеры, кроме приёмов с намеренным повтором', () => {

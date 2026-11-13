@@ -35,8 +35,39 @@ export function languageWarning(brief: TaskBrief, technique: Technique): string[
   return [];
 }
 
+/** Сколько элементов ответ должен собрать: верхняя граница «5–10», «до 8», «7 вакансий». */
+export function expectedItems(brief: TaskBrief): number | null {
+  const text = [brief.output_format, brief.goal, ...brief.constraints].join(' ');
+  const counts: number[] = [];
+  for (const m of text.matchAll(/(?<![\d–—-])(\d{1,2})\s*[–—-]\s*(\d{1,2})(?![\d–—-])/g)) counts.push(Number(m[2]));
+  for (const m of text.matchAll(/(?:до|up to|не менее|at least|минимум)\s+(\d{1,2})\b/gi)) counts.push(Number(m[1]));
+  const valid = counts.filter((n) => n >= 2 && n <= 30);
+  return valid.length ? Math.max(...valid) : null;
+}
+
+/** Ответ с таблицей или несколькими разделами длиннее обычного. */
+function structuredOutput(brief: TaskBrief): boolean {
+  const f = brief.output_format;
+  return /таблиц|table/i.test(f) || (f.match(/(?:^|\s)\d\)/g) ?? []).length >= 3;
+}
+
+/** Лимит цикла инструментов: пара поисков, по шагу на проверку каждого элемента и запас. */
+export function toolLoopSteps(brief: TaskBrief): number {
+  const items = expectedItems(brief);
+  return items == null ? 5 : Math.min(20, Math.max(5, items + 3));
+}
+
+/** Лимит финального ответа: отчёт на 10 строк таблицы не помещается в лимит одного шага. */
+export function finalAnswerTokens(brief: TaskBrief): number {
+  const items = expectedItems(brief) ?? 0;
+  let tokens = 1024 + 150 * items;
+  if (structuredOutput(brief)) tokens = Math.max(tokens, 2048);
+  return Math.min(4096, Math.ceil(tokens / 512) * 512);
+}
+
 export function valuesFromBrief(brief: TaskBrief): Record<string, string> {
   return {
+    max_steps: String(toolLoopSteps(brief)),
     task: brief.goal,
     question: brief.goal,
     goal: brief.goal,
@@ -85,7 +116,7 @@ export function fillTemplate(template: string, values: Record<string, string>): 
 }
 
 /** Лимит вывода по типу исполнения: на шаг нужно меньше, чем на один большой ответ. */
-export function maxTokensFor(technique: Technique): string {
+export function maxTokensFor(technique: Technique, brief?: TaskBrief): string {
   switch (technique.execution) {
     case 'single_call':
       return '1024 (answer plus reasoning headroom)';
@@ -94,7 +125,8 @@ export function maxTokensFor(technique: Technique): string {
     case 'n_calls_vote':
       return '256 per run, multiple runs';
     case 'tool_loop':
-      return '256 per step, up to 5 steps';
+      if (!brief) return '256 per step, up to 5 steps';
+      return `256 per step, up to ${toolLoopSteps(brief)} steps (final answer ${finalAnswerTokens(brief)})`;
     case 'optimizer_loop':
       return 'No hard limit for candidate generation';
     case 'postprocess':
@@ -123,7 +155,7 @@ export function recommendConfig(brief: TaskBrief, technique: Technique): PromptC
   return {
     temperature,
     top_p: c.top_p,
-    max_tokens: maxTokensFor(technique),
+    max_tokens: maxTokensFor(technique, brief),
     rationale,
   };
 }
@@ -224,7 +256,7 @@ ${draft}
 - Ограничения: ${brief.constraints.join('; ') || 'нет'}
 - Допущения задачи: ${JSON.stringify(briefAssumptions(brief))}
 - Язык финального промпта: ${brief.language}. Весь промпт — на языке ${brief.language}: переводи и подписи каркаса (Input, Return only the answer, Steps и т. п.). По-английски оставляй только ключевые слова протокола техники (Thought/Action/Observation), имена инструментов и код.
-${technique.when_not ? `- Чего избегать (техника вредит в этом случае): ${technique.when_not}` : ''}
+${/\{\{\s*max_steps\s*\}\}/.test(technique.template ?? '') ? `- Лимит шагов цикла: ${toolLoopSteps(brief)} (рассчитан по объёму задачи; не уменьшай)\n` : ''}${technique.when_not ? `- Чего избегать (техника вредит в этом случае): ${technique.when_not}` : ''}
 
 Требования:
 1. Сохрани применимые части техники. Цель, источники и формат ответа из брифа обязательны. Если задача требует собрать источники, явно поручай их поиск. Ограничение «только по предоставленному материалу» применяй только к задачам, где пользователь задал такой корпус. Не меняй итоговый формат на JSON, если JSON нужен лишь для промежуточной обработки.

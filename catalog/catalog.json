@@ -501,7 +501,7 @@
         "max_tokens_hint": "proportional; for reasoning techniques 2–4x the answer length",
         "rationale": "Низкая температура: важна корректность шагов, а не разнообразие."
       },
-      "template": "Tools: {{tools}}.\n\nLoop until done:\nThought: <what you need>\nAction: tool[<input>]\nObservation: <result>\nFinish[<answer>]\n\nMax steps: {{max_steps}}=5\n\nQuestion: {{task}}",
+      "template": "Tools: {{tools}}.\n\nLoop until done:\nThought: <what you need>\nAction: tool[<input>]\nObservation: <result>\nFinish[<answer>]\n\nMax steps: {{max_steps}}\n\nQuestion: {{task}}",
       "procedure": null,
       "example": "Thought: need the price. Action: search(\"…\"). Observation: …",
       "source_ref": "whitepaper, с. 37–40",

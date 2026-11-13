@@ -249,7 +249,7 @@ READY = {
   template="Goal: {{task}}\n\n1) Generate {{k}}=3 candidate next steps.\n2) Score each 1–10 against: {{criteria}}.\n3) Expand the best; if score < {{threshold}}=6, backtrack to the previous node.\n4) Repeat to depth {{d}}=2, then give the final answer.",
   when_not='Нет тупиков и альтернатив — это переплата в 10–40 вызовов.', related=['graph_of_thought','self_consistency']),
 'react': dict(
-  template="Tools: {{tools}}.\n\nLoop until done:\nThought: <what you need>\nAction: tool[<input>]\nObservation: <result>\nFinish[<answer>]\n\nMax steps: {{max_steps}}=5\n\nQuestion: {{task}}",
+  template="Tools: {{tools}}.\n\nLoop until done:\nThought: <what you need>\nAction: tool[<input>]\nObservation: <result>\nFinish[<answer>]\n\nMax steps: {{max_steps}}\n\nQuestion: {{task}}",
   when_not='Задача решается из знаний модели — инструменты не нужны.', related=['pal','reflexion']),
 'graph_of_thought': dict(
   template="Build a graph of thoughts for {{task}}: nodes = sub-results, edges = dependencies. Merge nodes whose results agree, score nodes, then read the answer from the sink node.",
