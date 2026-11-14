@@ -18,13 +18,19 @@ python3 desktop/app.py
 The app runs from source: edit the code and relaunch, no rebuild needed. Rebuild the bundle only to get
 the microphone helper (see dictation below).
 
-Layout check without showing the window:
+Only one copy runs at a time: launching again brings the open window forward.
+
+Screens without showing a window — the main window with a demo result and every Settings tab, in a
+throwaway HOME (no history, settings, Keychain or network), so the pictures are the same on every run:
 
 ```bash
-python3 desktop/app.py --screenshot /tmp/app.png
+python3 desktop/screenshots.py /tmp/prompta-screens
 ```
 
-Tests, as CI runs them: `cd desktop && python3 -m pytest -q test_history.py test_app.py test_mcp_settings.py`
+CI uploads the same set as the `screens` artifact of the `app-bundle` job.
+`python3 desktop/app.py --screenshot /tmp/app.png` renders the main window with your own settings and the live catalog.
+
+Tests, as CI runs them: `cd desktop && python3 -m pytest -q test_history.py test_app.py test_mcp_settings.py test_single_instance.py`
 for the UI (offscreen Qt), `npm test` for the bridge.
 
 ## Files
@@ -36,7 +42,9 @@ for the UI (offscreen Qt), `npm test` for the bridge.
 | `result_view.py` | Result layout: collapsible blocks, chips, captions |
 | `controls.py` · `widgets.py` | Dropdowns, technique cards, variant picker, editors, dictation button |
 | `workers.py` | Background threads: bridge calls, model and technique loading |
-| `theme.py` | Qt styles, prompt targets, chat URLs |
+| `app.qss` · `theme.py` | The one stylesheet (every widget rule); `theme.py` loads it, plus prompt targets and chat URLs |
+| `single_instance.py` | Keeps one running copy; a second launch brings it forward |
+| `screenshots.py` | Offscreen PNGs of the main screens (local check and CI artifact) |
 | `keychain.py` | API keys in the macOS login Keychain via `security` (stdin, never argv) |
 | `library.py` · `mcp_settings.py` | Settings → Library and Settings → MCP server |
 | `voice_input.py` · `mic_helper.c` | Whisper dictation worker and the `prompta-mic` microphone helper |

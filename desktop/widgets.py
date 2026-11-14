@@ -76,7 +76,6 @@ class HintPopup(QLabel):
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.setWordWrap(True)
         self.setContentsMargins(10, 7, 10, 7)
-        self.setStyleSheet("QLabel#hint { color: #4a4232; font-size: 12px; background: transparent; }")
 
     def paintEvent(self, event) -> None:  # noqa: N802
         painter = QPainter(self)
@@ -430,7 +429,7 @@ class ThoughtsEdit(QPlainTextEdit):
         self.voice_process = None
         self.voice_state = "idle"
         self.voice_buffer = ""
-        self.microphone_icon.setStyleSheet("background: transparent; border: none;")
+        self.microphone_icon.setObjectName("micIcon")
         self.microphone_icon.raise_()
         # A press over the icon starts dictation even if a neighbour (the field's text area, an overlay
         # scrollbar) received it; presses near the icon are logged so a miss can be traced.

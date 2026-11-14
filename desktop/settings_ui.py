@@ -23,28 +23,6 @@ LIST_GAP = 14      # search field → the list it filters
 # Rich-text links (About) look like the link buttons: gold, medium weight, no underline.
 LINK_STYLE = 'style="color:#806a3d; font-weight:500; text-decoration:none;"'
 
-LINK_QSS = (
-    "QPushButton#textLink { background: transparent; border: none; padding: 0; min-height: 0; color: #806a3d; font-weight: 500; }"
-    "QPushButton#textLink:hover { color: #4a3d1d; text-decoration: underline; }"
-    "QPushButton#textLink:disabled { color: #b8ab8a; }")
-DANGER_LINK_QSS = LINK_QSS.replace("#806a3d", "#a5503a").replace("#4a3d1d", "#7d3524")
-
-# Lists and grouped rows: no backing plate, rows sit straight on the dialog.
-CARD_QSS = """
-QFrame#settingsCard { background: transparent; border: none; }
-QListWidget#settingsList { background: transparent; border: none; padding: 0; outline: none; }
-QListWidget#settingsList::item { padding: 6px 30px 6px 0; border: none; border-radius: 6px; color: #4a4232; }
-QListWidget#settingsList::item:hover { background: rgba(120, 96, 30, 26); }
-QListWidget#settingsList::item:selected { background: #f6e5b3; color: #4a4232; }
-QComboBox#settingsCombo::drop-down { border: none; width: 28px; }
-QComboBox#settingsCombo::down-arrow { image: url(DOWN_ICON); width: 12px; height: 12px; }
-QCheckBox#settingsCheck { color: #4a4232; font-size: 13px; spacing: 8px; }
-QCheckBox#settingsCheck::indicator { width: 15px; height: 15px; border: 1px solid #d8c593; border-radius: 4px; background: #fffdf5; }
-QCheckBox#settingsCheck::indicator:hover { border-color: #c69b12; }
-QCheckBox#settingsCheck::indicator:checked { background: #f4ca38; border-color: #c69b12; image: url(CHECK_ICON); }
-""".replace("DOWN_ICON", (Path(__file__).with_name("chevron-down.svg")).as_posix()).replace(
-    "CHECK_ICON", (Path(__file__).with_name("check-yellow.svg")).as_posix())
-
 
 def field_label(text: str) -> QLabel:
     label = QLabel(text.upper())
@@ -70,7 +48,8 @@ def text_link(text: str, danger: bool = False) -> QPushButton:
     button = QPushButton(text)
     button.setObjectName("textLink")
     button.setFlat(True)
-    button.setStyleSheet(DANGER_LINK_QSS if danger else LINK_QSS)
+    if danger:
+        button.setProperty("danger", True)  # red link in app.qss
     button.setCursor(Qt.CursorShape.PointingHandCursor)
     return button
 

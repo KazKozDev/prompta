@@ -176,7 +176,7 @@ class TechniqueItem(QFrame):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setStyleSheet("QScrollArea, QScrollArea > QWidget > QWidget { background: transparent; }")
+        scroll.setObjectName("clearScroll")
         holder = QWidget()
         layout = QVBoxLayout(holder)
         layout.setContentsMargins(0, 0, 12, 0)
@@ -360,8 +360,7 @@ class Dropdown(QPushButton):
             search = QLineEdit()
             search.setPlaceholderText(self._search_placeholder)
             search.setClearButtonEnabled(True)
-            # The window style sets min-height 0 on fields, which collapsed this one to a line; its own rule wins.
-            search.setStyleSheet("QLineEdit { min-height: 20px; padding: 3px 10px; }")
+            search.setObjectName("listSearch")  # app.qss: the window style's min-height 0 collapsed it to a line
             outer.addWidget(search)
 
         scroll = QScrollArea(popup)

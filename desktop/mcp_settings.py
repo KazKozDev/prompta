@@ -300,11 +300,10 @@ def prefs() -> QSettings:
 
 
 try:
-    from .settings_ui import LABEL_GAP, LIST_GAP, LINK_QSS, PAGE_TOP, add_section, body, card, muted, text_link
+    from .settings_ui import LABEL_GAP, LIST_GAP, PAGE_TOP, add_section, body, card, muted, text_link
 except ImportError:
-    from settings_ui import LABEL_GAP, LIST_GAP, LINK_QSS, PAGE_TOP, add_section, body, card, muted, text_link
+    from settings_ui import LABEL_GAP, LIST_GAP, PAGE_TOP, add_section, body, card, muted, text_link
 
-TEXT_LINK_QSS = LINK_QSS  # kept for older imports
 
 
 class StateLabel(QLabel):
@@ -348,9 +347,6 @@ class RemoveCross(QPushButton):
     def __init__(self, name: str) -> None:
         super().__init__()
         self.setObjectName("deleteItem")
-        # The same flat cross as #deleteItem in app.py; set here because the dialog styles plain buttons with a border.
-        self.setStyleSheet("QPushButton { background: transparent; border: none; border-radius: 6px; padding: 0; min-height: 0; }"
-                           "QPushButton:hover { background: rgba(216, 197, 147, 90); }")
         self.setIcon(QIcon(str(Path(__file__).with_name("close.svg"))))
         self.setIconSize(QSize(10, 10))
         self.setFixedSize(22, 22)
@@ -440,7 +436,6 @@ class McpSettingsWidget(QWidget):
         install = QPushButton("Install")  # a text link like "Copy config", not a filled button
         install.setObjectName("textLink")
         install.setFlat(True)
-        install.setStyleSheet(TEXT_LINK_QSS)
         install.setProperty("compact", True)
         install.setCursor(Qt.CursorShape.PointingHandCursor)
         install.setAccessibleName(f"Install · {name}")

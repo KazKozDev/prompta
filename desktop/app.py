@@ -27,14 +27,14 @@ try:
     from . import keychain
     from .history import HistoryStore, history_topic
     from .library import LibraryWidget, data_versions
-    from .settings_ui import LINK_STYLE, CARD_QSS, LABEL_GAP, SECTION_GAP, add_section, card, field_label, muted, settings_page, text_link
-    from .mcp_settings import TEXT_LINK_QSS, McpSettingsWidget, generator_state, prefs, write_generator_state
+    from .settings_ui import LINK_STYLE, LABEL_GAP, SECTION_GAP, add_section, card, field_label, muted, settings_page, text_link
+    from .mcp_settings import McpSettingsWidget, generator_state, prefs, write_generator_state
 except ImportError:
     import keychain
     from history import HistoryStore, history_topic
     from library import LibraryWidget, data_versions
-    from settings_ui import LINK_STYLE, CARD_QSS, LABEL_GAP, SECTION_GAP, add_section, card, field_label, muted, settings_page, text_link
-    from mcp_settings import TEXT_LINK_QSS, McpSettingsWidget, generator_state, prefs, write_generator_state
+    from settings_ui import LINK_STYLE, LABEL_GAP, SECTION_GAP, add_section, card, field_label, muted, settings_page, text_link
+    from mcp_settings import McpSettingsWidget, generator_state, prefs, write_generator_state
 
 from PyQt6.QtCore import QModelIndex, QEvent, QObject, QPoint, QRect, QRectF, QSize, Qt, QUrl, QProcess, QThread, QTimer, QPropertyAnimation, QEasingCurve, pyqtSignal
 from PyQt6.QtGui import QStandardItem, QStandardItemModel, QColor, QCursor, QFontMetrics, QTextCursor, QPainter, QPalette, QPen, QFont, QGuiApplication, QIcon, QPixmap, QKeySequence, QShortcut, QDesktopServices, QTextDocument
@@ -77,9 +77,11 @@ from PyQt6.QtWidgets import (
 
 try:
     from .theme import CHAT_URLS, DARK_SCROLL_QSS, PROMPT_TARGETS, QSS, ROOT, is_official_source
+    from .single_instance import SingleInstance, bring_forward
     from .widgets import *  # noqa: F401,F403 — base widgets moved out of this file
 except ImportError:
     from theme import CHAT_URLS, DARK_SCROLL_QSS, PROMPT_TARGETS, QSS, ROOT, is_official_source
+    from single_instance import SingleInstance, bring_forward
     from widgets import *  # noqa: F401,F403
 
 try:
@@ -197,43 +199,6 @@ class WrappingField(QPlainTextEdit):
         self.setToolTip(self.toPlainText() if wrapped > self.max_lines else "Click to edit")
 
 
-QSS += """
-QPushButton#segment { background: rgba(255, 245, 214, 222); border: 1px solid #d8c593; color: #665b42;
-  font-size: 12px; padding: 8px 4px; border-radius: 0; }
-QPushButton#segment[first="true"] { border-top-left-radius: 9px; border-bottom-left-radius: 9px; }
-QPushButton#segment[last="true"] { border-top-right-radius: 9px; border-bottom-right-radius: 9px; }
-QPushButton#segment:hover { background: #fff0c6; }
-QPushButton#segment:checked { background: #f4ca38; border-color: #e1b72c; color: #352b10; font-weight: 600; }
-QToolButton#disclosure { background: transparent; border: none; color: #665b42; font-size: 12px; font-weight: 600; padding: 4px 0; }
-QToolButton#disclosure:hover { color: #332e24; }
-QToolButton#disclosure[field="true"] { color: #74694f; font-size: 10px; font-weight: 500; letter-spacing: 2px; padding: 2px 0; }
-QToolButton#disclosure[field="true"]:hover { color: #4a4232; }
-QPushButton#segment:disabled { color: #b5ab90; background: rgba(250, 241, 214, 160); }
-QPushButton#segment:checked:disabled { background: #efdc9c; color: #8a7a4e; border-color: #dcc583; }
-QLabel#meta { color: #665d49; font-size: 12px; }
-QFrame#variantSegments { background: transparent; border: none; }
-QListView#historySuggestions { background: #fff8e7; color: #4a4232; border: 1px solid #d8c593; border-radius: 9px; padding: 4px; outline: none; font-size: 13px; }
-QListView#historySuggestions::item { padding: 7px 10px; border: none; border-radius: 5px; }
-QListView#historySuggestions::item:hover, QListView#historySuggestions::item:selected { background: #f6e5b3; color: #4a4232; }
-QFrame#techItem[selected="true"] { background: #fbe7a1; border: 2px solid #e1b72c; }
-QFrame#techItem[selected="true"]:hover { background: #f8df8a; }
-QTabWidget#variantTabs::pane { border: none; background: transparent; top: 12px; }
-QTabWidget#variantTabs > QWidget { background: transparent; }
-QTabWidget#variantTabs QTabBar { background: transparent; }
-QTabWidget#variantTabs::tab-bar { alignment: left; }
-QTabWidget#settingsTabs::tab-bar { alignment: left; }
-QTabWidget#settingsTabs QTabBar { background: rgba(120, 96, 30, 26); border-radius: 8px; }
-QTabWidget#settingsTabs QTabBar::tab { background: transparent; border: none; border-radius: 6px; margin: 2px; padding: 4px 16px; color: #6b6047; font-size: 12px; }
-QTabWidget#settingsTabs QTabBar::tab:hover { background: rgba(255, 255, 255, 110); }
-QTabWidget#settingsTabs QTabBar::tab:selected { background: #f4ca38; color: #2f260c; font-weight: 600; }
-QTabWidget#settingsTabs::pane { border: none; top: 6px; }
-QDialog QLabel#goal { font-size: 17px; letter-spacing: -0.3px; }
-QLabel#title { font-family: 'Avenir Next'; font-size: 17px; letter-spacing: -0.2px; color: #2b2412; }
-QDialog QPushButton#primary, QDialog QPushButton#ghost { min-height: 28px; max-height: 28px; padding: 0 14px; }
-QDialog QPushButton#primary[compact="true"], QDialog QPushButton#ghost[compact="true"] {
-  min-height: 22px; max-height: 22px; padding: 0 12px; font-size: 12px; border-radius: 7px; }
-"""
-QSS += CARD_QSS  # settings lists and cards (settings_ui.py)
 
 
 class PromptaWindow(HistoryMixin, QMainWindow):
@@ -498,7 +463,7 @@ class PromptaWindow(HistoryMixin, QMainWindow):
         mcp_scroll = QScrollArea()  # the apps list is taller than the dialog: scroll, don't squeeze rows
         mcp_scroll.setWidgetResizable(True)
         mcp_scroll.setFrameShape(QFrame.Shape.NoFrame)
-        mcp_scroll.setStyleSheet("QScrollArea, QScrollArea > QWidget > QWidget { background: transparent; }")
+        mcp_scroll.setObjectName("clearScroll")
         mcp_scroll.setWidget(self.mcp_settings)
         use_step_scroll(mcp_scroll)
         self.settings_tabs.addTab(mcp_scroll, "MCP server")
@@ -680,7 +645,7 @@ class PromptaWindow(HistoryMixin, QMainWindow):
         link = LINK_STYLE
         page, layout = settings_page(right_margin=330)  # text keeps to the left; the photo (whole dialog) has the right
         title = QLabel(f"Prompta {self.APP_VERSION}")
-        title.setStyleSheet("font-size: 13px; font-weight: 600; color: #332e24;")  # below the dialog's 17px "Settings" title
+        title.setObjectName("aboutTitle")
         layout.addWidget(title)
         layout.addSpacing(LABEL_GAP)
         layout.addWidget(muted("Turns a rough request into a structured prompt, "
@@ -1266,7 +1231,7 @@ class PromptaWindow(HistoryMixin, QMainWindow):
         details.addWidget(editor)
         divider = QFrame()
         divider.setFixedHeight(1)
-        divider.setStyleSheet("background: #d8c593; border: none;")
+        divider.setObjectName("divider")
         self.output_layout.addWidget(divider)
         self.output_layout.addSpacing(14)
 
@@ -1295,9 +1260,7 @@ class PromptaWindow(HistoryMixin, QMainWindow):
 
         steps = QLabel("\n".join(f"{i}. {step}" for i, step in enumerate(procedure["steps"], 1)))
         steps.setWordWrap(True)
-        steps.setStyleSheet(
-            "background: #fff8e7; border: 1px solid #d8c593; border-radius: 8px; padding: 12px;"
-        )
+        steps.setObjectName("procedureSteps")
         self.output_layout.addWidget(steps)
 
         when = QLabel(f"When to use: {procedure['when_to_use']}")
@@ -1461,7 +1424,7 @@ class PromptaWindow(HistoryMixin, QMainWindow):
         chevron = QLabel()
         chevron.setPixmap(QIcon(str(ROOT / "desktop" / "chevron-down.svg")).pixmap(10, 10))
         chevron.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-        chevron.setStyleSheet("background: transparent;")
+        chevron.setObjectName("segmentChevron")
         chevron_row = QHBoxLayout(self.open_segment)
         chevron_row.setContentsMargins(0, 0, 7, 0)
         chevron_row.addStretch(1)
@@ -2161,125 +2124,62 @@ class PromptaWindow(HistoryMixin, QMainWindow):
 
 # Flat, borderless controls: soft translucent fills, a focus ring only when focused,
 # iOS-style segmented tracks. Applied last so it overrides the older bordered look.
-QSS += """
-QPlainTextEdit { background: rgba(255, 255, 255, 120); border: 1px solid transparent; border-radius: 12px; padding: 12px; }
-QPlainTextEdit:hover { background: rgba(255, 255, 255, 150); }
-QPlainTextEdit:focus { background: rgba(255, 255, 255, 175); border: 1px solid #e1b72c; }
-QPlainTextEdit#prompt { background: #3f3f3f; border: none; border-radius: 12px; padding: 12px; }
-QPlainTextEdit#prompt:focus { background: #444444; border: none; }
-QLineEdit, QComboBox, QPushButton#picker { background: rgba(255, 255, 255, 120); border: 1px solid transparent; border-radius: 8px; padding: 3px 10px; min-height: 0; }
-QPushButton#picker { padding-right: 28px; }  /* room for the chevron every picker shows */
-QDialog QLineEdit { min-height: 20px; }  /* 20 + padding + border = 28, the height of every Settings control; min-height: 0 above would squash it */
-QLineEdit:hover, QComboBox:hover, QPushButton#picker:hover { background: rgba(255, 255, 255, 160); border-color: transparent; }
-QLineEdit:focus, QComboBox:focus, QPushButton#picker:focus { background: rgba(255, 255, 255, 185); border: 1px solid #e1b72c; }
-QPushButton#picker:pressed { background: rgba(255, 255, 255, 200); }
-QPushButton#picker:disabled { background: rgba(255, 255, 255, 60); color: #b0a78e; border-color: transparent; }
-
-QWidget#segmentTrack, QFrame#segmentTrack { background: rgba(120, 96, 30, 26); border: none; border-radius: 8px; }
-QPushButton#segment, QPushButton#segment[first="true"], QPushButton#segment[last="true"] {
-  background: transparent; border: none; border-radius: 6px; color: #6b6047; font-size: 12px; padding: 0 4px; }
-QPushButton#segment:hover { background: rgba(255, 255, 255, 110); }
-QPushButton#segment[chevron="true"] { padding: 0 18px 0 4px; }  /* text clear of the chevron, like the pickers */
-QPushButton#segment:checked { background: #f4ca38; color: #2f260c; font-weight: 600; }
-QPushButton#segment:focus { border: none; }
-QPushButton#segment:disabled { background: transparent; color: #b8ad8f; }
-QPushButton#segment:checked:disabled { background: rgba(244, 202, 56, 110); color: #8a7a4e; }
-
-QPushButton#buildPrompt { border: none; border-radius: 10px; }
-QPushButton#buildPrompt:focus { border: none; }
-QPushButton#buildPrompt:disabled { background: rgba(244, 202, 56, 140); color: #7d6a33; }
-QPushButton#ghost, QPushButton#primary { background: rgba(120, 96, 30, 22); border: none; border-radius: 9px; color: #5f4f1f; }
-QPushButton#ghost:hover, QPushButton#primary:hover { background: rgba(120, 96, 30, 36); }
-QPushButton#ghost:pressed, QPushButton#primary:pressed { background: rgba(120, 96, 30, 50); }
-QPushButton#ghost:disabled, QPushButton#primary:disabled { background: rgba(120, 96, 30, 12); color: #b8ad8f; }
-QPushButton#primary { background: #f4ca38; color: #352b10; font-weight: 600; }  /* our yellow, as Build prompt */
-QPushButton#primary:hover { background: #e9bc24; }
-QPushButton#primary:pressed { background: #d9aa16; }
-QPushButton#primary:disabled { background: rgba(244, 202, 56, 140); color: #7d6a33; }
-QPushButton#settings { border: none; border-radius: 8px; }
-QPushButton#settings:hover { background: rgba(120, 96, 30, 26); }
-QPushButton:focus { border: none; }
-
-QTabBar::tab { background: transparent; border: none; border-radius: 8px; color: #7a6d4f; padding: 7px 14px; margin-right: 4px; }
-QTabBar::tab:hover { background: rgba(255, 255, 255, 110); }
-QTabBar::tab:selected { background: rgba(255, 255, 255, 200); color: #3a3121; font-weight: 600; }
-
-QFrame#techniquePopup, QFrame#historyPopup { background: #fffaee; border: 1px solid rgba(120, 96, 30, 40); border-radius: 12px; }
-/* One row style for every dropdown: list rows (history, open-weight, MCP) and Dropdown items. */
-QFrame#techItem { background: transparent; border: none; border-radius: 6px; }
-QFrame#techItem:hover { background: rgba(120, 96, 30, 26); }
-QFrame#techItem[selected="true"] { background: #f6e5b3; border: none; }
-QFrame#techItem[selected="true"]:hover { background: #f1dc9f; }
-QLabel#techName { font-size: 13px; font-weight: 400; color: #4a4232; }
-QLabel#techHint { font-size: 12px; color: #82745a; }
-QListWidget#historyList { background: transparent; font-size: 13px; }
-QListWidget#historyList::item { padding: 7px 30px 7px 10px; border: none; border-radius: 6px; color: #4a4232; }
-QListWidget#historyList::item:hover { background: rgba(120, 96, 30, 26); color: #4a4232; }
-QListWidget#historyList::item:selected { background: #f6e5b3; color: #4a4232; }
-QListWidget#historyList::item:selected:hover { background: #f1dc9f; }
-QFrame#techniquePopup QScrollArea, QFrame#techniquePopup QWidget#scrollContent { background: transparent; }
-QTreeWidget#libraryTree { background: rgba(255, 255, 255, 120); border: none; border-radius: 12px; }
-QListView#historySuggestions { background: transparent; border: none; padding: 5px; }
-QLabel#chip { background: rgba(120, 96, 30, 20); border: none; border-radius: 7px; color: #5f5440; }
-QLabel#warn { background: rgba(244, 170, 40, 36); border: none; border-radius: 10px; }
-QLabel#error { background: rgba(220, 80, 70, 30); border: none; border-radius: 10px; }
-QCheckBox::indicator { border: none; background: rgba(120, 96, 30, 30); border-radius: 4px; }
-QFrame#questionsCard { background: rgba(255, 248, 225, 235); border: none; border-radius: 10px; }
-QFrame#questionsCard QLineEdit { background: rgba(255, 255, 255, 185); }
-QFrame#questionsCard QPlainTextEdit#answer { background: rgba(255, 255, 255, 185); border: 1px solid transparent; border-radius: 7px; padding: 1px 6px; color: #332e24; font-size: 13px; }
-QFrame#questionsCard QPlainTextEdit#answer:hover { border-color: #e6d7ad; }
-QFrame#questionsCard QPlainTextEdit#answer:focus { border-color: #c69b12; }
-QPushButton#removeAssumption, QPushButton#deleteItem { background: transparent; border: none; border-radius: 6px; }
-QPushButton#deleteItem:hover { background: rgba(216, 197, 147, 90); }
-QPushButton#removeAssumption:hover { background: rgba(216, 197, 147, 90); }
-QPushButton#addAssumption { background: transparent; border: none; color: #80620a; font-size: 12px; padding: 4px 4px; }
-QPushButton#addAssumption:hover { color: #5c4606; }
-QLabel#cardTitle { color: #3a3121; font-size: 13px; font-weight: 600; }
-QLineEdit#historySearch, QLineEdit#historySearch:focus, QLineEdit#historySearch:hover { border: none; }
-QLabel#wordmark { color: rgba(74, 58, 24, 46); background: transparent; }
-QLabel#slogan { color: rgba(74, 58, 24, 46); font-size: 12px; font-weight: 500; letter-spacing: 2.5px; background: transparent; }
-QPushButton#modelLine { background: transparent; border: none; color: #8a7d5c; font-size: 11px; padding: 2px 0; text-align: left; }
-QPushButton#modelLine:hover { color: #5c4606; text-decoration: underline; }
-QLabel#variantsCaption { color: #8a7d5c; font-size: 11px; }
-QLabel#question { color: #4f4635; font-size: 12px; }
-QLabel#briefGoal { color: #3a3121; font-size: 13px; }
-QLabel#briefMeta { color: #9a8d6c; font-size: 11px; padding: 3px 0; }
-QPushButton#restorePrompt { background: transparent; border: none; padding: 0 2px; color: #f4ca38; font-size: 11px; }
-QPushButton#restorePrompt:hover { color: #ffe08a; text-decoration: underline; }
-/* Hover hints in the app's style: warm paper, brown text, thin border, like the dropdown panels. */
-QToolTip { background-color: #fffaee; color: #4a4232; border: 1px solid #e3d5ae; border-radius: 0;  /* opaque: a translucent border shows the black window behind it */
-  padding: 6px 9px; font-size: 12px; }
-QLabel#sourceSummary { color: #5f5440; font-size: 12px; line-height: 140%; }
-QLabel#promptSpec { color: rgba(255, 255, 255, 125); font-size: 11px; background: #3f3f3f; padding: 6px 0 0 0; }
-QLabel#rowLabel { color: #8a7d5c; font-size: 10px; font-weight: 500; letter-spacing: 1px; padding-top: 2px; min-width: 84px; }
-/* Variant tabs look like the Target model switch: one track, the chosen one in our yellow. */
-/* Tabs and prompt are one grey card: the tab row is the card's header, the chosen tab is a yellow pill. */
-QTabWidget#variantTabs { background: #343434; border-radius: 12px; }
-QTabWidget#variantTabs::pane { top: 0; border: none; background: transparent; }
-QTabWidget#variantTabs::tab-bar { left: 10px; }
-QTabWidget#variantTabs QTabBar { background: transparent; }
-QTabWidget#variantTabs QTabBar::tab { background: transparent; border: none; border-radius: 7px; margin: 6px 4px 6px 0;
-  padding: 5px 16px; color: rgba(255, 255, 255, 150); font-size: 12px; min-width: 56px; }
-QTabWidget#variantTabs QTabBar::tab:hover { background: rgba(255, 255, 255, 22); color: #f5f5f5; }
-QTabWidget#variantTabs QTabBar::tab:selected { background: #f4ca38; color: #2f260c; font-weight: 600; }
-QTabWidget#variantTabs QPlainTextEdit#prompt { border-top-left-radius: 0; border-top-right-radius: 0; }
-/* Scroll arrows: plain chevrons on the card colour, both at the right end (the native buttons drew light bracket frames); no tear lines. */
-QTabWidget#variantTabs QTabBar::tear { width: 0; border: none; image: none; }
-QTabWidget#variantTabs QTabBar::scroller { width: 48px; }  /* ‹ › side by side at the right end */
-QTabWidget#variantTabs QTabBar QToolButton { background: #343434; border: none; }
-QTabWidget#variantTabs QTabBar QToolButton:hover { background: #3d3d3d; }
-QTabWidget#variantTabs QTabBar QToolButton:disabled { background: #343434; }
-QTabWidget#variantTabs QTabBar QToolButton::left-arrow { image: url(LEFT_ICON); width: 6px; height: 10px; }
-QTabWidget#variantTabs QTabBar QToolButton::right-arrow { image: url(RIGHT_ICON); width: 6px; height: 10px; }
-QTabWidget#variantTabs QTabBar QToolButton::left-arrow:disabled { image: url(LEFT_OFF); }
-QTabWidget#variantTabs QTabBar QToolButton::right-arrow:disabled { image: url(RIGHT_OFF); }
-""".replace("LEFT_ICON", (ROOT / "desktop" / "chevron-left.svg").as_posix()).replace("RIGHT_ICON", (ROOT / "desktop" / "chevron-right.svg").as_posix()).replace(
-    "LEFT_OFF", (ROOT / "desktop" / "chevron-left-off.svg").as_posix()).replace("RIGHT_OFF", (ROOT / "desktop" / "chevron-right-off.svg").as_posix())
 
 
-def main() -> int:
-    qt_log.install()  # silences only the known macOS accessibility-bridge noise; PROMPTA_QT_DEBUG=1 shows everything
-    app = QApplication(sys.argv)
+def demo_result() -> dict:
+    """A fixed result for screenshots (--screenshot, screenshots.py): two variants, questions, assumptions."""
+    return {
+        "brief": {
+            "goal": "Extract decisions, tasks, and owners from meeting notes into a table",
+            "task_type": "extraction",
+            "language": "en",
+            "stakes": "high",
+            "output_format": "Markdown table: Type | Item | Owner",
+            "assumptions": ["Notes are provided as text rather than audio"],
+            "questions": [{"question": "Which meeting types are in scope?", "default": "all internal meetings"},
+                          {"question": "Should owners be names or roles?", "default": "names as written in the notes"}],
+        },
+        "choice": {
+            "name": "Contextual prompting",
+            "key": "contextual_prompting",
+            "confidence": 0.82,
+            "reason": "The task is grounded in supplied notes and limited to their contents.",
+            "whyNotCheaper": "Zero-shot may miss the table format; few-shot needs examples not supplied in the brief.",
+        },
+        "synthesis": {
+            "prompt": "Use ONLY the material below. Cite [n] for every claim.\n\n[1] meeting notes\n\nTask: extract items from the notes into a table\nOutput: Markdown table",
+            "config": {
+                "temperature": 0.2,
+                "top_p": 0.95,
+                "max_tokens": "1024",
+                "rationale": "Low temperature supports consistent formatting and instruction following.",
+            },
+            "warnings": [],
+        },
+        "alternatives": [
+            {
+                "choice": {
+                    "name": "Few-shot (one-shot)",
+                    "key": "few_shot",
+                    "confidence": 0.64,
+                    "reason": "Examples establish the required table format more reliably than instructions alone.",
+                    "whyNotCheaper": "Zero-shot may not preserve the required format.",
+                },
+                "synthesis": {
+                    "prompt": "Task: extract items from the notes into a table.\n\nExample 1:\nInput: Prepare the report by Friday\nOutput: | Prepare report | Owner | Friday |\n\nInput: INSERT HERE: meeting notes\nOutput:",
+                    "config": {"temperature": 0.2, "top_p": 0.95, "max_tokens": "1024"},
+                    "warnings": [],
+                    "rationale": "Low temperature keeps output formats consistent.",
+                },
+            }
+        ],
+        "rejected": [{}] * 53,
+    }
+
+
+def make_app(argv: list[str]) -> QApplication:
+    """The QApplication with the app's palette, stylesheet and hover hints (main() and screenshots.py)."""
+    app = QApplication(argv)
     app.setApplicationName("Prompta")
     app.setWindowIcon(QIcon(str(ROOT / "desktop" / "icon.png")))
     palette = app.palette()
@@ -2291,10 +2191,21 @@ def main() -> int:
     app.setStyleSheet(QSS)
     app.hint_filter = HintFilter(app)  # our own hover hints instead of the black-framed system ones
     app.installEventFilter(app.hint_filter)
+    return app
+
+
+def main() -> int:
+    qt_log.install()  # silences only the known macOS accessibility-bridge noise; PROMPTA_QT_DEBUG=1 shows everything
+    app = make_app(sys.argv)
+    screenshot = "--screenshot" in sys.argv
+    instance = SingleInstance()
+    if not screenshot and not instance.claim():
+        return 0  # the running copy comes forward instead
     window = PromptaWindow()
+    instance.activated.connect(lambda: bring_forward(window))
     window.show()
 
-    if "--screenshot" in sys.argv:
+    if screenshot:
         # Layout self-check: render a demo result and save the window as PNG.
         index = sys.argv.index("--screenshot")
         path = sys.argv[index + 1] if len(sys.argv) > index + 1 else "/tmp/app.png"
@@ -2313,55 +2224,7 @@ def main() -> int:
             window._on_techniques_loaded(json.loads(proc.stdout or "{}").get("techniques", []))
         except Exception:
             pass
-        window.render(
-            {
-                "brief": {
-                    "goal": "Extract decisions, tasks, and owners from meeting notes into a table",
-                    "task_type": "extraction",
-                    "language": "en",
-                    "stakes": "high",
-                    "output_format": "Markdown table: Type | Item | Owner",
-                    "assumptions": ["Notes are provided as text rather than audio"],
-                    "questions": [{"question": "Which meeting types are in scope?", "default": "all internal meetings"},
-                                  {"question": "Should owners be names or roles?", "default": "names as written in the notes"}],
-                },
-                "choice": {
-                    "name": "Contextual prompting",
-                    "key": "contextual_prompting",
-                    "confidence": 0.82,
-                    "reason": "The task is grounded in supplied notes and limited to their contents.",
-                    "whyNotCheaper": "Zero-shot may miss the table format; few-shot needs examples not supplied in the brief.",
-                },
-                "synthesis": {
-                    "prompt": "Use ONLY the material below. Cite [n] for every claim.\n\n[1] meeting notes\n\nTask: extract items from the notes into a table\nOutput: Markdown table",
-                    "config": {
-                        "temperature": 0.2,
-                        "top_p": 0.95,
-                        "max_tokens": "1024",
-                        "rationale": "Low temperature supports consistent formatting and instruction following.",
-                    },
-                    "warnings": [],
-                },
-                "alternatives": [
-                    {
-                        "choice": {
-                            "name": "Few-shot (one-shot)",
-                            "key": "few_shot",
-                            "confidence": 0.64,
-                            "reason": "Examples establish the required table format more reliably than instructions alone.",
-                            "whyNotCheaper": "Zero-shot may not preserve the required format.",
-                        },
-                        "synthesis": {
-                            "prompt": "Task: extract items from the notes into a table.\n\nExample 1:\nInput: Prepare the report by Friday\nOutput: | Prepare report | Owner | Friday |\n\nInput: INSERT HERE: meeting notes\nOutput:",
-                            "config": {"temperature": 0.2, "top_p": 0.95, "max_tokens": "1024"},
-                            "warnings": [],
-                            "rationale": "Low temperature keeps output formats consistent.",
-                        },
-                    }
-                ],
-                "rejected": [{}] * 53,
-            }
-        )
+        window.render(demo_result())
         window.status.setText("Contextual prompting · ready")  # what on_finished shows for a result without warnings
         window.resize(1160, 1180)
         for _ in range(10):  # let the prompt card's fixed height settle into the layout

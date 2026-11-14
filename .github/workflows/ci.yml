@@ -35,6 +35,14 @@ jobs:
           QT_QPA_PLATFORM: offscreen
         run: |
           python3 -m pip install --quiet pytest
-          cd desktop && python3 -m pytest -q test_history.py test_app.py test_mcp_settings.py
+          cd desktop && python3 -m pytest -q test_history.py test_app.py test_mcp_settings.py test_single_instance.py
+      - name: Screens
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python3 desktop/screenshots.py screens
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screens
+          path: screens/*.png
       - name: Build .app
         run: ./desktop/build_app.sh
