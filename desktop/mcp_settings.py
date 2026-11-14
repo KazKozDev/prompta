@@ -301,8 +301,10 @@ def prefs() -> QSettings:
 
 try:
     from .settings_ui import LABEL_GAP, LIST_GAP, PAGE_TOP, add_section, body, card, muted, text_link
+    from .theme import ROOT
 except ImportError:
     from settings_ui import LABEL_GAP, LIST_GAP, PAGE_TOP, add_section, body, card, muted, text_link
+    from theme import ROOT
 
 
 
@@ -347,7 +349,7 @@ class RemoveCross(QPushButton):
     def __init__(self, name: str) -> None:
         super().__init__()
         self.setObjectName("deleteItem")
-        self.setIcon(QIcon(str(Path(__file__).with_name("close.svg"))))
+        self.setIcon(QIcon(str(ROOT / "desktop" / "close.svg")))
         self.setIconSize(QSize(10, 10))
         self.setFixedSize(22, 22)
         self.setCursor(Qt.CursorShape.PointingHandCursor)

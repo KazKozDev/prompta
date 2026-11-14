@@ -161,8 +161,10 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdi
 
 try:
     from .settings_ui import LABEL_GAP, LIST_GAP, PAGE_TOP, SECTION_GAP, muted
+    from .theme import ROOT
 except ImportError:
     from settings_ui import LABEL_GAP, LIST_GAP, PAGE_TOP, SECTION_GAP, muted
+    from theme import ROOT
 
 RULE_SETS = (("Claude", "claude_prompt_rules"), ("ChatGPT", "chatgpt_prompt_rules"),
              ("Gemini", "gemini_prompt_rules"), ("Grok", "grok_prompt_rules"),
@@ -215,7 +217,7 @@ class LibraryWidget(QWidget):
         search_row.addWidget(self.search, 1, Qt.AlignmentFlag.AlignVCenter)
         refresh = QPushButton()
         refresh.setObjectName('ghost')
-        refresh.setIcon(QIcon(str(Path(__file__).with_name('refresh.svg'))))
+        refresh.setIcon(QIcon(str(ROOT / 'desktop' / 'refresh.svg')))
         refresh.setIconSize(QSize(15, 15))
         refresh.setFixedSize(28, 28)  # same square as the model refresh button and as tall as the search field
         refresh.setToolTip('Refresh library')

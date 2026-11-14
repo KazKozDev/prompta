@@ -46,3 +46,11 @@ jobs:
           path: screens/*.png
       - name: Build .app
         run: ./desktop/build_app.sh
+      - name: Standalone .app
+        run: |
+          python3 -m pip install --quiet pyinstaller
+          ./desktop/build_standalone.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Prompta-dmg
+          path: release/standalone/Prompta.dmg

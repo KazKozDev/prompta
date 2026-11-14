@@ -66,10 +66,10 @@ from PyQt6.QtWidgets import (
 )
 
 try:
-    from .theme import CHAT_URLS, DARK_SCROLL_QSS, PROMPT_TARGETS, QSS, ROOT
+    from .theme import CHAT_URLS, DARK_SCROLL_QSS, FROZEN, PROMPT_TARGETS, QSS, ROOT
     from .widgets import *  # noqa: F401,F403 — base widgets moved out of this file
 except ImportError:
-    from theme import CHAT_URLS, DARK_SCROLL_QSS, PROMPT_TARGETS, QSS, ROOT
+    from theme import CHAT_URLS, DARK_SCROLL_QSS, FROZEN, PROMPT_TARGETS, QSS, ROOT
     from widgets import *  # noqa: F401,F403
 
 
@@ -98,6 +98,8 @@ def fetch_ollama_models(timeout: float = 3.0) -> list[str]:
 
 
 def node_binary() -> str:
+    if FROZEN:  # the standalone app carries its own node (build_standalone.sh)
+        return str(Path(sys._MEIPASS) / "node")
     for candidate in (shutil.which("node"), "/opt/homebrew/bin/node", "/usr/local/bin/node"):
         if candidate and Path(candidate).exists():
             return candidate

@@ -59,9 +59,9 @@ from PyQt6.QtWidgets import (
 )
 
 try:
-    from .theme import CHAT_URLS, DARK_SCROLL_QSS, PROMPT_TARGETS, ROOT
+    from .theme import CHAT_URLS, DARK_SCROLL_QSS, FROZEN, PROMPT_TARGETS, ROOT
 except ImportError:
-    from theme import CHAT_URLS, DARK_SCROLL_QSS, PROMPT_TARGETS, ROOT
+    from theme import CHAT_URLS, DARK_SCROLL_QSS, FROZEN, PROMPT_TARGETS, ROOT
 
 
 class HintPopup(QLabel):
@@ -467,8 +467,11 @@ class ThoughtsEdit(QPlainTextEdit):
         interpreter = ROOT / ".venv-whisper/bin/python"
         self._voice_log(f"click: start · interpreter {'found' if interpreter.exists() else 'MISSING'}")
         if not interpreter.exists():
-            self.setToolTip("Whisper is not installed. See desktop/README.md.")
-            self._voice_failure("Whisper is not installed. See desktop/README.md.")
+            # The standalone app ships without Whisper (its model alone is ~500 MB); from source it is a setup step.
+            message = ("Dictation is not included in this build." if FROZEN
+                       else "Whisper is not installed. See desktop/README.md.")
+            self.setToolTip(message)
+            self._voice_failure(message)
             return
         self.voice_process = QProcess(self)
         # Through prompta-mic when it is built: it carries the microphone usage text the system Python lacks,

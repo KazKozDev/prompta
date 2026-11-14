@@ -15,6 +15,25 @@ Or straight from the terminal:
 python3 desktop/app.py
 ```
 
+## Standalone app (to give to others)
+
+```bash
+./desktop/build_standalone.sh
+```
+
+Builds `release/standalone/Prompta.app` and `Prompta.dmg` with their own Python, PyQt6 and Node: the
+Mac it runs on needs nothing installed. Build needs `python3 -m pip install PyQt6 pyinstaller` and an
+official Node build (nodejs.org; a Homebrew node links Homebrew libraries and is refused). CI builds the
+same dmg as the `Prompta-dmg` artifact.
+
+- Apple Silicon only; the minimum macOS is read from the bundled binaries (13.5 now).
+- Signed ad hoc, not notarized (that needs an Apple Developer account). On another Mac the first launch
+  is blocked: System Settings → Privacy & Security → **Open Anyway**.
+- No dictation: Whisper and its model are ~500 MB. The microphone says so.
+- MCP installs point into the app bundle: keep it in /Applications, reinstall after moving it.
+
+## Development
+
 The app runs from source: edit the code and relaunch, no rebuild needed. Rebuild the bundle only to get
 the microphone helper (see dictation below).
 
@@ -50,7 +69,8 @@ for the UI (offscreen Qt), `npm test` for the bridge.
 | `voice_input.py` · `mic_helper.c` | Whisper dictation worker and the `prompta-mic` microphone helper |
 | `qt_log.py` | Filters two known Qt accessibility messages |
 | `bridge.ts` | JSON on stdin → JSON on stdout, a wrapper over `pipeline/` |
-| `build_app.sh` · `make_icon.py` | Builds `release/Prompta.app` and its icon |
+| `build_app.sh` · `make_icon.py` | Builds `release/Prompta.app` (a launcher over the sources) and its icon |
+| `build_standalone.sh` | Builds the self-contained `release/standalone/Prompta.app` and `.dmg` |
 
 ## Keys and history
 

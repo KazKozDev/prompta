@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+# The repository in development; inside the standalone app (build_standalone.sh) the same tree ships as
+# Contents/Resources/prompta, next to PyInstaller's own files.
+ROOT = Path(sys._MEIPASS) / "prompta" if getattr(sys, "frozen", False) else Path(__file__).resolve().parent.parent
+FROZEN = getattr(sys, "frozen", False)
 
 PROMPT_TARGETS = {
     "claude": ("Claude", ("platform.claude.com",)),

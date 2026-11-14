@@ -98,7 +98,7 @@ except ImportError:
     import qt_log
 
 COMPATIBLE = "openai_compatible"  # a second OpenAI-API provider: its own server URL and Keychain key
-LOCAL_PROVIDERS_FILE = Path(__file__).with_name("providers.local.json")  # personal, gitignored
+LOCAL_PROVIDERS_FILE = ROOT / "desktop" / "providers.local.json"  # personal, gitignored
 
 
 def load_local_providers(path: Path = LOCAL_PROVIDERS_FILE) -> dict[str, dict]:
