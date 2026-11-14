@@ -788,7 +788,7 @@ class PromptEdit(QPlainTextEdit):
         self._wrap_width = -1
         self.viewport().installEventFilter(self)
 
-    FIT_MIN, FIT_MAX = 160, 460
+    FIT_MIN = 160
 
     def eventFilter(self, obj, event) -> bool:  # noqa: N802
         # QPlainTextEdit re-wraps only on its own width change; the viewport also changes with
@@ -806,8 +806,9 @@ class PromptEdit(QPlainTextEdit):
             self._refit()
 
     def fit_to_content(self) -> None:
-        """Height follows the text (between FIT_MIN and FIT_MAX); longer prompts scroll inside."""
+        """Height follows the whole text (at least FIT_MIN): the page scrolls, the block never does."""
         self._fit = True
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self._refit()
 
     def _refit(self) -> None:
@@ -823,7 +824,7 @@ class PromptEdit(QPlainTextEdit):
         doc.setPlainText(self.toPlainText())
         doc.setTextWidth(width)
         chrome = self.height() - self.viewport().height()  # frame, padding and the spec strip
-        self.setFixedHeight(max(self.FIT_MIN, min(self.FIT_MAX, int(doc.size().height()) + chrome + 4)))
+        self.setFixedHeight(max(self.FIT_MIN, int(doc.size().height()) + chrome + 4))
         if self.on_height is not None:
             self.on_height()
 

@@ -121,6 +121,19 @@ class SkillModeTest(unittest.TestCase):
         self.assertEqual(w.mode_switch.mode(), SKILL_MODE)
         self.assertEqual(w.skill_view.editor.toPlainText(), SKILL['skill'])
 
+    def test_a_long_skill_grows_the_block_instead_of_scrolling_inside_it(self):
+        w = self.window
+        w.resize(1200, 800)
+        w.show()
+        w.mode_switch.set_mode(SKILL_MODE)
+        long_skill = SKILL['skill'] + ''.join(f'- step {n}: a line of the workflow\n' for n in range(120))
+        w.on_finished({'ok': True, 'skill': dict(SKILL, skill=long_skill)})
+        for _ in range(3):
+            self.app.processEvents()
+        editor = w.skill_view.editor
+        self.assertGreater(editor.height(), 460)  # taller than the old cap
+        self.assertEqual(editor.verticalScrollBar().maximum(), 0)
+
     def test_opening_a_skill_leaves_the_prompt_side_alone(self):
         w = self.window
         w.prompt_version = 'v2'

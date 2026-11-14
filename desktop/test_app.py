@@ -1523,6 +1523,7 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
         editor.insertPlainText(' Edited by me.' + '\nline' * 30)
         self.cls_app_process()
         self.assertGreater(editor.height(), PromptEdit.FIT_MIN, 'the block grows with the edit')
+        self.assertEqual(editor.verticalScrollBar().maximum(), 0, 'no scrolling inside the block')
         editor._copy()
         self.assertTrue(
             QGuiApplication.clipboard().text().startswith('Original prompt text that is long enough. Edited by me.')
