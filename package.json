@@ -2,7 +2,7 @@
   "name": "prompta",
   "description": "Prompt generator for Claude, ChatGPT, Gemini and Grok: macOS app, CLI and MCP server",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "engines": {
     "node": ">=22.18"

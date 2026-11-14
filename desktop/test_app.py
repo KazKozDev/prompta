@@ -16,7 +16,7 @@ import re
 import unittest
 from unittest.mock import Mock, patch
 
-from app import QApplication, PromptaWindow, Worker, QPushButton, QLabel, QModelIndex, QListWidget, QPlainTextEdit, QScrollArea
+from app import QApplication, PromptaWindow, Worker, QPushButton, QLabel, QListWidget, QPlainTextEdit, QScrollArea
 import app as app_module
 
 
@@ -603,7 +603,7 @@ class DesktopSmokeTest(unittest.TestCase):
             window.close()
 
     def test_open_in_chatgpt_copies_full_prompt_and_uses_default_browser(self):
-        from app import PromptEdit, QSS
+        from app import PromptEdit
         from urllib.parse import urlparse, parse_qs
         text = 'Напиши код: a & b? #1\nSecond line + 100%'
         editor = PromptEdit(text, None, "chatgpt")
@@ -1484,7 +1484,8 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
                 again.close()
 
     def test_keyless_lists_come_from_a_daily_cached_catalog(self):
-        import json, time
+        import json
+        import time
         from workers import catalog_models, reduce_catalog
         data = {'openai': {'models': {
                     'gpt-old': {'id': 'gpt-old', 'release_date': '2024-01-01', 'modalities': {'output': ['text']}},

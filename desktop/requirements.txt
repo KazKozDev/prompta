@@ -1,0 +1,11 @@
+# Desktop app: run, test and build. Exact versions, so a build does not change with the day it runs:
+# a new PyQt6 can change widget internals the stylesheets and tests rely on. Bump on purpose, then rerun the tests.
+#   python3 -m pip install -r desktop/requirements.txt
+PyQt6==6.10.0
+PyQt6-Qt6==6.10.0
+PyQt6_sip==13.10.2
+Pillow==12.1.1
+pyinstaller==6.11.1
+pyinstaller-hooks-contrib==2024.9
+pytest==8.3.3
+ruff==0.12.2

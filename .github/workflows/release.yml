@@ -1,0 +1,48 @@
+name: release
+
+# A version tag publishes a release: push `v0.2.0` after bumping APP_VERSION (desktop/app.py) and package.json
+# to 0.2.0. The run checks the tag against both, runs the tests, builds the standalone dmg and attaches it to a
+# GitHub release with generated notes. Ordinary pushes still build the dmg in ci.yml, as a run artifact only.
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Python dependencies
+        run: python3 -m pip install --quiet -r desktop/requirements.txt
+      - name: Tag matches the version
+        run: |
+          APP="$(python3 -c 'import sys; sys.path.insert(0, "desktop"); from test_version import app_version; print(app_version())')"
+          PKG="$(node -p 'require("./package.json").version')"
+          TAG="${GITHUB_REF_NAME#v}"
+          echo "tag $TAG · app $APP · package.json $PKG"
+          [ "$TAG" = "$APP" ] && [ "$TAG" = "$PKG" ] || { echo "::error::tag, APP_VERSION and package.json disagree"; exit 1; }
+      - name: Tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          npm install --no-audit --no-fund
+          npx tsc --noEmit
+          npm test
+          ruff check .
+          cd desktop && python3 -m pytest -q
+      - name: Standalone .app
+        run: ./desktop/build_standalone.sh
+      - name: GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" release/standalone/Prompta.dmg --title "Prompta ${GITHUB_REF_NAME#v}" --generate-notes

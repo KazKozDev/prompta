@@ -160,10 +160,10 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdi
                             QSplitter, QTreeWidget, QTreeWidgetItem, QPlainTextEdit, QPushButton)
 
 try:
-    from .settings_ui import LABEL_GAP, LIST_GAP, PAGE_TOP, SECTION_GAP, muted
+    from .settings_ui import LIST_GAP, PAGE_TOP, SECTION_GAP, muted
     from .theme import ROOT
 except ImportError:
-    from settings_ui import LABEL_GAP, LIST_GAP, PAGE_TOP, SECTION_GAP, muted
+    from settings_ui import LIST_GAP, PAGE_TOP, SECTION_GAP, muted
     from theme import ROOT
 
 RULE_SETS = (("Claude", "claude_prompt_rules"), ("ChatGPT", "chatgpt_prompt_rules"),

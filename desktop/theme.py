@@ -10,6 +10,8 @@ from pathlib import Path
 ROOT = Path(sys._MEIPASS) / "prompta" if getattr(sys, "frozen", False) else Path(__file__).resolve().parent.parent
 FROZEN = getattr(sys, "frozen", False)
 
+COMPATIBLE = "openai_compatible"  # a second OpenAI-API provider: its own server URL and Keychain key
+
 PROMPT_TARGETS = {
     "claude": ("Claude", ("platform.claude.com",)),
     "chatgpt": ("ChatGPT", ("developers.openai.com", "platform.openai.com", "learn.chatgpt.com")),

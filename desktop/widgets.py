@@ -875,3 +875,55 @@ class PromptEdit(QPlainTextEdit):
             self.spec.raise_()
         if getattr(self, "restore", None) is not None:
             self.restore.raise_()  # above the spec strip
+
+
+class WrappingField(QPlainTextEdit):
+    """One-paragraph field that wraps: grows to fit its text up to `max_lines`, Enter submits instead of breaking the line."""
+    returnPressed = pyqtSignal()
+
+    def __init__(self, text: str = "", max_lines: int = 2) -> None:
+        super().__init__()
+        self.max_lines = max_lines
+        self.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setTabChangesFocus(True)
+        self.document().setDocumentMargin(2)
+        self.setText(text)
+        # Plain-text layout reports its height in wrapped lines: refit whenever Qt re-wraps the text.
+        self.document().documentLayout().documentSizeChanged.connect(self._schedule_fit)
+
+    def _schedule_fit(self, *_: object) -> None:
+        QTimer.singleShot(0, self._fit)  # after the pending re-wrap, not halfway through it
+
+    def resizeEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        super().resizeEvent(event)
+        self._schedule_fit()
+
+    def text(self) -> str:  # same reading and writing as QLineEdit, so callers need not care which field it is
+        return self.toPlainText()
+
+    def setText(self, text: str) -> None:  # noqa: N802 - Qt naming
+        self.setPlainText(text)
+        self.moveCursor(QTextCursor.MoveOperation.Start)  # show the beginning, not the tail
+
+    def keyPressEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            self.returnPressed.emit()
+            return
+        super().keyPressEvent(event)
+
+    def insertFromMimeData(self, source) -> None:  # noqa: N802 - Qt naming
+        self.insertPlainText(" ".join(source.text().split()))  # pasted line breaks become spaces
+
+    def _fit(self, *_: object) -> None:
+        wrapped = max(1, round(self.document().size().height()))
+        lines = min(self.max_lines, wrapped)
+        # Line height from the laid-out text itself: font metrics can disagree with the styled font.
+        block = self.blockBoundingRect(self.document().firstBlock()).height()
+        line = block / wrapped if block > 0 else self.fontMetrics().lineSpacing()
+        frame = self.height() - self.viewport().height()  # border and padding from the stylesheet
+        height = int(lines * line + 0.999) + 2 * int(self.document().documentMargin()) + frame
+        if height != self.height():
+            self.setFixedHeight(height)
+        self.setToolTip(self.toPlainText() if wrapped > self.max_lines else "Click to edit")

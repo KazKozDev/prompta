@@ -22,7 +22,7 @@ python3 desktop/app.py
 ```
 
 Builds `release/standalone/Prompta.app` and `Prompta.dmg` with their own Python, PyQt6 and Node: the
-Mac it runs on needs nothing installed. Build needs `python3 -m pip install PyQt6 pyinstaller` and an
+Mac it runs on needs nothing installed. Build needs `python3 -m pip install -r desktop/requirements.txt` and an
 official Node build (nodejs.org; a Homebrew node links Homebrew libraries and is refused). CI builds the
 same dmg as the `Prompta-dmg` artifact.
 
@@ -31,6 +31,17 @@ same dmg as the `Prompta-dmg` artifact.
   is blocked: System Settings → Privacy & Security → **Open Anyway**.
 - No dictation: Whisper and its model are ~500 MB. The microphone says so.
 - MCP installs point into the app bundle: keep it in /Applications, reinstall after moving it.
+
+## Releasing
+
+One version for the whole project: `APP_VERSION` in `desktop/app.py` and `version` in `package.json`
+(`test_version.py` keeps them equal). To publish:
+
+1. Bump both to the new version and commit.
+2. Tag the commit `v<version>` (for example `git tag v0.2.0`) and push the tag.
+
+`.github/workflows/release.yml` then checks the tag against both versions, runs the tests, builds the standalone
+dmg and attaches it to a GitHub release with generated notes.
 
 ## Development
 

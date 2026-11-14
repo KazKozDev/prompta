@@ -1,0 +1,18 @@
+# Python lint for the desktop app and the rule/catalog scripts (CI runs `ruff check .`).
+# Default rule set (pyflakes + the E4/E7/E9 errors); line length is not checked, there is no formatter.
+target-version = "py312"
+
+[lint]
+# The desktop modules still share names through `from x import *` (see desktop/app.py);
+# short names like `l` and named lambdas are style, not bugs.
+ignore = ["F403", "F405", "E741", "E731"]
+
+[lint.per-file-ignores]
+# Hub modules: their "unused" imports are what `import *` hands on to app.py and history_view.py.
+"desktop/widgets.py" = ["F401"]
+"desktop/workers.py" = ["F401"]
+"desktop/controls.py" = ["F401"]
+"desktop/result_view.py" = ["F401"]
+# Tests put desktop/ on sys.path before importing; library.py imports its Qt half late.
+"desktop/test_*.py" = ["E402"]
+"desktop/library.py" = ["E402"]

@@ -9,7 +9,6 @@ rust-coloured. Build tabs with these helpers instead of spacing widgets by hand.
 """
 from __future__ import annotations
 
-from pathlib import Path
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QFrame, QLabel, QLayout, QPushButton, QVBoxLayout, QWidget

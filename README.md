@@ -159,7 +159,6 @@ Live evaluation (28 tasks, 10 with injected commands, rubric judge, regression g
 
 ![macOS](https://img.shields.io/badge/macOS-333?style=flat-square&logo=apple&logoColor=fff) ![Linux](https://img.shields.io/badge/Linux-333?style=flat-square&logo=linux&logoColor=fff) [![CI](https://img.shields.io/github/actions/workflow/status/KazKozDev/prompta/ci.yml?style=flat-square&label=CI)](https://github.com/KazKozDev/prompta/actions/workflows/ci.yml) [![Node.js 22.18+](https://img.shields.io/badge/Node.js-22.18%2B-333?style=flat-square&logo=nodedotjs&logoColor=fff)](.github/workflows/ci.yml) [![License MIT](https://img.shields.io/badge/License-MIT-333?style=flat-square)](LICENSE)
 
-<!-- TODO(user): append " · [LinkedIn](url)" -->
-[Issues](https://github.com/KazKozDev/prompta/issues) · [License](LICENSE) · [Pipeline](pipeline/README.md) · [MCP server](mcp/README.md) · [Desktop app](desktop/README.md) · [Evaluation](eval/README.md)
+[Issues](https://github.com/KazKozDev/prompta/issues) · [License](LICENSE) · [Pipeline](pipeline/README.md) · [MCP server](mcp/README.md) · [Desktop app](desktop/README.md) · [Evaluation](eval/README.md) · [LinkedIn](https://www.linkedin.com/in/kazkozdev/)
 
 </div>

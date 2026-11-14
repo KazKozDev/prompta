@@ -2,6 +2,7 @@ name: ci
 
 on:
   push:
+    branches: ['**']  # version tags go to release.yml
   pull_request:
 
 jobs:
@@ -18,6 +19,11 @@ jobs:
         run: npx tsc --noEmit
       - name: Tests
         run: npm test
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Python lint
+        run: python3 -m pip install --quiet ruff==0.12.2 && ruff check .
       - name: Catalog
         run: python3 catalog/validate.py
 
@@ -28,14 +34,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: PyQt6
-        run: python3 -m pip install --quiet PyQt6 Pillow
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Python dependencies
+        run: python3 -m pip install --quiet -r desktop/requirements.txt
       - name: Desktop tests
         env:
           QT_QPA_PLATFORM: offscreen
         run: |
-          python3 -m pip install --quiet pytest
-          cd desktop && python3 -m pytest -q test_history.py test_app.py test_mcp_settings.py test_single_instance.py
+          cd desktop && python3 -m pytest -q
       - name: Screens
         env:
           QT_QPA_PLATFORM: offscreen
@@ -47,9 +55,7 @@ jobs:
       - name: Build .app
         run: ./desktop/build_app.sh
       - name: Standalone .app
-        run: |
-          python3 -m pip install --quiet pyinstaller
-          ./desktop/build_standalone.sh
+        run: ./desktop/build_standalone.sh
       - uses: actions/upload-artifact@v4
         with:
           name: Prompta-dmg

@@ -4,77 +4,37 @@ from __future__ import annotations
 
 import json
 import os
-import re
-from html import escape
-from urllib.parse import urlparse, urlencode
-import shutil
 import sqlite3
 from datetime import datetime
-import subprocess
-from collections import deque
-from threading import Thread
-import sys
-import urllib.request
 from pathlib import Path
 
 try:
-    from .history import HistoryStore, history_topic
-    from .library import LibraryWidget
-    from .mcp_settings import McpSettingsWidget
+    from .history import history_topic
     from .settings_ui import LABEL_GAP, LIST_GAP, add_section, field_label, muted, settings_page, text_link
 except ImportError:
-    from history import HistoryStore, history_topic
-    from library import LibraryWidget
-    from mcp_settings import McpSettingsWidget
+    from history import history_topic
     from settings_ui import LABEL_GAP, LIST_GAP, add_section, field_label, muted, settings_page, text_link
 
-from PyQt6.QtCore import QModelIndex, QEvent, QObject, QPoint, QRect, QRectF, QSize, Qt, QUrl, QProcess, QThread, QTimer, QPropertyAnimation, QEasingCurve, pyqtSignal
-from PyQt6.QtGui import QStandardItem, QStandardItemModel, QColor, QCursor, QPainter, QPalette, QPen, QFont, QGuiApplication, QIcon, QPixmap, QKeySequence, QShortcut, QDesktopServices, QTextDocument
+from PyQt6.QtCore import QRectF, QSize, Qt
+from PyQt6.QtGui import QColor, QCursor, QPainter, QFont
 from PyQt6.QtWidgets import (
-    QAbstractItemView,
-    QAbstractScrollArea,
-    QApplication,
-    QButtonGroup,
-    QCheckBox,
-    QComboBox,
-    QCompleter,
-    QDialog,
-    QFrame,
-    QGridLayout,
     QHBoxLayout,
     QLabel,
-    QLayout,
     QLineEdit,
     QListWidget,
     QListWidgetItem,
-    QMainWindow,
     QMessageBox,
-    QPlainTextEdit,
-    QProgressBar,
-    QPushButton,
-    QScrollArea,
-    QScrollBar,
     QStyle,
-    QStyledItemDelegate,
-    QStyleOptionSlider,
-    QSizePolicy,
-    QSplitter,
-    QTabBar,
-    QTabWidget,
-    QToolButton,
-    QToolTip,
     QVBoxLayout,
     QWidget,
 )
 
 try:
-    from .theme import CHAT_URLS, DARK_SCROLL_QSS, PROMPT_TARGETS, QSS, ROOT
+    from .theme import PROMPT_TARGETS
     from .widgets import *  # noqa: F401,F403 — base widgets moved out of this file
 except ImportError:
-    from theme import CHAT_URLS, DARK_SCROLL_QSS, PROMPT_TARGETS, QSS, ROOT
+    from theme import PROMPT_TARGETS
     from widgets import *  # noqa: F401,F403
-import os
-from datetime import datetime
 try:
     from .result_view import *  # noqa: F401,F403
     from .controls import Dropdown

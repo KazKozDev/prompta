@@ -1,4 +1,5 @@
-import json, re, unicodedata
+import json
+import re
 
 from pathlib import Path
 
@@ -475,15 +476,15 @@ def norm_name(raw):
 rows, section = [], None
 for line in open(SRC, encoding='utf-8').read().split('\n'):
     if line.startswith('## ') or line.startswith('### '):
-        section = line.lstrip('# ').strip(); continue
+        section = line.lstrip('# ').strip()
+        continue
     if not line.startswith('|') or re.match(r'^\|[\s\-:|]+\|$', line):
         continue
-    m = re.match(r'^\|[\s\-:|]+\|$', line)
-    if m: continue
     cells = [c.strip() for c in line.strip().strip('|').split('|')]
     if len(cells) == 3 and section.startswith('5.'):
         cells = [cells[0], 'heston, ch. 1, p. 11–12', cells[1], cells[2]]
-    if len(cells) != 4 or not cells[0].strip('| '): continue
+    if len(cells) != 4 or not cells[0].strip('| '):
+        continue
     rows.append((section, cells))
 
 seen, techs, skipped = set(), [], []
@@ -493,9 +494,11 @@ for section, cells in rows:
     name = norm_name(cells[0])
     key = KEYS.get(name)
     if key is None:
-        skipped.append(name); continue
+        skipped.append(name)
+        continue
     if key in seen:
-        skipped.append(name + ' (duplicate)'); continue
+        skipped.append(name + ' (duplicate)')
+        continue
     seen.add(key)
     cat, kind = SECTION[section]
     docs = []
