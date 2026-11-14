@@ -2,6 +2,8 @@
 # CI runs `ruff check .` and `ruff format --check .`; run `ruff format .` before committing.
 target-version = "py312"
 line-length = 120
+# Third-party snapshots kept byte-for-byte as downloaded.
+extend-exclude = ["skill_rules/snapshots"]
 
 [format]
 quote-style = "preserve"  # the code mixes quotes; reformatting them all would bury real changes

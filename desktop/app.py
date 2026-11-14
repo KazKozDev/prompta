@@ -41,6 +41,8 @@ from history_view import HistoryView
 from target_selector import TargetSelector
 from technique_panel import TechniquePanel
 from result_column import ResultColumn
+from skill_mode import SKILL_MODE, ModeSwitch, SurfaceSelector
+from skill_view import SkillView
 from about_page import AboutPage
 from dictation import DictationPage
 from generator_settings import GeneratorSettings
@@ -130,6 +132,9 @@ class PromptaWindow(QMainWindow):
 
         header = QHBoxLayout()
         header.setSpacing(20)
+        self.mode_switch = ModeSwitch()
+        self.mode_switch.changed.connect(self._apply_mode)
+        header.addWidget(self.mode_switch, 0, Qt.AlignmentFlag.AlignVCenter)
         header.addStretch(1)  # the window title already says Prompta
         header.addWidget(self.history.picker)
         self.clear_button = QPushButton()
@@ -238,12 +243,16 @@ class PromptaWindow(QMainWindow):
         # Official targets and open-weight models follow their own guidance: the technique catalog is for Any only.
         self.target_selector.changed.connect(lambda: self.technique_panel.set_target(self.target_selector.target()))
         box.addWidget(self.target_selector)
+        self.surface_selector = SurfaceSelector()  # Skill mode only: replaces the prompt controls
+        self.surface_selector.hide()
+        box.addWidget(self.surface_selector)
         # Where the prompt goes and where it runs belong together: right under the target switch.
         # Where it runs decides which tool steps the prompt may rely on.
         runs_in = QVBoxLayout()
         runs_in.setContentsMargins(0, 6, 0, 2)  # 16px rows: Written for → Runs in → Technique
         runs_in.setSpacing(8)
-        runs_in.addWidget(field_label("Runs in"))
+        self.runs_in_label = field_label("Runs in")
+        runs_in.addWidget(self.runs_in_label)
         self.execution_profile = ExecutionProfileDropdown()
         self.execution_profile.setAccessibleName("Where will the prompt run?")
         self.execution_profile.setToolTip(
@@ -323,8 +332,13 @@ class PromptaWindow(QMainWindow):
         self.result_column.rebuildRequested.connect(lambda: self.run_pipeline())
         self.result_column.promptEdited.connect(self.history.prompt_edited)  # edits go into the saved result
         box.addWidget(self.result_column, 1)
+        self.skill_view = SkillView()
+        self.skill_view.skillEdited.connect(lambda text: self.history.prompt_edited(0, text))
+        self.skill_view.hide()
+        box.addWidget(self.skill_view, 1)
 
         self.result_column.show_placeholder()
+        self.skill_view.show_placeholder()
         return card
 
     # ── settings ──────────────────────────────────────────────────
@@ -393,6 +407,7 @@ class PromptaWindow(QMainWindow):
         self._active_thoughts = ""
         self.history.deselect()
         self.result_column.show_placeholder()
+        self.skill_view.show_placeholder()
         self.generation_progress.hide()
         self.generation_progress.setValue(0)
         self._set_running(running)
@@ -446,11 +461,44 @@ class PromptaWindow(QMainWindow):
             return
         if not force and self._running():
             return  # the button says Stop until the run ends
-        card = self.assumptions_card
+        card = None if self._skill_mode() else self.assumptions_card  # a skill run does not read the brief card
         count = card.change_count() if card is not None and hasattr(card, "change_count") else 0
         base = getattr(self, "build_label", "Build prompt")
         shortcut = base[len("Build prompt") :]
         self.run_button.setText(f"Rebuild · {count} change{'s' if count != 1 else ''}{shortcut}" if count else base)
+
+    def _skill_mode(self) -> bool:
+        return self.mode_switch.mode() == SKILL_MODE
+
+    def _apply_mode(self, mode: str) -> None:
+        """Skill mode swaps the prompt controls and result for the skill ones; both keep their state."""
+        skill = mode == SKILL_MODE
+        for widget in (self.target_selector, self.runs_in_label, self.execution_profile, self.technique_panel):
+            widget.setVisible(not skill)
+        if self.assumptions_card is not None:
+            self.assumptions_card.setVisible(not skill)
+        self.surface_selector.setVisible(skill)
+        self.result_column.setVisible(not skill)
+        self.skill_view.setVisible(skill)
+        self.build_label = ("Build skill" if skill else "Build prompt") + "   ⌘↵"
+        self.thoughts.setPlaceholderText(
+            "Describe the skill: what it does and when to use it" if skill else "Describe what you need"
+        )
+        self._sync_build_label()
+        self._fit_input_column()
+
+    def _run_skill(self, thoughts: str, generator: dict) -> None:
+        self._set_running(True)
+        self.generation_progress.setValue(0)
+        self.generation_progress.show()
+        self.status.setText("Writing SKILL.md from the official skill rules")
+        self._rebuilding_brief = False
+        self._active_thoughts = thoughts
+        self._discard_result = False
+        self.worker = Worker({"thoughts": thoughts, **generator, "skill": self.surface_selector.surface()})
+        self.worker.progress.connect(self.on_progress)
+        self.worker.finished_ok.connect(self.on_finished)
+        self.worker.start()
 
     def run_pipeline(self, *, revised_brief: dict | None = None) -> None:
         if self.worker and self.worker.isRunning():
@@ -466,6 +514,9 @@ class PromptaWindow(QMainWindow):
         generator, missing = self.generator.request()
         if missing:
             self.status.setText(missing)
+            return
+        if self._skill_mode():
+            self._run_skill(thoughts, generator)
             return
 
         technique_keys = self.technique_panel.technique_keys()
@@ -536,8 +587,20 @@ class PromptaWindow(QMainWindow):
             if getattr(self, "_rebuilding_brief", False):
                 self.status.setText(f"Rebuild failed: {data.get('error', 'unknown error')}")
                 return
-            self.result_column.show_error(data.get("error", "unknown error"))
+            view = self.skill_view if self._skill_mode() else self.result_column
+            view.show_error(data.get("error", "unknown error"))
             self.status.setText("Error")
+            return
+
+        if data.get("skill"):
+            skill = data["skill"]
+            self.skill_view.render_skill(skill)
+            self._save_result(skill.get("name") or "SKILL.md", "skill", skill)
+            check = skill.get("check") or {}
+            problems = len(check.get("errors") or [])
+            self.status.setText(
+                f"{skill.get('name')} · ready" if check.get("valid") else f"SKILL.md · {problems} problem(s) left"
+            )
             return
 
         if data.get("procedure"):
@@ -575,7 +638,11 @@ class PromptaWindow(QMainWindow):
         """Show a saved result; raises KeyError, TypeError or ValueError for data it cannot show."""
         kind, payload = entry["kind"], entry["payload"]
         self.thoughts.setPlainText(entry["thoughts"])
-        if kind == "manual":
+        self.mode_switch.set_mode(SKILL_MODE if kind == "skill" else "prompt")
+        if kind == "skill":
+            self.surface_selector.set_surface(payload.get("surface", "portable"))
+            self.skill_view.render_skill(payload)
+        elif kind == "manual":
             self.result_column.render_manual(payload)
         elif kind == "procedure":
             self.result_column.render_procedure(payload)
@@ -583,6 +650,8 @@ class PromptaWindow(QMainWindow):
             self.result_column.render_result(payload)
 
     def _on_history_opened(self, entry: dict) -> None:
+        if entry.get("kind") == "skill":
+            return  # a skill has no prompt version or target: leave the prompt side as it was
         payload = entry["payload"]
         self.thoughts.setPlainText(entry["thoughts"])
         self.result_column.flag_outdated(payload, getattr(self, "prompt_version", ""))

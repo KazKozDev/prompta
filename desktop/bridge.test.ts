@@ -133,3 +133,15 @@ test('мост: «Select all» — больше 10 техник проходит
     'step_back_prompting', 'chain_of_thought', 'self_consistency', 'tree_of_thoughts', 'react', 'no_such'];
   assert.match(String(call({ thoughts: 'x', model: 'dummy', manualTechniques: twelve }).data.error), /Unknown technique: no_such/);
 });
+
+test('bridge: skill requests reject unknown surfaces and prompt targets before calling a model', () => {
+  for (const payload of [
+    { thoughts: 'x', model: 'dummy', skill: 'web' },
+    { thoughts: 'x', model: 'dummy', skill: 'portable', claudeOnly: true },
+    { thoughts: 'x', model: 'dummy', skill: 'portable', manualTechnique: 'few_shot' },
+  ]) {
+    const { data } = call(payload);
+    assert.equal(data.ok, false);
+    assert.match(String(data.error), /skill/i);
+  }
+});

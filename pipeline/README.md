@@ -25,6 +25,9 @@ stream of thoughts
 | `prompt-version.ts` | Fingerprint of the internal prompts for reports and eval |
 | `index.ts` | `runPipeline`, `formatResult`, step tracing |
 | `cli.ts` | Running from the terminal |
+| `skill.ts` | Skill mode: thoughts → SKILL.md from `skill_rules/`, one repair pass if the check fails |
+| `skill-rules.ts` | Loads `skill_rules/rules.json` with its sources, per surface (portable / Claude Code) |
+| `skill-validate.ts` | Deterministic SKILL.md check: port of skill-creator's `quick_validate.py` plus documented rules |
 | `smoke.test.ts` | Offline pipeline checks on `node:test`, no network |
 
 ## Guarantees

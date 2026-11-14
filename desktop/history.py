@@ -72,7 +72,7 @@ class HistoryStore:
         entries = []
         for row in rows:
             payload = json.loads(row[4])
-            if row[2] not in ('pipeline', 'manual', 'procedure') or not isinstance(payload, dict):
+            if row[2] not in ('pipeline', 'manual', 'procedure', 'skill') or not isinstance(payload, dict):
                 raise ValueError('invalid history entry format')
             entries.append(
                 dict(zip(('id', 'label', 'kind', 'thoughts', 'payload', 'created_at'), (*row[:4], payload, row[5])))

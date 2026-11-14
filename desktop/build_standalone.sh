@@ -47,7 +47,8 @@ trap 'rm -rf "$WORK"' EXIT
 STAGE="$WORK/prompta"
 mkdir -p "$STAGE"
 (cd "$ROOT" && git ls-files package.json pipeline mcp catalog '*_prompt_rules' hermes_agent_prompt_guides \
-   open_model_prompt_guides desktop/bridge.ts desktop/app.qss 'desktop/*.svg' 'desktop/*.png' \
+   open_model_prompt_guides skill_rules/rules.json skill_rules/sources.json skill_rules/SKILL-template.md \
+   desktop/bridge.ts desktop/app.qss 'desktop/*.svg' 'desktop/*.png' \
    | grep -vE '\.test\.ts$|\.py$' > "$WORK/files")
 rsync -a --files-from="$WORK/files" "$ROOT" "$STAGE"
 

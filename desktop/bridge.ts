@@ -13,6 +13,8 @@ import { createLLM, meterLLM } from '../pipeline/llm.ts';
 import { generateManualPrompt } from '../pipeline/manual.ts';
 import { generateBrief, parseBrief } from '../pipeline/brief.ts';
 import { settleWithLimit } from '../pipeline/limit.ts';
+import { generateSkill } from '../pipeline/skill.ts';
+import type { SkillSurface } from '../pipeline/skill-rules.ts';
 import type { Provider } from '../pipeline/llm.ts';
 import techniqueSources from '../catalog/source-links.json' with { type: 'json' };
 
@@ -51,6 +53,8 @@ interface BridgeRequest {
   manualTechniques?: string[];
   /** How many technique variants to offer (1–5). */
   variants?: number;
+  /** Write a SKILL.md instead of a prompt, for this surface. */
+  skill?: SkillSurface;
 }
 
 /** A title when no brief was made: a missing title must not discard completed prompts. */
@@ -102,6 +106,16 @@ async function main() {
     return brief && sanitizeBrief(brief, req.thoughts).brief;
   };
   const officialMode = req.claudeOnly || req.chatgptOnly || req.geminiOnly || req.grokOnly || req.hermesOnly || req.openModel;
+
+  if (req.skill !== undefined) {
+    if (!['portable', 'claudeCode'].includes(req.skill)) throw new Error('skill must be "portable" or "claudeCode".');
+    if (officialMode || req.manualTechnique || req.manualTechniques) throw new Error('A skill cannot be combined with a prompt target or technique.');
+    onProgress?.(10, 'Writing SKILL.md');
+    const skill = await generateSkill({ thoughts: req.thoughts, llm, surface: req.skill });
+    process.stdout.write(JSON.stringify({ ok: true, skill: { ...skill, usage: usage() } }));
+    return;
+  }
+
   const catalog = officialMode && !req.listTechniques ? { version: 'official-only', techniques: [] } : loadCatalog(JSON.parse(readFileSync(join(root, 'catalog', 'catalog.json'), 'utf8')));
 
   if (req.listTechniques) {
