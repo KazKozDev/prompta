@@ -1,6 +1,7 @@
 """Settings tab for the Prompta MCP server: install it into the major MCP clients and copy configs.
 The server follows the app's Model & API tab: the app keeps its choice in generator.json (no key; the key is read
 from Keychain), installs only tell the server to follow it, so a new provider or model needs no reinstall."""
+
 from __future__ import annotations
 
 import html
@@ -17,14 +18,21 @@ from typing import Callable
 try:
     import yaml  # Hermes keeps its config in YAML
 except ImportError:  # pragma: no cover - the app then simply cannot edit Hermes
-    yaml = None
+    yaml = None  # type: ignore[assignment]
 
 from PyQt6.QtCore import QSettings, QThread, QTimer, Qt, pyqtSignal
 from PyQt6.QtCore import QSize
 from PyQt6.QtGui import QGuiApplication, QIcon
 from PyQt6.QtWidgets import (
-    QGridLayout, QLabel, QPushButton, QVBoxLayout, QWidget,
+    QGridLayout,
+    QLabel,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
 )
+
+from settings_ui import LABEL_GAP, LIST_GAP, PAGE_TOP, add_section, body, card, muted, text_link
+from theme import ROOT
 
 SERVER_NAME = "prompta"
 COPY_LABEL = "Copy JSON for other apps"
@@ -35,8 +43,12 @@ Generator = tuple[str, str, str, str, str]
 def find_claude_cli() -> str | None:
     """Prefer the native installer's `claude` (~/.local/bin): a Finder-launched app puts Homebrew first
     in PATH, where an old npm copy of Claude Code may still live and fail to run."""
-    for candidate in (str(Path.home() / ".local/bin/claude"), shutil.which("claude"),
-                      "/opt/homebrew/bin/claude", "/usr/local/bin/claude"):
+    for candidate in (
+        str(Path.home() / ".local/bin/claude"),
+        shutil.which("claude"),
+        "/opt/homebrew/bin/claude",
+        "/usr/local/bin/claude",
+    ):
         if candidate and Path(candidate).exists():
             return candidate
     return None
@@ -122,9 +134,10 @@ def client_config(node: str, server: Path, env: dict[str, str]) -> str:
 @dataclass(frozen=True)
 class FileClient:
     """An MCP client configured by editing its own config file (everything except Claude Code)."""
+
     key: str
     name: str
-    path: Path          # config file
+    path: Path  # config file
     fmt: str  # "json" (mcpServers), "vscode" (servers + type), "codex" (TOML), "hermes" (YAML)
     present: tuple[Path, ...]  # any of these existing means the app is on this Mac
 
@@ -134,13 +147,28 @@ def file_clients(home: Path | None = None) -> list[FileClient]:
     support = home / "Library" / "Application Support"
     apps = Path("/Applications")
     return [
-        FileClient("claude-desktop", "Claude Desktop", support / "Claude" / "claude_desktop_config.json", "json",
-                   (support / "Claude", apps / "Claude.app")),
+        FileClient(
+            "claude-desktop",
+            "Claude Desktop",
+            support / "Claude" / "claude_desktop_config.json",
+            "json",
+            (support / "Claude", apps / "Claude.app"),
+        ),
         FileClient("cursor", "Cursor", home / ".cursor" / "mcp.json", "json", (home / ".cursor", apps / "Cursor.app")),
-        FileClient("vscode", "VS Code", support / "Code" / "User" / "mcp.json", "vscode",
-                   (support / "Code" / "User", apps / "Visual Studio Code.app")),
-        FileClient("windsurf", "Windsurf", home / ".codeium" / "windsurf" / "mcp_config.json", "json",
-                   (home / ".codeium" / "windsurf", apps / "Windsurf.app")),
+        FileClient(
+            "vscode",
+            "VS Code",
+            support / "Code" / "User" / "mcp.json",
+            "vscode",
+            (support / "Code" / "User", apps / "Visual Studio Code.app"),
+        ),
+        FileClient(
+            "windsurf",
+            "Windsurf",
+            home / ".codeium" / "windsurf" / "mcp_config.json",
+            "json",
+            (home / ".codeium" / "windsurf", apps / "Windsurf.app"),
+        ),
         FileClient("gemini", "Gemini CLI", home / ".gemini" / "settings.json", "json", (home / ".gemini",)),
         FileClient("codex", "Codex", home / ".codex" / "config.toml", "codex", (home / ".codex",)),
         FileClient("hermes", "Hermes Agent", home / ".hermes" / "config.yaml", "hermes", (home / ".hermes",)),
@@ -205,7 +233,7 @@ def _hermes_text(old: str, entry: dict | None) -> str:
     end = start + 1
     while end < len(lines) and (not lines[end].strip() or lines[end][0] in " \t#"):
         end += 1
-    block = lines[start + 1:end]
+    block = lines[start + 1 : end]
     indents = [len(l) - len(l.lstrip(" ")) for l in block if l.strip() and not l.lstrip().startswith("#")]
     child = min(indents) if indents else 2
     kept, skipping = [], False
@@ -219,7 +247,7 @@ def _hermes_text(old: str, entry: dict | None) -> str:
     if entry is not None:
         dumped = yaml.safe_dump({SERVER_NAME: entry}, sort_keys=False, default_flow_style=False, allow_unicode=True)
         added = [" " * child + line + "\n" for line in dumped.splitlines()]
-    return "".join(lines[:start + 1] + added + kept + lines[end:])
+    return "".join(lines[: start + 1] + added + kept + lines[end:])
 
 
 def _hermes_checked(old: str, new: str, entry: dict | None) -> str:
@@ -252,8 +280,11 @@ def _codex_without_prompta(text: str) -> str:
 
 
 def _codex_block(entry: dict) -> str:
-    lines = [f"[mcp_servers.{SERVER_NAME}]", f"command = {json.dumps(entry['command'])}",
-             f"args = {json.dumps(entry['args'])}"]
+    lines = [
+        f"[mcp_servers.{SERVER_NAME}]",
+        f"command = {json.dumps(entry['command'])}",
+        f"args = {json.dumps(entry['args'])}",
+    ]
     if entry.get("env"):
         pairs = ", ".join(f"{json.dumps(k)} = {json.dumps(v)}" for k, v in entry["env"].items())
         lines.append(f"env = {{ {pairs} }}")
@@ -299,20 +330,13 @@ def prefs() -> QSettings:
     return QSettings(QSettings.Format.IniFormat, QSettings.Scope.UserScope, "Prompta", "Prompta")
 
 
-try:
-    from .settings_ui import LABEL_GAP, LIST_GAP, PAGE_TOP, add_section, body, card, muted, text_link
-    from .theme import ROOT
-except ImportError:
-    from settings_ui import LABEL_GAP, LIST_GAP, PAGE_TOP, add_section, body, card, muted, text_link
-    from theme import ROOT
-
-
-
 class StateLabel(QLabel):
     """Status text whose leading ● is green (installed) and ○ grey (not installed)."""
+
     DOTS = {"●": "#3fa34d", "○": "#a99c7c"}
 
-    def setText(self, text: str) -> None:  # noqa: N802
+    def setText(self, text: str | None) -> None:  # noqa: N802
+        text = text or ""
         dot = text[:1]
         if dot in self.DOTS:
             text = f'<span style="color:{self.DOTS[dot]}">{dot}</span>{html.escape(text[1:])}'
@@ -323,6 +347,7 @@ class StateLabel(QLabel):
 
 class CommandRunner(QThread):
     """Run CLI commands off the UI thread; emits (returncode, combined output) of the last command."""
+
     done = pyqtSignal(int, str)
 
     def __init__(self, commands: list[list[str]], tolerate_first_failure: bool = False) -> None:
@@ -344,7 +369,8 @@ class CommandRunner(QThread):
 
 
 class RemoveCross(QPushButton):
-    """The app's own cross (close.svg, as on assumptions and history rows); shown only while there is something to remove."""
+    """The app's own cross (close.svg, as on assumptions and history rows);
+    shown only while there is something to remove."""
 
     def __init__(self, name: str) -> None:
         super().__init__()
@@ -366,9 +392,14 @@ class RemoveCross(QPushButton):
 
 
 class McpSettingsWidget(QWidget):
-    def __init__(self, root: Path, node_binary: Callable[[], str], mini_label: Callable[[str], QLabel],
-                 generator: Callable[[], Generator] = lambda: ("ollama", "", "", "", "Ollama"),
-                 needs_keychain: Callable[[], str] = lambda: "") -> None:
+    def __init__(
+        self,
+        root: Path,
+        node_binary: Callable[[], str],
+        mini_label: Callable[[str], QLabel],
+        generator: Callable[[], Generator] = lambda: ("ollama", "", "", "", "Ollama"),
+        needs_keychain: Callable[[], str] = lambda: "",
+    ) -> None:
         super().__init__()
         self.generator = generator
         # The server reads the key from Keychain: names the provider whose key is not remembered there, else "".
@@ -392,12 +423,19 @@ class McpSettingsWidget(QWidget):
 
         # No second provider/model picker: the server uses the generator chosen in Model & API.
         self.model_summary = body()  # a value, like the fields on Model & API
-        self.key_warning = QLabel("The server reads the API key from Keychain: turn on Remember in Keychain in Model & API.")
+        self.key_warning = QLabel(
+            "The server reads the API key from Keychain: turn on Remember in Keychain in Model & API."
+        )
         self.key_warning.setObjectName("warn")
         self.key_warning.setWordWrap(True)
         self.key_warning.hide()
-        add_section(layout, "Model", self.model_summary, self.key_warning,
-                    hint="Models ending in :cloud run on ollama.com; local Ollama models keep everything on this Mac.")
+        add_section(
+            layout,
+            "Model",
+            self.model_summary,
+            self.key_warning,
+            hint="Models ending in :cloud run on ollama.com; local Ollama models keep everything on this Mac.",
+        )
         self.sync_generator()
 
         apps = card()  # one block for the app rows
@@ -424,9 +462,14 @@ class McpSettingsWidget(QWidget):
         add_section(layout, "Apps", apps)
         layout.addSpacing(LIST_GAP)  # at least this much air under the last app row
         layout.addStretch(1)  # the note sits at the bottom of the tab, apart from the app list
-        layout.addWidget(muted("Each agent keeps its own model for its work and sends its conversation to Prompta's model; "
-                         "API keys and tokens are redacted first. Installed apps follow Model & API: a new provider or model needs no "
-                         "reinstall. Each config change keeps a .bak copy; restart the app or agent session after installing."))
+        layout.addWidget(
+            muted(
+                "Each agent keeps its own model for its work and sends its conversation to Prompta's model; "
+                "API keys and tokens are redacted first. "
+                "Installed apps follow Model & API: a new provider or model needs no "
+                "reinstall. Each config change keeps a .bak copy; restart the app or agent session after installing."
+            )
+        )
 
     @staticmethod
     def _client_row(grid: QGridLayout, row: int, name: str) -> tuple[QPushButton, QPushButton, QLabel]:
@@ -485,8 +528,9 @@ class McpSettingsWidget(QWidget):
     def sync_generator(self) -> None:
         _, model, _, base_url, label = self.generator()
         where = label + (" · custom URL" if base_url else "")
-        self.model_summary.setText(f"{model} · {where} — change it in Model & API" if model
-                                   else "No model chosen — choose one in Model & API")
+        self.model_summary.setText(
+            f"{model} · {where} — change it in Model & API" if model else "No model chosen — choose one in Model & API"
+        )
         self.key_warning.setVisible(bool(self.needs_keychain()))
 
     def _has_model(self) -> bool:
@@ -504,7 +548,9 @@ class McpSettingsWidget(QWidget):
         if message:
             self._say(message)
 
-    def _run(self, commands: list[list[str]], on_done: Callable[[int, str], None], tolerate_first_failure: bool = False) -> None:
+    def _run(
+        self, commands: list[list[str]], on_done: Callable[[int, str], None], tolerate_first_failure: bool = False
+    ) -> None:
         if self.runner is not None and self.runner.isRunning():
             return
         self.runner = CommandRunner(commands, tolerate_first_failure)

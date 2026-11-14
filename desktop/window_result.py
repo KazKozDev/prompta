@@ -10,14 +10,20 @@ from PyQt6.QtCore import QSize, QTimer, Qt
 from PyQt6.QtGui import QCursor, QIcon
 from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QTabWidget, QToolTip, QVBoxLayout, QWidget
 
-try:
-    from .result_view import BLOCK_GAP, Disclosure, FlowLayout, field_label, keyed_label, muted_label, note_chip, spec_text, split_warnings
-    from .theme import PROMPT_TARGETS, ROOT, is_official_source
-    from .widgets import PromptEdit, WrappingField
-except ImportError:
-    from result_view import BLOCK_GAP, Disclosure, FlowLayout, field_label, keyed_label, muted_label, note_chip, spec_text, split_warnings
-    from theme import PROMPT_TARGETS, ROOT, is_official_source
-    from widgets import PromptEdit, WrappingField
+from result_view import (
+    BLOCK_GAP,
+    Disclosure,
+    FlowLayout,
+    keyed_label,
+    muted_label,
+    note_chip,
+    spec_text,
+    split_warnings,
+)
+from settings_ui import field_label
+from theme import PROMPT_TARGETS, ROOT, is_official_source
+from widgets import PromptEdit, WrappingField
+
 
 class ResultMixin:
     """The result column: prompts in tabs, the brief, refinement questions, rules and usage."""
@@ -28,11 +34,16 @@ class ResultMixin:
             return
         calls = usage["calls"]
         input_tokens, output_tokens = usage["inputTokens"], usage["outputTokens"]
-        tokens = (f"{input_tokens:,} input · {output_tokens:,} output tokens"
-                  if input_tokens or output_tokens else "Token counts unavailable")
+        tokens = (
+            f"{input_tokens:,} input · {output_tokens:,} output tokens"
+            if input_tokens or output_tokens
+            else "Token counts unavailable"
+        )
         label = muted_label(f"{calls} model {'call' if calls == 1 else 'calls'} · {tokens}")
-        label.setToolTip("Token counts come from the model provider. Calls count generation attempts, "
-                         "including format retries. HTTP retries are counted within the same call.")
+        label.setToolTip(
+            "Token counts come from the model provider. Calls count generation attempts, "
+            "including format retries. HTTP retries are counted within the same call."
+        )
         self.output_layout.addWidget(label)
 
     def _add_zero_shot(self, payload: dict) -> None:
@@ -93,9 +104,7 @@ class ResultMixin:
         self._add_usage(procedure)
         self._add_zero_shot(procedure)
 
-        explain = QLabel(
-            "This is a procedure for data or models. Follow the steps in code or manually."
-        )
+        explain = QLabel("This is a procedure for data or models. Follow the steps in code or manually.")
         explain.setObjectName("warn")
         explain.setWordWrap(True)
         self.output_layout.addWidget(explain)
@@ -126,8 +135,11 @@ class ResultMixin:
         brief = payload.get("brief") or {}
         return f"Task:\n{brief.get('goal') or self.thoughts.toPlainText().strip()}"
 
-    def _prompt_view(self, prompts: list[tuple[str, str]], target: str | None, zero_shot: str, named_tabs: bool = False) -> QWidget:
+    def _prompt_view(
+        self, prompts: list[tuple[str, str]], target: str | None, zero_shot: str, named_tabs: bool = False
+    ) -> QTabWidget:
         """Tabs: Variant 0 is always the zero-shot baseline; the built prompts follow and the first one is selected."""
+
         def editor(text: str) -> PromptEdit:
             box = PromptEdit(text, self.output_scroll, target)
             box.fit_to_content()
@@ -140,6 +152,7 @@ class ResultMixin:
         # Names are short (≤24 characters); eliding cut them because the bold selected tab measures wider.
         tabs.tabBar().setElideMode(Qt.TextElideMode.ElideNone)
         tabs.tabBar().setUsesScrollButtons(True)
+
         def short(name: str) -> str:
             # "SG-ICL (self-generated ICL)" → "SG-ICL"; the full name stays in the tooltip.
             name = re.sub(r"\s*\([^)]*\)\s*$", "", name).strip() or name
@@ -160,16 +173,17 @@ class ResultMixin:
             tabs.setTabToolTip(index, name)
 
         for index in range(tabs.count()):  # the user's edits go into the saved result
-            editor = tabs.widget(index)
-            editor.textChanged.connect(lambda i=index, e=editor: self._prompt_edited(i, e.toPlainText()))
+            page = tabs.widget(index)
+            page.textChanged.connect(lambda i=index, e=page: self._prompt_edited(i, e.toPlainText()))
             base = tabs.tabText(index)
-            editor.on_edited = lambda edited, i=index, b=base: tabs.setTabText(i, f"{b} •" if edited else b)
+            page.on_edited = lambda edited, i=index, b=base: tabs.setTabText(i, f"{b} •" if edited else b)
 
         def follow_current(*_: object) -> None:
             # The stack would be as tall as its tallest page: pin it to the tab row + the shown prompt.
             current = tabs.currentWidget()
             if current is not None:
                 tabs.setFixedHeight(tabs.tabBar().sizeHint().height() + current.height())
+
         for index in range(tabs.count()):
             tabs.widget(index).on_height = follow_current
         tabs.currentChanged.connect(follow_current)
@@ -193,7 +207,7 @@ class ResultMixin:
         if self._shown_entry is None:
             return
         if not hasattr(self, "_edit_timer"):
-            self._edit_timer = QTimer(self)
+            self._edit_timer = QTimer(self)  # type: ignore[arg-type]  # self is the window
             self._edit_timer.setSingleShot(True)
             self._edit_timer.timeout.connect(self._save_prompt_edits)
             self._pending_edits: dict[tuple[int, int], str] = {}
@@ -206,7 +220,11 @@ class ResultMixin:
             return payload.get("zeroShotPrompt", "")
         if kind == "manual":
             return payload["variants"][variant - 1]["prompt"] if payload.get("variants") else payload["prompt"]
-        return payload["synthesis"]["prompt"] if variant == 1 else payload["alternatives"][variant - 2]["synthesis"]["prompt"]
+        return (
+            payload["synthesis"]["prompt"]
+            if variant == 1
+            else payload["alternatives"][variant - 2]["synthesis"]["prompt"]
+        )
 
     @classmethod
     def _apply_prompt_edit(cls, kind: str, payload: dict, variant: int, text: str) -> None:
@@ -252,15 +270,19 @@ class ResultMixin:
                 self.history_notice.setText("Could not save your prompt edit to disk. It stays in this window.")
                 self.history_notice.show()
 
-    ZERO_SHOT_NOTE = "Zero-shot: the task stated directly, without a prompting technique. A baseline to compare the variants with."
+    ZERO_SHOT_NOTE = (
+        "Zero-shot: the task stated directly, without a prompting technique. A baseline to compare the variants with."
+    )
 
     @staticmethod
     def _follow_tabs(tabs: QTabWidget, pages: list[list[QWidget]]) -> None:
         """Show only the selected variant's widgets: no variant's text appears under another tab."""
+
         def show(index: int) -> None:
             for page_index, widgets in enumerate(pages):
                 for widget in widgets:
                     widget.setVisible(page_index == index)
+
         tabs.currentChanged.connect(show)
         show(tabs.currentIndex())
 
@@ -274,7 +296,10 @@ class ResultMixin:
         if brief.get("topic"):  # without a topic the goal is already the heading
             box.addWidget(muted_label(brief["goal"], "briefGoal"))
         box.addWidget(keyed_label("Format", brief["output_format"]))
-        for key, title in (("audience", "Audience"), ("tone", "Tone")):  # only what the user stated; guesses are assumptions
+        for key, title in (
+            ("audience", "Audience"),
+            ("tone", "Tone"),
+        ):  # only what the user stated; guesses are assumptions
             if brief.get(key):
                 box.addWidget(keyed_label(title, brief[key]))
         row = FlowLayout()
@@ -292,7 +317,9 @@ class ResultMixin:
             return
         original_request = source_thoughts if source_thoughts is not None else self.thoughts.toPlainText().strip()
         questions = self._brief_questions(brief)
-        assumptions = [item.strip() for item in brief.get("assumptions") or [] if isinstance(item, str) and item.strip()]
+        assumptions = [
+            item.strip() for item in brief.get("assumptions") or [] if isinstance(item, str) and item.strip()
+        ]
         if not questions and not assumptions:
             return
 
@@ -388,9 +415,14 @@ class ResultMixin:
                 if row["question"] is None:
                     continue
                 value = "" if row["removed"] else row["field"].text().strip()
-                revised_questions.append({"question": row["question"], "default": value} if value else {"question": row["question"]})
-            revised_assumptions = [row["field"].text().strip() for row in assumption_rows
-                                   if not row["removed"] and row["field"].text().strip()]
+                revised_questions.append(
+                    {"question": row["question"], "default": value} if value else {"question": row["question"]}
+                )
+            revised_assumptions = [
+                row["field"].text().strip()
+                for row in assumption_rows
+                if not row["removed"] and row["field"].text().strip()
+            ]
             return {**brief, "assumptions": revised_assumptions, "questions": revised_questions}
 
         def apply() -> None:  # Enter in a card field does what the Build button does
@@ -445,17 +477,21 @@ class ResultMixin:
             else:
                 parts.append(escape(str(rule_id)))
         checked = escape(str(guidance.get("verified_at", "unknown")))
-        label = QLabel(f"Official {escape(str(name))} rules: {' · '.join(parts)}"
-                       f'<span style="color:#9a8d6c"> · checked {checked}</span>')
+        label = QLabel(
+            f"Official {escape(str(name))} rules: {' · '.join(parts)}"
+            f'<span style="color:#9a8d6c"> · checked {checked}</span>'
+        )
         label.setObjectName("muted")
         label.setTextFormat(Qt.TextFormat.RichText)
         label.setOpenExternalLinks(True)
         label.setWordWrap(True)
         label.setToolTip(f"Rule set {guidance.get('rule_set_version', 'unknown')}")
-        label.linkHovered.connect(lambda href: QToolTip.showText(QCursor.pos(), hints.get(href, href), label) if href else None)
+        label.linkHovered.connect(
+            lambda href: QToolTip.showText(QCursor.pos(), hints.get(href, href), label) if href else None
+        )
         return label
 
-    def render(self, result: dict, *, source_thoughts: str | None = None) -> None:
+    def render_result(self, result: dict, *, source_thoughts: str | None = None) -> None:
         self._clear_output()
         brief = result["brief"]
         choice = result["choice"]
@@ -466,27 +502,36 @@ class ResultMixin:
         layout = self.output_layout
 
         layout.addWidget(self._heading(brief.get("topic") or brief["goal"], "goal"))
+
         def meta_for(item_choice: dict) -> str:
             if guidance is not None:
-                name = guidance.get("target") if source_target == "openModel" else PROMPT_TARGETS[source_target][0]
+                official = PROMPT_TARGETS[source_target][0] if source_target in PROMPT_TARGETS else ""
+                name = guidance.get("target") if source_target == "openModel" else official
                 own = item_choice["name"]
                 return own if "guidance" in own.lower() else f"{own} · official {name} guidance"
             confidence = item_choice.get("confidence")
-            return item_choice["name"] + (f" · confidence {round(confidence * 100)}%" if isinstance(confidence, (int, float)) else "")
-        metas = ["Zero-shot · baseline without a technique", meta_for(choice)] + [meta_for(a["choice"]) for a in alternatives]
+            return item_choice["name"] + (
+                f" · confidence {round(confidence * 100)}%" if isinstance(confidence, (int, float)) else ""
+            )
+
+        metas = ["Zero-shot · baseline without a technique", meta_for(choice)] + [
+            meta_for(a["choice"]) for a in alternatives
+        ]
         meta_label = muted_label(metas[1], "meta")
         layout.addWidget(meta_label)
         self._add_usage(result)
         layout.addSpacing(10)
         self._add_brief_refinement(brief, source_thoughts)
-        prompts = [(choice["name"], synthesis["prompt"])] + [(a["choice"]["name"], a["synthesis"]["prompt"]) for a in alternatives]
+        prompts = [(choice["name"], synthesis["prompt"])] + [
+            (a["choice"]["name"], a["synthesis"]["prompt"]) for a in alternatives
+        ]
         tabs = self._prompt_view(prompts, source_target, self._zero_shot_text(result))
         self._mark_originals(tabs, result)
         layout.addWidget(tabs)
         layout.addSpacing(BLOCK_GAP)  # air between the prompt and what follows
         variant_items = [(choice, synthesis)] + [(a["choice"], a["synthesis"]) for a in alternatives]
         pages: list[list[QWidget]] = [[] for _ in range(len(variant_items) + 1)]  # 0 = zero-shot
-        self.visible_warnings = []
+        self.visible_warnings: list[str] = []
         variant_notes: list[list[str]] = []
         for page, (_, item) in enumerate(variant_items, 1):
             warnings, notes = split_warnings(item["warnings"])
@@ -547,7 +592,12 @@ class ResultMixin:
     def render_manual(self, manual: dict, *, source_thoughts: str | None = None) -> None:
         self._clear_output()
         variants = manual.get("variants") or [
-            {"technique": manual["technique"], "prompt": manual["prompt"], "config": manual["config"], "source_ref": manual["source_ref"]}
+            {
+                "technique": manual["technique"],
+                "prompt": manual["prompt"],
+                "config": manual["config"],
+                "source_ref": manual["source_ref"],
+            }
         ]
         names = [v["technique"]["name"] for v in variants]
         self.output_layout.addWidget(self._heading(manual.get("topic") or names[0], "goal"))
@@ -558,14 +608,21 @@ class ResultMixin:
         self.output_layout.addSpacing(10)
         brief = manual.get("brief") if isinstance(manual.get("brief"), dict) else None
         self._add_brief_refinement(brief, source_thoughts)
-        tabs = self._prompt_view([(v["technique"]["name"], v["prompt"]) for v in variants], None, self._zero_shot_text(manual), named_tabs=True)
+        tabs = self._prompt_view(
+            [(v["technique"]["name"], v["prompt"]) for v in variants],
+            None,
+            self._zero_shot_text(manual),
+            named_tabs=True,
+        )
         self._mark_originals(tabs, manual)
         self.output_layout.addWidget(tabs)
         self.output_layout.addSpacing(BLOCK_GAP)
         failed = manual.get("failed") or []
         self.visible_warnings = [f"{f['name']}: {f['error']}" for f in failed]
         if failed:
-            self.output_layout.addWidget(muted_label("\n".join(f"• Not built — {w}" for w in self.visible_warnings), "warn"))
+            self.output_layout.addWidget(
+                muted_label("\n".join(f"• Not built — {w}" for w in self.visible_warnings), "warn")
+            )
         for page, variant in enumerate(variants, 1):
             tabs.widget(page).set_spec(*spec_text(variant["config"]))
         details = Disclosure("How this prompt was built", expanded=True)
@@ -579,7 +636,7 @@ class ResultMixin:
             body.addWidget(field_label("What it adds over zero-shot"))
         pages: list[list[QWidget]] = [[muted_label(self.ZERO_SHOT_NOTE)]]
         for variant in variants:
-            own = [muted_label(variant["why"])] if variant.get("why") else []
+            own: list[QWidget] = [muted_label(variant["why"])] if variant.get("why") else []
             own += [field_label("Method source"), muted_label(variant["source_ref"])]
             pages.append(own)
         for widgets in pages:

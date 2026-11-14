@@ -22,7 +22,7 @@ python3 desktop/app.py
 ```
 
 Builds `release/standalone/Prompta.app` and `Prompta.dmg` with their own Python, PyQt6 and Node: the
-Mac it runs on needs nothing installed. Build needs `python3 -m pip install -r desktop/requirements.txt` and an
+Mac it runs on needs nothing installed. Build needs `python3 -m pip install -r desktop/requirements-dev.txt` and an
 official Node build (nodejs.org; a Homebrew node links Homebrew libraries and is refused). CI builds the
 same dmg as the `Prompta-dmg` artifact.
 
@@ -49,6 +49,16 @@ The app runs from source: edit the code and relaunch, no rebuild needed. Rebuild
 the microphone helper (see dictation below).
 
 Only one copy runs at a time: launching again brings the open window forward.
+
+Checks, the same as CI (tools from `desktop/requirements-dev.txt`):
+
+```bash
+ruff format . && ruff check .
+```
+
+```bash
+cd desktop && python3 -m mypy && QT_QPA_PLATFORM=offscreen python3 -m pytest -q
+```
 
 Screens without showing a window — the main window with a demo result and every Settings tab, in a
 throwaway HOME (no history, settings, Keychain or network), so the pictures are the same on every run:

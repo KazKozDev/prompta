@@ -17,9 +17,9 @@ import type { Provider } from '../pipeline/llm.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-const THOUGHTS = 'надо разобрать заметки со встречи: вытащить задачи, ответственных и сроки, собрать в таблицу, ошибаться нельзя';
+export const THOUGHTS = 'надо разобрать заметки со встречи: вытащить задачи, ответственных и сроки, собрать в таблицу, ошибаться нельзя';
 
-const CHECKS: Record<string, { label: string; must: RegExp[] }> = {
+export const CHECKS: Record<string, { label: string; must: RegExp[] }> = {
   chain_of_thought: { label: 'reasoning steps', must: [/шаг|пошагов|step/i, /рассужд|reason|scratchpad|цепоч/i] },
   few_shot: { label: 'input→output examples', must: [/input:/i, /output:/i] },
   tree_of_thoughts: { label: 'branching, evaluation, backtracking', must: [/вариант|candidate|ветк/i, /оцен|score|балл/i] },
@@ -27,6 +27,15 @@ const CHECKS: Record<string, { label: string; must: RegExp[] }> = {
   contextual_prompting: { label: 'material only + references', must: [/только|only/i, /источник|cite|\[\d\]|материал/i] },
   self_consistency: { label: 'several runs, voting', must: [/независим|несколько|multiple|разн/i, /большинств|majority|соглас/i] },
 };
+
+/** One prompt against one technique's check: which structural signs it has and whether it kept the task. */
+export function auditPrompt(key: string, prompt: string): { marks: boolean[]; context: boolean; ok: boolean } {
+  const check = CHECKS[key];
+  if (!check) throw new Error(`no audit check for ${key}`);
+  const marks = check.must.map((re) => re.test(prompt));
+  const context = /заметк|встреч|задач/i.test(prompt);
+  return { marks, context, ok: marks.every(Boolean) && context };
+}
 
 async function main() {
   const argv = process.argv.slice(2);
@@ -51,9 +60,7 @@ async function main() {
     }
 
     const prompt = (await llm(buildManualPrompt(THOUGHTS, technique), { temperature: 0.3 })).trim();
-    const marks = check.must.map((re) => re.test(prompt));
-    const context = /заметк|встреч|задач/i.test(prompt);
-    const ok = marks.every(Boolean) && context;
+    const { marks, context, ok } = auditPrompt(key, prompt);
     if (!ok) failed += 1;
 
     console.log(
@@ -66,7 +73,9 @@ async function main() {
   if (failed) process.exitCode = 1;
 }
 
-main().catch((e) => {
-  console.error('error:', e instanceof Error ? e.message : e);
-  process.exit(1);
-});
+if (process.argv[1] === fileURLToPath(import.meta.url)) {  // run as a script, not imported by a test
+  main().catch((e) => {
+    console.error('error:', e instanceof Error ? e.message : e);
+    process.exit(1);
+  });
+}

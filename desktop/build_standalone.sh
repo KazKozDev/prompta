@@ -17,7 +17,7 @@ NODE="$(command -v node || true)"
 [ -n "$NODE" ] || { echo "node is not on PATH" >&2; exit 1; }
 NODE="$("$PYTHON" -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$NODE")"  # the binary, not a shim
 "$PYTHON" -c 'import PyQt6, PyInstaller' 2>/dev/null \
-  || { echo "Needs PyQt6 and PyInstaller: $PYTHON -m pip install -r desktop/requirements.txt" >&2; exit 1; }
+  || { echo "Needs PyQt6 and PyInstaller: $PYTHON -m pip install -r desktop/requirements-dev.txt" >&2; exit 1; }
 if otool -L "$NODE" | tail -n +2 | grep -vqE '^\s*/(System|usr/lib)/'; then
   echo "$NODE links libraries outside the system (a Homebrew build?); use an official build from nodejs.org" >&2
   exit 1

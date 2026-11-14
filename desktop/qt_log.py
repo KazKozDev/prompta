@@ -8,13 +8,14 @@ fine, but the output fills with hundreds of lines that hide real errors.
 
 PROMPTA_QT_DEBUG=1 brings back the full Qt output.
 """
+
 from __future__ import annotations
 
 import os
 import re
 import sys
 
-from PyQt6.QtCore import QtMsgType, qInstallMessageHandler
+from PyQt6.QtCore import QMessageLogContext, QtMsgType, qInstallMessageHandler
 
 KNOWN_NOISE = (
     re.compile(r"^QTextCursor::setPosition: Position '\d+' out of range$"),
@@ -31,8 +32,9 @@ def is_known_noise(message: str, category: str = "") -> bool:
     return any(pattern.match(text) for pattern in KNOWN_NOISE)
 
 
-def _handler(mode: QtMsgType, context, message: str) -> None:
+def _handler(mode: QtMsgType, context: QMessageLogContext, message: str | None) -> None:
     global suppressed
+    message = message or ""
     category = getattr(context, "category", "") or ""
     if mode in (QtMsgType.QtWarningMsg, QtMsgType.QtDebugMsg) and is_known_noise(message, category):
         suppressed += 1

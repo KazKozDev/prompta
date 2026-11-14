@@ -3,6 +3,7 @@
 Events: recording → partial (text so far, while speaking) … → transcribing → done (final text) | error.
 Partial text is a quick pass over what was recorded so far; the final pass after stop is the accurate one.
 """
+
 import json
 from pathlib import Path
 import sys
@@ -10,8 +11,8 @@ from threading import Event, Lock, Thread
 
 MODEL = Path(__file__).resolve().parents[1] / '.whisper-models' / 'small'
 RATE = 16000
-PARTIAL_EVERY = 1.2   # seconds between live passes
-COMMIT_AFTER = 20.0   # older speech is settled, so live passes stay short on long dictation
+PARTIAL_EVERY = 1.2  # seconds between live passes
+COMMIT_AFTER = 20.0  # older speech is settled, so live passes stay short on long dictation
 
 
 def emit(state, **fields):
@@ -20,12 +21,14 @@ def emit(state, **fields):
 
 def load_model():
     from faster_whisper import WhisperModel
+
     return WhisperModel(str(MODEL), device='cpu', compute_type='int8', local_files_only=True)
 
 
 def transcribe(model, audio, beam_size=5):
-    segments, _ = model.transcribe(audio, task='transcribe', beam_size=beam_size, vad_filter=True,
-                                   condition_on_previous_text=False)
+    segments, _ = model.transcribe(
+        audio, task='transcribe', beam_size=beam_size, vad_filter=True, condition_on_previous_text=False
+    )
     return [(segment.end, segment.text.strip()) for segment in segments if segment.text.strip()]
 
 
@@ -36,6 +39,7 @@ def joined(parts):
 def main():
     import numpy as np
     import sounddevice as sd
+
     if not (MODEL / 'model.bin').is_file():
         raise RuntimeError('Whisper model is missing. Run the voice-input setup described in desktop/README.md.')
     stopped = Event()
@@ -84,13 +88,19 @@ def main():
         emit('done', text='')
         return
     # Diagnostics for the app's log (stderr): which input was used and how loud it was. No audio leaves memory.
-    print(f"input: {sd.query_devices(kind='input')['name']} · {len(audio) / RATE:.1f}s · peak {float(np.abs(audio).max()):.4f}",
-          file=sys.stderr, flush=True)
+    print(
+        f"input: {sd.query_devices(kind='input')['name']} · {len(audio) / RATE:.1f}s · "
+        f"peak {float(np.abs(audio).max()):.4f}",
+        file=sys.stderr,
+        flush=True,
+    )
     if not np.any(audio):
         # Exact digital silence is not a quiet room: macOS hands zeros to apps without microphone access.
         device = sd.query_devices(kind='input')['name']
-        raise RuntimeError(f'The microphone ({device}) sent only silence. Allow Prompta in System Settings → '
-                           'Privacy & Security → Microphone, or choose another input in Sound settings.')
+        raise RuntimeError(
+            f'The microphone ({device}) sent only silence. Allow Prompta in System Settings → '
+            'Privacy & Security → Microphone, or choose another input in Sound settings.'
+        )
     emit('transcribing')
     loader.join()
     rest = transcribe(model_box['model'], audio[committed_samples:])

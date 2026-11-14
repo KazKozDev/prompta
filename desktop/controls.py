@@ -2,78 +2,30 @@
 
 from __future__ import annotations
 
-import json
-import os
-import re
 from html import escape
-from urllib.parse import urlparse, urlencode
-import shutil
-import sqlite3
-from datetime import datetime
-import subprocess
-from collections import deque
-from threading import Thread
-import sys
-import urllib.request
-from pathlib import Path
+from urllib.parse import urlparse
 
-try:
-    from .history import HistoryStore, history_topic
-    from .library import LibraryWidget
-    from .mcp_settings import McpSettingsWidget
-except ImportError:
-    from history import HistoryStore, history_topic
-    from library import LibraryWidget
-    from mcp_settings import McpSettingsWidget
 
-from PyQt6.QtCore import QModelIndex, QEvent, QObject, QPoint, QRect, QRectF, QSize, Qt, QUrl, QProcess, QThread, QTimer, QPropertyAnimation, QEasingCurve, pyqtSignal
-from PyQt6.QtGui import QStandardItem, QStandardItemModel, QColor, QCursor, QPainter, QPalette, QPen, QFont, QGuiApplication, QIcon, QLinearGradient, QPixmap, QKeySequence, QShortcut, QDesktopServices, QTextDocument
+from PyQt6.QtCore import QPoint, QSize, Qt, pyqtSignal
+from PyQt6.QtGui import QColor, QPainter, QIcon, QLinearGradient, QPixmap
 from PyQt6.QtWidgets import (
-    QAbstractItemView,
-    QAbstractScrollArea,
     QApplication,
     QButtonGroup,
-    QComboBox,
-    QCompleter,
     QDialog,
     QFrame,
     QGridLayout,
     QHBoxLayout,
     QLabel,
-    QLayout,
     QLineEdit,
-    QListWidget,
-    QListWidgetItem,
-    QMainWindow,
-    QMessageBox,
-    QPlainTextEdit,
-    QProgressBar,
     QPushButton,
     QScrollArea,
-    QScrollBar,
-    QStyle,
-    QStyledItemDelegate,
-    QStyleOptionSlider,
-    QSizePolicy,
-    QSplitter,
-    QTabBar,
-    QTabWidget,
-    QToolButton,
-    QToolTip,
     QVBoxLayout,
     QWidget,
 )
 
-try:
-    from .theme import CHAT_URLS, DARK_SCROLL_QSS, PROMPT_TARGETS, QSS, ROOT
-    from .widgets import *  # noqa: F401,F403 — base widgets moved out of this file
-except ImportError:
-    from theme import CHAT_URLS, DARK_SCROLL_QSS, PROMPT_TARGETS, QSS, ROOT
-    from widgets import *  # noqa: F401,F403
-try:
-    from .workers import *  # noqa: F401,F403
-except ImportError:
-    from workers import *  # noqa: F401,F403
+from theme import ROOT
+
+from widgets import POPUP_MARGIN, RoundedPopupBorder, use_step_scroll
 
 
 CATEGORY_LABELS = {
@@ -101,7 +53,9 @@ class TechniqueItem(QFrame):
     clicked = pyqtSignal(str)
     deleteRequested = pyqtSignal(str)
 
-    def __init__(self, key: str, name: str, hint: str = "", sources: list | None = None, deletable: bool = False) -> None:
+    def __init__(
+        self, key: str, name: str, hint: str = "", sources: list | None = None, deletable: bool = False
+    ) -> None:
         super().__init__()
         self.key = key
         self.setObjectName("techItem")
@@ -162,8 +116,13 @@ class TechniqueItem(QFrame):
         if not isinstance(source, dict) or not isinstance(source.get("url"), str):
             return False
         url = urlparse(source["url"])
-        return (url.scheme == "https" and url.hostname in ("archive.org", "arxiv.org")
-                and not url.username and not url.password and bool(source.get("title")))
+        return (
+            url.scheme == "https"
+            and url.hostname in ("archive.org", "arxiv.org")
+            and not url.username
+            and not url.password
+            and bool(source.get("title"))
+        )
 
     def _show_sources(self, name: str) -> None:
         dialog = QDialog(QApplication.activeWindow())
@@ -187,8 +146,10 @@ class TechniqueItem(QFrame):
         for source in self.sources:
             block = QVBoxLayout()
             block.setSpacing(4)
-            label = QLabel(f'<a href="{escape(source["url"], quote=True)}">{escape(source["title"])}</a><br>'
-                           f'<span style="color: #7b8799">{escape(source.get("reference", ""))}</span>')
+            label = QLabel(
+                f'<a href="{escape(source["url"], quote=True)}">{escape(source["title"])}</a><br>'
+                f'<span style="color: #7b8799">{escape(source.get("reference", ""))}</span>'
+            )
             label.setWordWrap(True)
             label.setOpenExternalLinks(True)
             block.addWidget(label)
@@ -206,7 +167,12 @@ class TechniqueItem(QFrame):
         outer.addWidget(close, 0, Qt.AlignmentFlag.AlignRight)
         width = 600
         content_width = width - outer.contentsMargins().left() - outer.contentsMargins().right()
-        chrome_height = outer.contentsMargins().top() + outer.contentsMargins().bottom() + outer.spacing() + close.sizeHint().height()
+        chrome_height = (
+            outer.contentsMargins().top()
+            + outer.contentsMargins().bottom()
+            + outer.spacing()
+            + close.sizeHint().height()
+        )
         dialog.resize(width, min(640, layout.totalHeightForWidth(content_width) + chrome_height))
         dialog.exec()
 
@@ -306,7 +272,9 @@ class Dropdown(QPushButton):
         for key, widget in self._item_widgets.items():
             widget.set_selected(key in self._selected)
         if self._popup is not None and hasattr(self, "_selection_label"):
-            self._selection_label.setText(f"{len(self._selected)} selected" if self._selected else "Click techniques to select")
+            self._selection_label.setText(
+                f"{len(self._selected)} selected" if self._selected else "Click techniques to select"
+            )
             self._update_select_all()
         if emit:
             self.changed.emit(self._current)
@@ -316,7 +284,9 @@ class Dropdown(QPushButton):
 
     def _selectable_keys(self) -> list[str]:
         """Techniques that "Select all" covers: shown by the current filter, procedures excluded."""
-        return [key for key, widget in self._item_widgets.items() if not widget.isHidden() and not self._is_procedure(key)]
+        return [
+            key for key, widget in self._item_widgets.items() if not widget.isHidden() and not self._is_procedure(key)
+        ]
 
     def _all_selected(self) -> bool:
         keys = self._selectable_keys()
@@ -332,7 +302,9 @@ class Dropdown(QPushButton):
         if self._all_selected():
             remaining = [k for k in self._selected if k not in keys]
         else:
-            remaining = [k for k in self._selected if not self._is_procedure(k)] + [k for k in keys if k not in self._selected]
+            remaining = [k for k in self._selected if not self._is_procedure(k)] + [
+                k for k in keys if k not in self._selected
+            ]
         self.set_current_keys(remaining, emit=True)
 
     def _toggle(self, key: str) -> None:
@@ -347,7 +319,7 @@ class Dropdown(QPushButton):
     # ── panel ────────────────────────────────────────────────────
     def _open(self) -> None:
         popup = QFrame(self, Qt.WindowType.Popup | Qt.WindowType.FramelessWindowHint)
-        popup.rounded_border = RoundedPopupBorder(popup)
+        popup.rounded_border = RoundedPopupBorder(popup)  # type: ignore[attr-defined]  # keeps it alive
         popup.setObjectName("techniquePopup")
         self._popup = popup
 
@@ -397,13 +369,15 @@ class Dropdown(QPushButton):
             grid_items: list[TechniqueItem] = []
             for index, item in enumerate(items):
                 label = item.get("label") or item.get("name") or item["key"]
-                widget = TechniqueItem(item["key"], label, item.get("hint", ""), item.get("sources"), bool(item.get("deletable")))
+                widget = TechniqueItem(
+                    item["key"], label, item.get("hint", ""), item.get("sources"), bool(item.get("deletable"))
+                )
                 widget.deleteRequested.connect(self.deleteRequested.emit)
                 widget.clicked.connect(self._toggle if self._multi else self._choose)
                 self._item_widgets[item["key"]] = widget
                 widget.set_selected(item["key"] in self.current_keys())  # single mode marks the current one too
                 grid.addWidget(widget, index // self._columns, index % self._columns)
-                entries.append((widget, f"{label} {item.get('hint','')} {category} {item.get('search','')}".lower()))
+                entries.append((widget, f"{label} {item.get('hint', '')} {category} {item.get('search', '')}".lower()))
                 grid_items.append(widget)
             for column in range(self._columns):
                 grid.setColumnStretch(column, 1)
@@ -423,7 +397,9 @@ class Dropdown(QPushButton):
             self._select_all_button = QPushButton("Select all")
             self._select_all_button.setObjectName("ghost")
             self._select_all_button.setCursor(Qt.CursorShape.PointingHandCursor)
-            self._select_all_button.setToolTip("Select every technique shown (procedures excluded); click again to deselect")
+            self._select_all_button.setToolTip(
+                "Select every technique shown (procedures excluded); click again to deselect"
+            )
             self._select_all_button.clicked.connect(self._toggle_select_all)
             footer.addWidget(self._select_all_button)
             clear = QPushButton("Clear")
@@ -461,7 +437,9 @@ class Dropdown(QPushButton):
         if self._multi:
             height += 44
         available = self.screen().availableGeometry()
-        popup.resize(min(self._popup_width, available.width() - 24), min(560, max(120, height), available.height() - 24))
+        popup.resize(
+            min(self._popup_width, available.width() - 24), min(560, max(120, height), available.height() - 24)
+        )
         position = self.mapToGlobal(QPoint(self.width() - popup.width() if self._align_right else 0, self.height() + 6))
         if position.y() + popup.height() > available.bottom() - 12:
             above = self.mapToGlobal(QPoint(0, -popup.height() - 6)).y()
@@ -501,16 +479,20 @@ class IconDropdown(Dropdown):
 
 class ExecutionProfileDropdown(Dropdown):
     """Where the finished prompt runs. Each choice says what it means; an agent is assumed to have every tool."""
+
     AGENT_CAPABILITIES = ("code", "files", "integrations", "web")
 
     def __init__(self) -> None:
         super().__init__("— any chat —", popup_width=300)
-        self.set_items([
-            {"key": "universal", "label": "— any chat —", "hint": "Unknown environment"},
-            {"key": "web", "label": "Chat with web access", "hint": "Web search and opening links"},
-            {"key": "local", "label": "Local model, no tools", "hint": "Only what is in the prompt"},
-            {"key": "agent", "label": "Agent with tools", "hint": "Web, files, code and integrations"},
-        ], keep="universal")
+        self.set_items(
+            [
+                {"key": "universal", "label": "— any chat —", "hint": "Unknown environment"},
+                {"key": "web", "label": "Chat with web access", "hint": "Web search and opening links"},
+                {"key": "local", "label": "Local model, no tools", "hint": "Only what is in the prompt"},
+                {"key": "agent", "label": "Agent with tools", "hint": "Web, files, code and integrations"},
+            ],
+            keep="universal",
+        )
 
 
 class BackgroundWidget(QWidget):
@@ -525,10 +507,10 @@ class BackgroundWidget(QWidget):
     def paintEvent(self, event) -> None:  # noqa: N802
         painter = QPainter(self)
         if not self.image.isNull():
-            image = self.image.scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatioByExpanding,
-                                      Qt.TransformationMode.SmoothTransformation)
-            painter.drawPixmap((self.width() - image.width()) // 2,
-                               (self.height() - image.height()) // 2, image)
+            image = self.image.scaled(
+                self.size(), Qt.AspectRatioMode.KeepAspectRatioByExpanding, Qt.TransformationMode.SmoothTransformation
+            )
+            painter.drawPixmap((self.width() - image.width()) // 2, (self.height() - image.height()) // 2, image)
             left, right = self.veil
             if left == right:
                 painter.fillRect(self.rect(), QColor(255, 248, 222, left))

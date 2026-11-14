@@ -5,6 +5,7 @@ are removed on every save. Limits come from environment variables:
 PROMPTA_HISTORY_MAX (default 500 entries, 0 — no limit) and
 PROMPTA_HISTORY_DAYS (default 0 — no age limit). To turn history off: PROMPTA_HISTORY_MAX=-1.
 """
+
 from __future__ import annotations
 
 import json
@@ -40,7 +41,6 @@ def history_topic(thoughts: str, payload: dict, fallback: str = "Saved prompt") 
     return "Saved prompt"
 
 
-
 class HistoryStore:
     def __init__(self, path: Path = HISTORY_PATH, max_entries: int | None = None, max_age_days: int | None = None):
         self.path = path
@@ -66,19 +66,29 @@ class HistoryStore:
         if not self.path.exists():
             return []
         with closing(sqlite3.connect(self.path.resolve().as_uri() + '?mode=ro', uri=True, timeout=5)) as connection:
-            rows = connection.execute('SELECT id, label, kind, thoughts, payload, created_at FROM history ORDER BY id').fetchall()
+            rows = connection.execute(
+                'SELECT id, label, kind, thoughts, payload, created_at FROM history ORDER BY id'
+            ).fetchall()
         entries = []
         for row in rows:
             payload = json.loads(row[4])
             if row[2] not in ('pipeline', 'manual', 'procedure') or not isinstance(payload, dict):
                 raise ValueError('invalid history entry format')
-            entries.append(dict(zip(('id', 'label', 'kind', 'thoughts', 'payload', 'created_at'), (*row[:4], payload, row[5]))))
+            entries.append(
+                dict(zip(('id', 'label', 'kind', 'thoughts', 'payload', 'created_at'), (*row[:4], payload, row[5])))
+            )
         return entries
 
     def add(self, label: str, kind: str, thoughts: str, payload: dict) -> dict:
         created_at = datetime.now().astimezone().isoformat(timespec='seconds')
-        entry = {'id': None, 'label': label, 'kind': kind, 'thoughts': thoughts,
-                 'payload': payload, 'created_at': created_at}
+        entry = {
+            'id': None,
+            'label': label,
+            'kind': kind,
+            'thoughts': thoughts,
+            'payload': payload,
+            'created_at': created_at,
+        }
         if not self.enabled:
             return entry  # history is off: the result is shown but not written to disk
         encoded = json.dumps(payload, ensure_ascii=False)
@@ -122,5 +132,6 @@ class HistoryStore:
     def update_payload(self, entry_id: int, payload: dict) -> None:
         """Keep the user's edits of a saved result (prompt texts live inside the payload)."""
         with closing(self._connect()) as connection, connection:
-            connection.execute('UPDATE history SET payload = ? WHERE id = ?',
-                               (json.dumps(payload, ensure_ascii=False), entry_id))
+            connection.execute(
+                'UPDATE history SET payload = ? WHERE id = ?', (json.dumps(payload, ensure_ascii=False), entry_id)
+            )

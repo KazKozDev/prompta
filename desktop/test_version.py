@@ -10,14 +10,19 @@ ROOT = Path(__file__).resolve().parent.parent
 
 def app_version() -> str:
     tree = ast.parse((ROOT / "desktop" / "app.py").read_text(encoding="utf-8"))
-    return next(n.value.value for n in ast.walk(tree)
-                if isinstance(n, ast.Assign) and getattr(n.targets[0], "id", "") == "APP_VERSION")
+    return next(
+        n.value.value
+        for n in ast.walk(tree)
+        if isinstance(n, ast.Assign) and getattr(n.targets[0], "id", "") == "APP_VERSION"
+    )
 
 
 class VersionTest(unittest.TestCase):
     def test_package_json_matches_app_version(self):
         package = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
-        self.assertEqual(package["version"], app_version(), "bump APP_VERSION in desktop/app.py and package.json together")
+        self.assertEqual(
+            package["version"], app_version(), "bump APP_VERSION in desktop/app.py and package.json together"
+        )
 
     def test_version_is_semver(self):
         parts = app_version().split(".")

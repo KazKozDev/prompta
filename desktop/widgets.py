@@ -6,70 +6,67 @@ from __future__ import annotations
 
 import json
 import os
-import re
-from html import escape
-from urllib.parse import urlparse, urlencode
-import shutil
-import sqlite3
+from urllib.parse import urlencode
 from datetime import datetime
-import subprocess
-from collections import deque
-from threading import Thread
-import sys
-import urllib.request
 from pathlib import Path
 
 
-from PyQt6.QtCore import QModelIndex, QEvent, QObject, QPoint, QRect, QRectF, QSize, Qt, QUrl, QProcess, QThread, QTimer, QPropertyAnimation, QEasingCurve, pyqtSignal
-from PyQt6.QtGui import QStandardItem, QStandardItemModel, QColor, QCursor, QPainter, QPalette, QPen, QFont, QGuiApplication, QIcon, QPixmap, QKeySequence, QShortcut, QDesktopServices, QTextDocument, QTextCursor
+from PyQt6.QtCore import (
+    QEvent,
+    QObject,
+    QPoint,
+    QRect,
+    QRectF,
+    QSize,
+    Qt,
+    QUrl,
+    QProcess,
+    QTimer,
+    QPropertyAnimation,
+    QEasingCurve,
+    pyqtSignal,
+)
+from PyQt6.QtGui import (
+    QColor,
+    QCursor,
+    QFont,
+    QPainter,
+    QPen,
+    QGuiApplication,
+    QIcon,
+    QDesktopServices,
+    QTextDocument,
+    QTextCursor,
+)
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QAbstractScrollArea,
     QApplication,
-    QButtonGroup,
-    QCheckBox,
     QComboBox,
-    QCompleter,
-    QDialog,
     QFrame,
-    QGridLayout,
-    QHBoxLayout,
     QLabel,
-    QLayout,
-    QLineEdit,
     QListWidget,
     QListWidgetItem,
-    QMainWindow,
     QPlainTextEdit,
-    QProgressBar,
     QPushButton,
-    QScrollArea,
     QScrollBar,
-    QStyle,
     QStyledItemDelegate,
-    QStyleOptionSlider,
-    QSizePolicy,
-    QSplitter,
     QTabBar,
-    QTabWidget,
-    QToolButton,
     QToolTip,
     QVBoxLayout,
     QWidget,
 )
 
-try:
-    from .theme import CHAT_URLS, DARK_SCROLL_QSS, FROZEN, PROMPT_TARGETS, ROOT
-except ImportError:
-    from theme import CHAT_URLS, DARK_SCROLL_QSS, FROZEN, PROMPT_TARGETS, ROOT
+from theme import CHAT_URLS, DARK_SCROLL_QSS, FROZEN, PROMPT_TARGETS, ROOT
 
 
 class HintPopup(QLabel):
     """The app's own hover hint: light, rounded, no black system frame (macOS draws one around QToolTip)."""
 
     def __init__(self) -> None:
-        super().__init__(None, Qt.WindowType.ToolTip | Qt.WindowType.FramelessWindowHint
-                         | Qt.WindowType.NoDropShadowWindowHint)
+        super().__init__(
+            None, Qt.WindowType.ToolTip | Qt.WindowType.FramelessWindowHint | Qt.WindowType.NoDropShadowWindowHint
+        )
         self.setObjectName("hint")
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
@@ -137,9 +134,19 @@ class HintFilter(QObject):
             self.owner = obj
             self.popup.show_at(text, event.globalPos())
             return True
-        if self.owner is not None and kind in (QEvent.Type.Leave, QEvent.Type.MouseButtonPress, QEvent.Type.Wheel,
-                                               QEvent.Type.KeyPress, QEvent.Type.Hide, QEvent.Type.WindowDeactivate):
-            if obj is self.owner or kind in (QEvent.Type.MouseButtonPress, QEvent.Type.KeyPress, QEvent.Type.WindowDeactivate):
+        if self.owner is not None and kind in (
+            QEvent.Type.Leave,
+            QEvent.Type.MouseButtonPress,
+            QEvent.Type.Wheel,
+            QEvent.Type.KeyPress,
+            QEvent.Type.Hide,
+            QEvent.Type.WindowDeactivate,
+        ):
+            if obj is self.owner or kind in (
+                QEvent.Type.MouseButtonPress,
+                QEvent.Type.KeyPress,
+                QEvent.Type.WindowDeactivate,
+            ):
                 self.hide()
         elif self.owner is not None and kind == QEvent.Type.MouseMove and obj is self.owner:
             if self._text_for(obj, event.position().toPoint()) != self.popup.text():
@@ -149,9 +156,17 @@ class HintFilter(QObject):
 
 class PopupAnimation(QObject):
     """One fade for menus and dialogs, including Qt-created combo popups."""
+
     def eventFilter(self, obj, event) -> bool:  # noqa: N802
-        if isinstance(obj, QWidget) and obj.isWindow() and obj.windowType() in (
-            Qt.WindowType.Popup, Qt.WindowType.Dialog, Qt.WindowType.Sheet,
+        if (
+            isinstance(obj, QWidget)
+            and obj.isWindow()
+            and obj.windowType()
+            in (
+                Qt.WindowType.Popup,
+                Qt.WindowType.Dialog,
+                Qt.WindowType.Sheet,
+            )
         ):
             if event.type() == QEvent.Type.Show:
                 previous = getattr(obj, "popup_animation", None)
@@ -166,12 +181,12 @@ class PopupAnimation(QObject):
                     animation.setStartValue(0.0)
                     animation.setEndValue(1.0)
                     animation.setEasingCurve(QEasingCurve.Type.OutCubic)
-                    obj.popup_animation = animation
+                    obj.popup_animation = animation  # type: ignore[attr-defined]  # keeps it alive
                     animation.start()
             elif event.type() == QEvent.Type.Hide:
-                animation = getattr(obj, "popup_animation", None)
-                if animation:
-                    animation.stop()
+                running = getattr(obj, "popup_animation", None)
+                if running:
+                    running.stop()
                     obj.setWindowOpacity(1.0)
         return super().eventFilter(obj, event)
 
@@ -199,29 +214,19 @@ class RoundedPopupBorder(QObject):
         return True
 
 
-GROUP_HEADER_ROLE = Qt.ItemDataRole.UserRole + 1
-# Hugging Face organization → model family shown as a group header.
+# Hugging Face organization → model family shown as a group header in the Written for picker.
 MODEL_FAMILIES = {
-    "deepseek-ai": "DeepSeek", "google": "Gemma · Google", "MiniMaxAI": "MiniMax", "mistralai": "Mistral",
-    "moonshotai": "Kimi · Moonshot AI", "nvidia": "Nemotron · NVIDIA", "openai": "gpt-oss · OpenAI",
-    "Qwen": "Qwen · Alibaba", "XiaomiMiMo": "MiMo · Xiaomi", "zai-org": "GLM · Z.ai",
+    "deepseek-ai": "DeepSeek",
+    "google": "Gemma · Google",
+    "MiniMaxAI": "MiniMax",
+    "mistralai": "Mistral",
+    "moonshotai": "Kimi · Moonshot AI",
+    "nvidia": "Nemotron · NVIDIA",
+    "openai": "gpt-oss · OpenAI",
+    "Qwen": "Qwen · Alibaba",
+    "XiaomiMiMo": "MiMo · Xiaomi",
+    "zai-org": "GLM · Z.ai",
 }
-
-
-def add_grouped_models(combo: QComboBox, models: list[dict]) -> None:
-    """Add models under non-selectable family headers, families and models sorted by name."""
-    families: dict[str, list[dict]] = {}
-    for model in models:
-        org = model["repo"].split("/")[0]
-        families.setdefault(MODEL_FAMILIES.get(org, org), []).append(model)
-    for family in sorted(families, key=str.casefold):
-        combo.addItem(family.upper(), None)
-        index = combo.count() - 1
-        combo.setItemData(index, True, GROUP_HEADER_ROLE)
-        item = combo.model().item(index)
-        item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEnabled & ~Qt.ItemFlag.ItemIsSelectable)
-        for model in sorted(families[family], key=lambda m: m["name"].casefold()):
-            combo.addItem(model["name"], model["id"])
 
 
 POPUP_MARGIN = 7  # inner padding of every dropdown panel
@@ -305,6 +310,7 @@ def title_font() -> QFont:
 
 class HistoryComboBox(QComboBox):
     """List-style dropdown; the look every app dropdown shares (see POPUP_* QSS)."""
+
     deleteRequested = pyqtSignal(int)  # combo row whose entry should be removed
     deletable = False  # show the delete cross on entries (history only)
 
@@ -314,7 +320,7 @@ class HistoryComboBox(QComboBox):
             old.deleteLater()
         popup = QFrame(self, Qt.WindowType.Popup | Qt.WindowType.FramelessWindowHint)
         self._popup_frame = popup
-        popup.rounded_border = RoundedPopupBorder(popup)
+        popup.rounded_border = RoundedPopupBorder(popup)  # type: ignore[attr-defined]  # keeps it alive
         popup.setObjectName("historyPopup")
         layout = QVBoxLayout(popup)
         layout.setContentsMargins(POPUP_MARGIN, POPUP_MARGIN, POPUP_MARGIN, POPUP_MARGIN)
@@ -326,34 +332,22 @@ class HistoryComboBox(QComboBox):
         for index in range(self.count()):
             item = QListWidgetItem(self.itemText(index), listing)
             item.setToolTip(self.itemData(index, Qt.ItemDataRole.ToolTipRole) or self.itemText(index))
-            if self.itemData(index, GROUP_HEADER_ROLE):
-                item.setFlags(Qt.ItemFlag.NoItemFlags)
-                item.setToolTip("")
-                font = item.font()
-                font.setPixelSize(10)  # same as Dropdown category headers (QLabel#catHeader)
-                font.setWeight(QFont.Weight.Medium)
-                font.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, 1)
-                item.setFont(font)
-                item.setForeground(QColor("#74694f"))
-            elif self.deletable and isinstance(self.itemData(index), int) and self.itemData(index) >= 0:
+            if self.deletable and isinstance(self.itemData(index), int) and self.itemData(index) >= 0:
                 item.setData(DELETABLE_ROLE, True)
         listing.setCurrentRow(self.currentIndex())
         listing.setMouseTracking(True)
         listing.setItemDelegate(HistoryDeleteDelegate(listing))
-        popup.delete_clicks = HistoryDeleteClicks(listing, self.deleteRequested.emit)
+        popup.delete_clicks = HistoryDeleteClicks(listing, self.deleteRequested.emit)  # type: ignore[attr-defined]
         layout.addWidget(listing)
 
         def choose(item) -> None:
-            if self.itemData(listing.row(item), GROUP_HEADER_ROLE):
-                return
             self.setCurrentIndex(listing.row(item))
             self.hidePopup()
 
         listing.itemClicked.connect(choose)
         listing.itemActivated.connect(choose)
         available = self.screen().availableGeometry()
-        # A hidden picker can open under another control (the Open target segment row).
-        anchor = getattr(self, "popup_anchor", None) or self
+        anchor = self
         width = min(max(240, anchor.width()), available.width() - 16)
         height = min(460, max(46, self.count() * 32 + 14), available.height() - 16)
         popup.resize(width, height)
@@ -415,6 +409,9 @@ def use_step_scroll(area, scroll_target=None) -> None:
 
 
 class ThoughtsEdit(QPlainTextEdit):
+    voice_process: QProcess | None
+    _dictation_base: str | None = None
+
     def __init__(self) -> None:
         super().__init__()
         self.setViewportMargins(0, 0, 52, 0)
@@ -438,7 +435,9 @@ class ThoughtsEdit(QPlainTextEdit):
 
     def eventFilter(self, watched, event) -> bool:  # noqa: N802 - Qt naming
         if event.type() == QEvent.Type.MouseButtonPress and watched in (self, self.viewport()):
-            point = watched.mapTo(self, event.position().toPoint()) if watched is not self else event.position().toPoint()
+            point = (
+                watched.mapTo(self, event.position().toPoint()) if watched is not self else event.position().toPoint()
+            )
             hit = self.microphone_icon.geometry().adjusted(-6, -6, 6, 6)
             if point.x() > self.width() - 90 and point.y() < 60:
                 self._voice_log(f"press at {point.x()},{point.y()} on {type(watched).__name__} · icon {hit.getRect()}")
@@ -468,8 +467,11 @@ class ThoughtsEdit(QPlainTextEdit):
         self._voice_log(f"click: start · interpreter {'found' if interpreter.exists() else 'MISSING'}")
         if not interpreter.exists():
             # The standalone app ships without Whisper (its model alone is ~500 MB); from source it is a setup step.
-            message = ("Dictation is not included in this build." if FROZEN
-                       else "Whisper is not installed. See desktop/README.md.")
+            message = (
+                "Dictation is not included in this build."
+                if FROZEN
+                else "Whisper is not installed. See desktop/README.md."
+            )
             self.setToolTip(message)
             self._voice_failure(message)
             return
@@ -496,7 +498,8 @@ class ThoughtsEdit(QPlainTextEdit):
 
     def _voice_stderr(self) -> None:
         if self.voice_process is not None:
-            text = bytes(self.voice_process.readAllStandardError()).decode("utf-8", errors="replace").strip()
+            raw = bytes(self.voice_process.readAllStandardError())  # type: ignore[call-overload]  # QByteArray
+            text = raw.decode("utf-8", errors="replace").strip()
             if text:
                 self._voice_log("stderr: " + text[-600:].replace("\n", " | "))
 
@@ -504,14 +507,24 @@ class ThoughtsEdit(QPlainTextEdit):
         self._voice_log(f"state: {state}")
         self.voice_state = state
         active = state != "idle"
-        self.microphone_icon.setIcon(QIcon(str(ROOT / "desktop" / ("stop-recording.svg" if active else "microphone.svg"))))
+        self.microphone_icon.setIcon(
+            QIcon(str(ROOT / "desktop" / ("stop-recording.svg" if active else "microphone.svg")))
+        )
         self.microphone_icon.setEnabled(state in ("idle", "recording"))
-        self.microphone_icon.setToolTip({"idle": "Dictate with Whisper · click to start", "starting": "Opening microphone", "recording": "Recording · click to stop (5 minute maximum)", "transcribing": "Whisper is transcribing"}[state])
+        self.microphone_icon.setToolTip(
+            {
+                "idle": "Dictate with Whisper · click to start",
+                "starting": "Opening microphone",
+                "recording": "Recording · click to stop (5 minute maximum)",
+                "transcribing": "Whisper is transcribing",
+            }[state]
+        )
 
     def _voice_output(self) -> None:
         if self.voice_process is None:
             return
-        self.voice_buffer += bytes(self.voice_process.readAllStandardOutput()).decode("utf-8", errors="replace")
+        raw = bytes(self.voice_process.readAllStandardOutput())  # type: ignore[call-overload]  # QByteArray
+        self.voice_buffer += raw.decode("utf-8", errors="replace")
         while "\n" in self.voice_buffer:
             line, self.voice_buffer = self.voice_buffer.split("\n", 1)
             try:
@@ -550,7 +563,7 @@ class ThoughtsEdit(QPlainTextEdit):
         base = getattr(self, "_dictation_base", None)
         if base is None:
             self._begin_live_text()
-            base = self._dictation_base
+            base = self._dictation_base or ""
         self.setPlainText(base + text.strip())
         cursor = self.textCursor()
         cursor.movePosition(QTextCursor.MoveOperation.End)
@@ -605,8 +618,8 @@ class ThoughtsEdit(QPlainTextEdit):
             self.microphone_icon.raise_()
 
 
-TICK_PITCH = 7      # px from one tick to the next
-TICK_MAX = 15       # the indicator is a short group of ticks, not a full-height track
+TICK_PITCH = 7  # px from one tick to the next
+TICK_MAX = 15  # the indicator is a short group of ticks, not a full-height track
 
 
 def dashed_ticks(bar: QScrollBar) -> list[int]:
@@ -639,7 +652,9 @@ def paint_dashed_scrollbar(bar: QScrollBar) -> None:
     painter.setPen(Qt.PenStyle.NoPen)
     for index, position in enumerate(ticks):
         active = index == current
-        painter.setBrush(QColor(("#ededed" if active else "#5a5a5a") if prompt else ("#5c4a26" if active else "#d9cba6")))
+        painter.setBrush(
+            QColor(("#ededed" if active else "#5a5a5a") if prompt else ("#5c4a26" if active else "#d9cba6"))
+        )
         size = min(thickness - 2, 10 if active else 7)
         if vertical:
             painter.drawRect((bar.width() - size) // 2, position, size, 2)
@@ -672,6 +687,7 @@ def drag_dashed_scrollbar(bar: QScrollBar, event) -> bool:
 
 class DashedScrollBar(QScrollBar):
     """Native wheel and keys; drawn and dragged as a short group of ticks."""
+
     def paintEvent(self, event) -> None:  # noqa: N802
         paint_dashed_scrollbar(self)
 
@@ -688,12 +704,17 @@ class DashedScrollBar(QScrollBar):
         drag_dashed_scrollbar(self, event)
 
 
-_DASHED_MOUSE = (QEvent.Type.MouseButtonPress, QEvent.Type.MouseButtonRelease,
-                 QEvent.Type.MouseMove, QEvent.Type.MouseButtonDblClick)
+_DASHED_MOUSE = (
+    QEvent.Type.MouseButtonPress,
+    QEvent.Type.MouseButtonRelease,
+    QEvent.Type.MouseMove,
+    QEvent.Type.MouseButtonDblClick,
+)
 
 
 class DashedScrollPainter(QObject):
     """App-wide: every other scroll bar (lists, menus, popups, dialogs) is drawn and dragged as ticks too."""
+
     def eventFilter(self, obj, event) -> bool:  # noqa: N802
         if not isinstance(obj, QScrollBar) or isinstance(obj, DashedScrollBar):
             return False
@@ -840,6 +861,8 @@ class PromptEdit(QPlainTextEdit):
         if not text.strip():
             return
         self._copy()
+        if not self.chat_target:
+            return
         url = CHAT_URLS[self.chat_target]
         if self.chat_target == "chatgpt":
             url += "?" + urlencode({"q": text})
@@ -859,7 +882,9 @@ class PromptEdit(QPlainTextEdit):
 
     def _place_overlays(self) -> None:
         if hasattr(self, "copy_button"):
-            self.copy_button.move(self.width() - self.verticalScrollBar().sizeHint().width() - 42, 7)  # clear of the scroll ticks
+            self.copy_button.move(
+                self.width() - self.verticalScrollBar().sizeHint().width() - 42, 7
+            )  # clear of the scroll ticks
             self.copy_button.raise_()
         if hasattr(self, "chat_button"):
             self.chat_button.move(self.width() - self.verticalScrollBar().sizeHint().width() - 74, 7)
@@ -878,7 +903,9 @@ class PromptEdit(QPlainTextEdit):
 
 
 class WrappingField(QPlainTextEdit):
-    """One-paragraph field that wraps: grows to fit its text up to `max_lines`, Enter submits instead of breaking the line."""
+    """One-paragraph field that wraps: grows to fit its text up to `max_lines`,
+    Enter submits instead of breaking the line."""
+
     returnPressed = pyqtSignal()
 
     def __init__(self, text: str = "", max_lines: int = 2) -> None:

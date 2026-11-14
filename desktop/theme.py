@@ -7,7 +7,11 @@ from pathlib import Path
 
 # The repository in development; inside the standalone app (build_standalone.sh) the same tree ships as
 # Contents/Resources/prompta, next to PyInstaller's own files.
-ROOT = Path(sys._MEIPASS) / "prompta" if getattr(sys, "frozen", False) else Path(__file__).resolve().parent.parent
+ROOT = (
+    Path(getattr(sys, "_MEIPASS", "")) / "prompta"
+    if getattr(sys, "frozen", False)
+    else Path(__file__).resolve().parent.parent
+)
 FROZEN = getattr(sys, "frozen", False)
 
 COMPATIBLE = "openai_compatible"  # a second OpenAI-API provider: its own server URL and Keychain key
@@ -23,8 +27,10 @@ PROMPT_TARGETS = {
 
 
 def is_official_source(url: str, target: str) -> bool:
-    """HTTPS link to a target's official host; a host/path entry admits only that path (one repository on github.com)."""
+    """HTTPS link to a target's official host; a host/path entry admits only that path
+    (one repository on github.com)."""
     from urllib.parse import urlparse
+
     parsed = urlparse(url)
     if parsed.scheme != "https" or parsed.username or parsed.password or target not in PROMPT_TARGETS:
         return False
@@ -43,7 +49,9 @@ CHAT_URLS = {
 }
 
 
-QSS = (ROOT / "desktop" / "app.qss").read_text(encoding="utf-8").replace("@desktop/", (ROOT / "desktop").as_posix() + "/")
+QSS = (
+    (ROOT / "desktop" / "app.qss").read_text(encoding="utf-8").replace("@desktop/", (ROOT / "desktop").as_posix() + "/")
+)
 
 
 DARK_SCROLL_QSS = """

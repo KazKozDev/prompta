@@ -4,20 +4,21 @@ Type scale: section labels are 10 px caps (#74694f); values, list rows and contr
 intros, hints and descriptions are 12 px grey (#665d49); links are 13 px gold, never underlined.
 
 A tab is: a one-line intro, then sections. A section is a small caps label, its controls and an optional
-grey hint, always with the same gaps. Lists sit straight on the dialog, without a plate. Actions are text links; a destructive one is
-rust-coloured. Build tabs with these helpers instead of spacing widgets by hand.
+grey hint, always with the same gaps. Lists sit straight on the dialog, without a plate. Actions are text links;
+a destructive one is rust-coloured. Build tabs with these helpers instead of spacing widgets by hand.
 """
+
 from __future__ import annotations
 
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QFrame, QLabel, QLayout, QPushButton, QVBoxLayout, QWidget
 
-PAGE_TOP = 18      # air under the tab bar
-SECTION_GAP = 28   # between sections
-LABEL_GAP = 6      # label → control
-HINT_GAP = 8       # control → its grey hint
-LIST_GAP = 14      # search field → the list it filters
+PAGE_TOP = 18  # air under the tab bar
+SECTION_GAP = 28  # between sections
+LABEL_GAP = 6  # label → control
+HINT_GAP = 8  # control → its grey hint
+LIST_GAP = 14  # search field → the list it filters
 
 # Rich-text links (About) look like the link buttons: gold, medium weight, no underline.
 LINK_STYLE = 'style="color:#806a3d; font-weight:500; text-decoration:none;"'
@@ -70,8 +71,13 @@ def settings_page(intro: str = "", right_margin: int = 0, page: QWidget | None =
     return page, layout
 
 
-def add_section(layout: QVBoxLayout, label: str | QLabel | QLayout | None, *items, hint: str | QLabel | None = None,
-                stretch_last: bool = False) -> None:
+def add_section(
+    layout: QVBoxLayout,
+    label: str | QLabel | QLayout | None,
+    *items,
+    hint: str | QLabel | None = None,
+    stretch_last: bool = False,
+) -> None:
     """Label, controls, hint — with the shared gaps. `label` may be a ready layout that already holds its label."""
     if layout.count():
         layout.addSpacing(SECTION_GAP)
@@ -92,4 +98,3 @@ def add_section(layout: QVBoxLayout, label: str | QLabel | QLayout | None, *item
     if hint is not None:
         layout.addSpacing(HINT_GAP)
         layout.addWidget(muted(hint) if isinstance(hint, str) else hint)
-

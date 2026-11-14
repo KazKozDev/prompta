@@ -23,7 +23,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Python dependencies
-        run: python3 -m pip install --quiet -r desktop/requirements.txt
+        run: python3 -m pip install --quiet -r desktop/requirements-dev.txt
       - name: Tag matches the version
         run: |
           APP="$(python3 -c 'import sys; sys.path.insert(0, "desktop"); from test_version import app_version; print(app_version())')"
@@ -39,6 +39,8 @@ jobs:
           npx tsc --noEmit
           npm test
           ruff check .
+          ruff format --check .
+          (cd desktop && python3 -m mypy)
           cd desktop && python3 -m pytest -q
       - name: Standalone .app
         run: ./desktop/build_standalone.sh

@@ -23,7 +23,10 @@ jobs:
         with:
           python-version: '3.12'
       - name: Python lint
-        run: python3 -m pip install --quiet ruff==0.12.2 && ruff check .
+        run: |
+          python3 -m pip install --quiet ruff==0.12.2
+          ruff check .
+          ruff format --check .
       - name: Catalog
         run: python3 catalog/validate.py
 
@@ -38,7 +41,9 @@ jobs:
         with:
           python-version: '3.12'
       - name: Python dependencies
-        run: python3 -m pip install --quiet -r desktop/requirements.txt
+        run: python3 -m pip install --quiet -r desktop/requirements-dev.txt
+      - name: Types
+        run: cd desktop && python3 -m mypy
       - name: Desktop tests
         env:
           QT_QPA_PLATFORM: offscreen

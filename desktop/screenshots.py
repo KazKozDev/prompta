@@ -6,6 +6,7 @@ Runs offscreen in a throwaway HOME: no history, settings, Keychain, network or N
 on every machine with the same fonts. Writes main.png (a demo result with two variants) and one
 settings-<tab>.png per Settings tab.
 """
+
 from __future__ import annotations
 
 import os
@@ -38,14 +39,18 @@ def main() -> int:
     out = Path(sys.argv[1] if len(sys.argv) > 1 else "/tmp/prompta-screens")
     out.mkdir(parents=True, exist_ok=True)
     qt_app = prompta.make_app(sys.argv[:1])
-    with patch.object(prompta, "load_local_providers", return_value={}), \
-            patch.object(prompta.keychain, "load", return_value=""), \
-            patch.object(prompta.PromptaWindow, "load_models"), \
-            patch.object(prompta.PromptaWindow, "load_techniques"):
+    with (
+        patch.object(prompta, "load_local_providers", return_value={}),
+        patch.object(prompta.keychain, "load", return_value=""),
+        patch.object(prompta.PromptaWindow, "load_models"),
+        patch.object(prompta.PromptaWindow, "load_techniques"),
+    ):
         window = prompta.PromptaWindow()
     window.show()
-    window.thoughts.setPlainText("I want AI to review my meeting notes and extract decisions, tasks, and owners into a table")
-    window.render(prompta.demo_result())
+    window.thoughts.setPlainText(
+        "I want AI to review my meeting notes and extract decisions, tasks, and owners into a table"
+    )
+    window.render_result(prompta.demo_result())
     window.status.setText("Contextual prompting · ready")
     window.resize(1160, 1180)
     settle(qt_app)

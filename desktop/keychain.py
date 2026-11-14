@@ -21,8 +21,9 @@ def load(provider: str) -> str:
     tool = _security()
     if not tool or not provider:
         return ""
-    result = subprocess.run([tool, "find-generic-password", "-s", SERVICE, "-a", provider, "-w"],
-                            capture_output=True, text=True, timeout=10)
+    result = subprocess.run(
+        [tool, "find-generic-password", "-s", SERVICE, "-a", provider, "-w"], capture_output=True, text=True, timeout=10
+    )
     return result.stdout.strip() if result.returncode == 0 else ""
 
 
@@ -43,5 +44,6 @@ def save(provider: str, key: str) -> bool:
 def forget(provider: str) -> None:
     tool = _security()
     if tool and provider:
-        subprocess.run([tool, "delete-generic-password", "-s", SERVICE, "-a", provider],
-                       capture_output=True, text=True, timeout=10)
+        subprocess.run(
+            [tool, "delete-generic-password", "-s", SERVICE, "-a", provider], capture_output=True, text=True, timeout=10
+        )

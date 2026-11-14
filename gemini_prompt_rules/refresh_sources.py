@@ -3,6 +3,7 @@
 
 Updates require a manual rule review: changing snapshots does not approve new rules.
 """
+
 import concurrent.futures
 import hashlib
 import json
@@ -22,6 +23,7 @@ PAGES = {
     'files': 'https://aistudio.google.com/docs/files',
     'gemini-3-migration': 'https://ai.google.dev/gemini-api/docs/gemini-3',
 }
+
 
 class OfficialRedirects(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
@@ -73,20 +75,36 @@ def sections(text, url):
 def download(item):
     source_id, url = item
     opener = urllib.request.build_opener(OfficialRedirects())
-    with opener.open(urllib.request.Request(url + '.md', headers={'User-Agent': 'Prompta official documentation snapshot', 'Accept': 'text/markdown'}), timeout=40) as response:
+    with opener.open(
+        urllib.request.Request(
+            url + '.md', headers={'User-Agent': 'Prompta official documentation snapshot', 'Accept': 'text/markdown'}
+        ),
+        timeout=40,
+    ) as response:
         raw = response.read(2_000_001)
         final_url = response.url
     text = raw.decode('utf-8')
-    if len(raw) > 2_000_000 or not re.search(r'^# ', text, re.M) or '<!doctype html' in text[:100].lower() or len(raw) < 300:
+    if (
+        len(raw) > 2_000_000
+        or not re.search(r'^# ', text, re.M)
+        or '<!doctype html' in text[:100].lower()
+        or len(raw) < 300
+    ):
         raise ValueError('Unexpected Markdown response: ' + url)
     canonical = final_url.split('?')[0].removesuffix('.md')
     title = re.sub(r'\s*\{%.*?%\}', '', re.search(r'^# (.+)', text, re.M)[1]).strip()
-    source = {'id': source_id, 'title': title, 'url': canonical, 'requested_url': url,
-              'download_url': final_url, 'snapshot': 'snapshots/' + source_id + '.md',
-              'sha256': hashlib.sha256(raw).hexdigest(),
-              'retrieved_at': datetime.now(timezone.utc).isoformat(timespec='seconds'),
-              'scope': 'reference-only' if source_id == 'gemini-3-migration' else 'general',
-              'sections': sections(text, canonical)}
+    source = {
+        'id': source_id,
+        'title': title,
+        'url': canonical,
+        'requested_url': url,
+        'download_url': final_url,
+        'snapshot': 'snapshots/' + source_id + '.md',
+        'sha256': hashlib.sha256(raw).hexdigest(),
+        'retrieved_at': datetime.now(timezone.utc).isoformat(timespec='seconds'),
+        'scope': 'reference-only' if source_id == 'gemini-3-migration' else 'general',
+        'sections': sections(text, canonical),
+    }
     return source, raw
 
 
@@ -99,6 +117,7 @@ def main():
     sources = [source for source, _ in downloads]
     (ROOT / 'sources.json').write_text(json.dumps({'sources': sources}, ensure_ascii=False, indent=2) + '\n')
     print('Saved', len(sources), 'official sources and', sum(len(s['sections']) for s in sources), 'sections')
+
 
 if __name__ == '__main__':
     main()

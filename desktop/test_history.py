@@ -1,13 +1,11 @@
 """Политика хранения истории: лимит записей, срок, полная очистка, выключение."""
+
 import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
 
-try:
-    from .history import HistoryStore
-except ImportError:
-    from history import HistoryStore
+from history import HistoryStore
 
 
 class HistoryRetentionTest(unittest.TestCase):
@@ -28,7 +26,10 @@ class HistoryRetentionTest(unittest.TestCase):
         store = HistoryStore(self.path, max_entries=0, max_age_days=30)
         store.add('fresh', 'pipeline', 'x', {})
         with sqlite3.connect(self.path) as connection:
-            connection.execute("INSERT INTO history(label, kind, thoughts, payload, created_at) VALUES ('old', 'pipeline', 'x', '{}', '2020-01-01T00:00:00+00:00')")
+            connection.execute(
+                "INSERT INTO history(label, kind, thoughts, payload, created_at) "
+                "VALUES ('old', 'pipeline', 'x', '{}', '2020-01-01T00:00:00+00:00')"
+            )
         self.assertEqual(store.prune(), 1)
         self.assertEqual([e['label'] for e in store.load()], ['fresh'])
 
@@ -57,8 +58,12 @@ class QtLogFilterTest(unittest.TestCase):
         except ImportError:
             from qt_log import is_known_noise
         self.assertTrue(is_known_noise("QTextCursor::setPosition: Position '59' out of range"))
-        self.assertTrue(is_known_noise('Cell requested for row 1 is out of bounds for table with 0 rows! Resizing table model.',
-                                       'qt.accessibility.table'))
+        self.assertTrue(
+            is_known_noise(
+                'Cell requested for row 1 is out of bounds for table with 0 rows! Resizing table model.',
+                'qt.accessibility.table',
+            )
+        )
         self.assertFalse(is_known_noise('QPainter::begin: Paint device returned engine == 0'))
         self.assertFalse(is_known_noise("QTextCursor::setPosition: Position '59' out of range", 'qt.text.custom'))
         self.assertFalse(is_known_noise('Traceback (most recent call last):'))

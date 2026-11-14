@@ -3,13 +3,7 @@
 from __future__ import annotations
 
 import json
-import os
-import re
-from html import escape
-from urllib.parse import urlparse, urlencode
 import shutil
-import sqlite3
-from datetime import datetime
 import subprocess
 from collections import deque
 from threading import Thread
@@ -17,60 +11,10 @@ import sys
 import urllib.request
 from pathlib import Path
 
-try:
-    from .history import HistoryStore, history_topic
-    from .library import LibraryWidget
-    from .mcp_settings import McpSettingsWidget
-except ImportError:
-    from history import HistoryStore, history_topic
-    from library import LibraryWidget
-    from mcp_settings import McpSettingsWidget
 
-from PyQt6.QtCore import QModelIndex, QEvent, QObject, QPoint, QRect, QRectF, QSize, Qt, QUrl, QProcess, QThread, QTimer, QPropertyAnimation, QEasingCurve, pyqtSignal
-from PyQt6.QtGui import QStandardItem, QStandardItemModel, QColor, QCursor, QPainter, QPalette, QPen, QFont, QGuiApplication, QIcon, QPixmap, QKeySequence, QShortcut, QDesktopServices, QTextDocument
-from PyQt6.QtWidgets import (
-    QAbstractItemView,
-    QAbstractScrollArea,
-    QApplication,
-    QButtonGroup,
-    QCheckBox,
-    QComboBox,
-    QCompleter,
-    QDialog,
-    QFrame,
-    QGridLayout,
-    QHBoxLayout,
-    QLabel,
-    QLayout,
-    QLineEdit,
-    QListWidget,
-    QListWidgetItem,
-    QMainWindow,
-    QMessageBox,
-    QPlainTextEdit,
-    QProgressBar,
-    QPushButton,
-    QScrollArea,
-    QScrollBar,
-    QStyle,
-    QStyledItemDelegate,
-    QStyleOptionSlider,
-    QSizePolicy,
-    QSplitter,
-    QTabBar,
-    QTabWidget,
-    QToolButton,
-    QToolTip,
-    QVBoxLayout,
-    QWidget,
-)
+from PyQt6.QtCore import QThread, pyqtSignal
 
-try:
-    from .theme import CHAT_URLS, DARK_SCROLL_QSS, FROZEN, PROMPT_TARGETS, QSS, ROOT
-    from .widgets import *  # noqa: F401,F403 — base widgets moved out of this file
-except ImportError:
-    from theme import CHAT_URLS, DARK_SCROLL_QSS, FROZEN, PROMPT_TARGETS, QSS, ROOT
-    from widgets import *  # noqa: F401,F403
+from theme import FROZEN, ROOT
 
 
 BRIDGE = ROOT / "desktop" / "bridge.ts"
@@ -84,7 +28,6 @@ FALLBACK_MODELS = [
 ]
 
 
-
 def fetch_ollama_models(timeout: float = 3.0) -> list[str]:
     """The full model list from the local Ollama daemon. Empty means the daemon is not running."""
     try:
@@ -96,10 +39,9 @@ def fetch_ollama_models(timeout: float = 3.0) -> list[str]:
     return sorted(set(names), key=str.lower)
 
 
-
 def node_binary() -> str:
     if FROZEN:  # the standalone app carries its own node (build_standalone.sh)
-        return str(Path(sys._MEIPASS) / "node")
+        return str(Path(getattr(sys, "_MEIPASS", "")) / "node")
     for candidate in (shutil.which("node"), "/opt/homebrew/bin/node", "/usr/local/bin/node"):
         if candidate and Path(candidate).exists():
             return candidate
@@ -143,7 +85,10 @@ def fetch_cloud_models(provider: str, api_key: str, base_url: str = "", timeout:
     if provider == "anthropic":
         url, headers = base + "/v1/models?limit=1000", {"x-api-key": api_key, "anthropic-version": "2023-06-01"}
     elif provider == "gemini":
-        url, headers = base + "/v1beta/models?pageSize=1000", {"x-goog-api-key": api_key}  # key in a header, not the URL
+        url, headers = (
+            base + "/v1beta/models?pageSize=1000",
+            {"x-goog-api-key": api_key},
+        )  # key in a header, not the URL
     else:
         url = (base if base.endswith("/v1") else base + "/v1") + "/models"
         headers = {"authorization": f"Bearer {api_key}"}
@@ -153,8 +98,11 @@ def fetch_cloud_models(provider: str, api_key: str, base_url: str = "", timeout:
     except Exception:
         return []
     if provider == "gemini":  # only models that can generate text; ids come as "models/<id>"
-        names = [m.get("name", "").removeprefix("models/") for m in data.get("models", [])
-                 if isinstance(m, dict) and "generateContent" in (m.get("supportedGenerationMethods") or [])]
+        names = [
+            m.get("name", "").removeprefix("models/")
+            for m in data.get("models", [])
+            if isinstance(m, dict) and "generateContent" in (m.get("supportedGenerationMethods") or [])
+        ]
     else:
         names = [m.get("id", "") for m in data.get("data", []) if isinstance(m, dict)]
     return sorted({n for n in names if n}, key=str.lower)
@@ -172,8 +120,14 @@ def reduce_catalog(data: dict) -> dict[str, list[str]]:
     out: dict[str, list[str]] = {}
     for ours, theirs in CATALOG_IDS.items():
         models = ((data.get(theirs) or {}).get("models") or {}).values()
-        usable = [m for m in models if isinstance(m, dict) and m.get("id") and m.get("status") != "deprecated"
-                  and "text" in ((m.get("modalities") or {}).get("output") or [])]
+        usable = [
+            m
+            for m in models
+            if isinstance(m, dict)
+            and m.get("id")
+            and m.get("status") != "deprecated"
+            and "text" in ((m.get("modalities") or {}).get("output") or [])
+        ]
         usable.sort(key=lambda m: (str(m.get("release_date") or ""), m["id"]), reverse=True)
         out[ours] = [m["id"] for m in usable]
     return out
@@ -182,6 +136,7 @@ def reduce_catalog(data: dict) -> dict[str, list[str]]:
 def catalog_models(provider: str, cache: Path | None = None, timeout: float = 20.0) -> list[str]:
     """The provider's models from the cached catalog, refreshed when older than a day; a stale copy beats nothing."""
     import time
+
     cache = cache or CATALOG_CACHE
     try:
         saved = json.loads(cache.read_text())
@@ -203,6 +158,7 @@ def catalog_models(provider: str, cache: Path | None = None, timeout: float = 20
 class ModelsLoader(QThread):
     """One provider's model list: Ollama's local daemon, the cloud provider's API with the user's key,
     or, without a key (or when the provider refuses), the public catalog. `source` says which one answered."""
+
     loaded = pyqtSignal(list)
 
     def __init__(self, provider: str = "ollama", api_key: str = "", base_url: str = "") -> None:
@@ -250,7 +206,7 @@ class Worker(QThread):
             )
             if self.cancelled:
                 self.proc.terminate()
-            errors = deque(maxlen=20)
+            errors: deque[str] = deque(maxlen=20)
             stderr = self.proc.stderr
             # Drain progress separately while communicate retains its timeout and stdout handling.
             self.proc.stderr = None

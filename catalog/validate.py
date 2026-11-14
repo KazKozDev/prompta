@@ -4,15 +4,31 @@
 Run:  python3 catalog/validate.py [--quiet]
 Exit code 1 on errors (not on warnings).
 """
+
 import json
 import sys
 from collections import Counter
 from pathlib import Path
 
 PATH = Path(__file__).parent / 'catalog.json'
-REQUIRED = ('key', 'name', 'kind', 'category', 'execution', 'when_to_use', 'cost_calls',
-            'config', 'template', 'example', 'source_ref', 'source_docs', 'related', 'status',
-            'task_types', 'task_types_source')
+REQUIRED = (
+    'key',
+    'name',
+    'kind',
+    'category',
+    'execution',
+    'when_to_use',
+    'cost_calls',
+    'config',
+    'template',
+    'example',
+    'source_ref',
+    'source_docs',
+    'related',
+    'status',
+    'task_types',
+    'task_types_source',
+)
 
 
 def main() -> int:
@@ -97,7 +113,9 @@ def main() -> int:
             if t.get('template'):
                 errors.append(f'{key}: index-only, but a template is set')
             if t.get('kind') not in ('setting', 'risk'):
-                warnings.append(f'{key}: index-only, but it is a {t.get("kind")} — check whether a template was forgotten')
+                warnings.append(
+                    f'{key}: index-only, but it is a {t.get("kind")} — check whether a template was forgotten'
+                )
 
     if not quiet:
         print(f'entries: {len(techs)}')

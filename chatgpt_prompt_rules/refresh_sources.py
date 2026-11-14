@@ -3,6 +3,7 @@
 
 Updates require a manual rule review: changing snapshots does not approve new rules.
 """
+
 import concurrent.futures
 import hashlib
 import json
@@ -23,6 +24,7 @@ PAGES = {
     'prompt-generation': 'https://developers.openai.com/api/docs/guides/prompt-generation',
     'structured-outputs': 'https://developers.openai.com/api/docs/guides/structured-outputs',
 }
+
 
 class OfficialRedirects(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
@@ -68,18 +70,26 @@ def sections(text, url):
 def download(item):
     source_id, url = item
     opener = urllib.request.build_opener(OfficialRedirects())
-    with opener.open(urllib.request.Request(url + '.md', headers={'User-Agent': 'Prompta official documentation snapshot'}), timeout=40) as response:
+    with opener.open(
+        urllib.request.Request(url + '.md', headers={'User-Agent': 'Prompta official documentation snapshot'}),
+        timeout=40,
+    ) as response:
         raw = response.read(2_000_001)
         final_url = response.url
     text = raw.decode('utf-8')
     if len(raw) > 2_000_000 or not text.startswith('# ') or len(raw) < 300:
         raise ValueError('Unexpected Markdown response: ' + url)
-    source = {'id': source_id, 'title': text.splitlines()[0].lstrip('# '), 'url': url,
-              'download_url': final_url, 'snapshot': 'snapshots/' + source_id + '.md',
-              'sha256': hashlib.sha256(raw).hexdigest(),
-              'retrieved_at': datetime.now(timezone.utc).isoformat(timespec='seconds'),
-              'scope': 'reference-only' if source_id == 'prompt-generation' else 'general',
-              'sections': sections(text, url)}
+    source = {
+        'id': source_id,
+        'title': text.splitlines()[0].lstrip('# '),
+        'url': url,
+        'download_url': final_url,
+        'snapshot': 'snapshots/' + source_id + '.md',
+        'sha256': hashlib.sha256(raw).hexdigest(),
+        'retrieved_at': datetime.now(timezone.utc).isoformat(timespec='seconds'),
+        'scope': 'reference-only' if source_id == 'prompt-generation' else 'general',
+        'sections': sections(text, url),
+    }
     return source, raw
 
 
@@ -92,6 +102,7 @@ def main():
     sources = [source for source, _ in downloads]
     (ROOT / 'sources.json').write_text(json.dumps({'sources': sources}, ensure_ascii=False, indent=2) + '\n')
     print('Saved', len(sources), 'official sources and', sum(len(s['sections']) for s in sources), 'sections')
+
 
 if __name__ == '__main__':
     main()

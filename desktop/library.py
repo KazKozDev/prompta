@@ -1,4 +1,5 @@
 """Read-only inventory of the sources Prompta builds prompts from."""
+
 from __future__ import annotations
 
 import hashlib
@@ -14,15 +15,30 @@ def safe_path(root: Path, relative: str) -> Path:
 
 
 CATEGORY_TITLES = {
-    "context": "Context and framing", "reasoning": "Reasoning", "thought_generation": "Thought generation",
-    "decomposition": "Decomposition", "icl": "Examples", "zero_shot_boost": "Zero-shot boosts", "ensembling": "Ensembles",
-    "self_critique": "Self-critique", "optimization": "Prompt optimization", "answer_engineering": "Answer extraction",
-    "agents": "Agents", "rag": "Retrieval", "automation": "Automation and code", "pedagogy": "Teaching",
-    "procedure": "Procedures", "security": "Security",
+    "context": "Context and framing",
+    "reasoning": "Reasoning",
+    "thought_generation": "Thought generation",
+    "decomposition": "Decomposition",
+    "icl": "Examples",
+    "zero_shot_boost": "Zero-shot boosts",
+    "ensembling": "Ensembles",
+    "self_critique": "Self-critique",
+    "optimization": "Prompt optimization",
+    "answer_engineering": "Answer extraction",
+    "agents": "Agents",
+    "rag": "Retrieval",
+    "automation": "Automation and code",
+    "pedagogy": "Teaching",
+    "procedure": "Procedures",
+    "security": "Security",
 }
-OFFICIAL_TARGETS = [("claude_prompt_rules", "Claude", "Anthropic"), ("chatgpt_prompt_rules", "ChatGPT", "OpenAI"),
-                    ("gemini_prompt_rules", "Gemini", "Google"), ("grok_prompt_rules", "Grok", "xAI"),
-                    ("hermes_agent_prompt_guides", "Hermes Agent", "Nous Research")]
+OFFICIAL_TARGETS = [
+    ("claude_prompt_rules", "Claude", "Anthropic"),
+    ("chatgpt_prompt_rules", "ChatGPT", "OpenAI"),
+    ("gemini_prompt_rules", "Gemini", "Google"),
+    ("grok_prompt_rules", "Grok", "xAI"),
+    ("hermes_agent_prompt_guides", "Hermes Agent", "Nous Research"),
+]
 
 
 def _ts_object(text: str, name: str) -> dict:
@@ -33,7 +49,7 @@ def _ts_object(text: str, name: str) -> dict:
     start = match.end()
     end = text.rfind('};')
     try:
-        return json.loads(text[start:end + 1])
+        return json.loads(text[start : end + 1])
     except ValueError:
         return {}
 
@@ -43,7 +59,10 @@ def _ts_strings(text: str, name: str) -> dict:
     block = re.search(r'export const ' + name + r'[^{]*\{(.*?)\n\};', text, re.S)
     if not block:
         return {}
-    return {key: value.replace("\\'", "'") for key, value in re.findall(r"^\s*(\w+):\s*'((?:[^'\\]|\\.)*)',?\s*$", block.group(1), re.M)}
+    return {
+        key: value.replace("\\'", "'")
+        for key, value in re.findall(r"^\s*(\w+):\s*'((?:[^'\\]|\\.)*)',?\s*$", block.group(1), re.M)
+    }
 
 
 def _technique_page(technique: dict, hint: str, sources: dict) -> str:
@@ -69,7 +88,11 @@ def _technique_page(technique: dict, hint: str, sources: dict) -> str:
 
 def _rules_page(label: str, organization: str, data: dict) -> str:
     rules = [rule for rule in data.get('rules', []) if rule.get('status') == 'active']
-    lines = [f'{label} · official {organization} prompting rules', f"Checked {data.get('verified_at', 'unknown')} · {len(rules)} rules", '']
+    lines = [
+        f'{label} · official {organization} prompting rules',
+        f"Checked {data.get('verified_at', 'unknown')} · {len(rules)} rules",
+        '',
+    ]
     for rule in rules:
         lines.append(f"{rule.get('id')} — {rule.get('rule_text', '').strip()}")
         condition = rule.get('condition', 'always')
@@ -96,23 +119,39 @@ def library_entries(root: Path) -> list[dict]:
     except (OSError, ValueError):
         catalog, display, excerpts = {'techniques': []}, '', {}
     hints, names = _ts_strings(display, 'hints'), _ts_strings(display, 'names')
-    usable = [t for t in catalog.get('techniques', []) if t.get('status') in ('ready', 'procedure')
-              and t.get('kind') in ('technique', 'prompt_type', 'procedure')]
-    for technique in sorted(usable, key=lambda t: (CATEGORY_TITLES.get(t.get('category'), 'Other'), names.get(t['key'], t['name']).casefold())):
+    usable = [
+        t
+        for t in catalog.get('techniques', [])
+        if t.get('status') in ('ready', 'procedure') and t.get('kind') in ('technique', 'prompt_type', 'procedure')
+    ]
+    for technique in sorted(
+        usable,
+        key=lambda t: (CATEGORY_TITLES.get(t.get('category'), 'Other'), names.get(t['key'], t['name']).casefold()),
+    ):
         technique = {**technique, 'name': names.get(technique['key'], technique['name'])}
         hint = hints.get(technique['key'], '')
-        add('Techniques · ' + CATEGORY_TITLES.get(technique.get('category'), 'Other'), technique['name'], 'catalog/catalog.json',
-            hint or 'Prompting technique from the catalog.', content=_technique_page(technique, hint, excerpts.get(technique['key'], {})),
-            catalog_version=catalog.get('version', ''))
+        add(
+            'Techniques · ' + CATEGORY_TITLES.get(technique.get('category'), 'Other'),
+            technique['name'],
+            'catalog/catalog.json',
+            hint or 'Prompting technique from the catalog.',
+            content=_technique_page(technique, hint, excerpts.get(technique['key'], {})),
+            catalog_version=catalog.get('version', ''),
+        )
 
     for folder, label, organization in OFFICIAL_TARGETS:
         try:
             data = json.loads((root / folder / 'rules.json').read_text(encoding='utf-8'))
         except (OSError, ValueError):
             continue
-        add('Official rules', label, f'{folder}/rules.json',
-            f'The rules used when the prompt is written for {label}.', content=_rules_page(label, organization, data),
-            checked=data.get('verified_at', ''))
+        add(
+            'Official rules',
+            label,
+            f'{folder}/rules.json',
+            f'The rules used when the prompt is written for {label}.',
+            content=_rules_page(label, organization, data),
+            checked=data.get('verified_at', ''),
+        )
 
     try:
         manifest = json.loads((root / 'open_model_prompt_guides/manifest.json').read_text(encoding='utf-8'))
@@ -121,9 +160,14 @@ def library_entries(root: Path) -> list[dict]:
     for model in sorted(manifest.get('models', []), key=lambda m: m['name'].casefold()):
         card = next((f for f in model.get('files', []) if f.get('snapshot') == f"{model['id']}/README.md"), None)
         if card:
-            add('Open-weight models', model['name'], 'open_model_prompt_guides/' + card['snapshot'],
+            add(
+                'Open-weight models',
+                model['name'],
+                'open_model_prompt_guides/' + card['snapshot'],
                 'Official model card, used in full when the prompt is written for this model.',
-                url=card.get('url') or model.get('url'), expected_hash=card.get('sha256'))
+                url=card.get('url') or model.get('url'),
+                expected_hash=card.get('sha256'),
+            )
     return entries
 
 
@@ -142,7 +186,11 @@ def read_material(root: Path, entry: dict) -> tuple[str, str]:
         return 'File missing or unreadable', 'This material is declared but cannot be opened.'
     digest = hashlib.sha256(data).hexdigest()
     expected = entry.get('expected_hash')
-    status = ('Matches saved source hash' if digest == expected else 'SOURCE HASH MISMATCH') if expected else 'Local fingerprint (no saved source hash)'
+    status = (
+        ('Matches saved source hash' if digest == expected else 'SOURCE HASH MISMATCH')
+        if expected
+        else 'Local fingerprint (no saved source hash)'
+    )
     metadata = f"{status}\nSHA-256: {digest}\nSize: {len(data):,} bytes"
     if path.suffix.lower() == '.pdf':
         return metadata, 'Original PDF. Use Open file to inspect the document in your PDF viewer.'
@@ -156,19 +204,29 @@ from html import escape
 from urllib.parse import urlparse
 from PyQt6.QtCore import QSize, Qt, QUrl
 from PyQt6.QtGui import QColor, QDesktopServices, QFont, QIcon
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-                            QSplitter, QTreeWidget, QTreeWidgetItem, QPlainTextEdit, QPushButton)
+from PyQt6.QtWidgets import (
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QSplitter,
+    QTreeWidget,
+    QTreeWidgetItem,
+    QPlainTextEdit,
+    QPushButton,
+)
 
-try:
-    from .settings_ui import LIST_GAP, PAGE_TOP, SECTION_GAP, muted
-    from .theme import ROOT
-except ImportError:
-    from settings_ui import LIST_GAP, PAGE_TOP, SECTION_GAP, muted
-    from theme import ROOT
+from settings_ui import LIST_GAP, PAGE_TOP, SECTION_GAP, muted
+from theme import ROOT
 
-RULE_SETS = (("Claude", "claude_prompt_rules"), ("ChatGPT", "chatgpt_prompt_rules"),
-             ("Gemini", "gemini_prompt_rules"), ("Grok", "grok_prompt_rules"),
-             ("Hermes", "hermes_agent_prompt_guides"))
+RULE_SETS = (
+    ("Claude", "claude_prompt_rules"),
+    ("ChatGPT", "chatgpt_prompt_rules"),
+    ("Gemini", "gemini_prompt_rules"),
+    ("Grok", "grok_prompt_rules"),
+    ("Hermes", "hermes_agent_prompt_guides"),
+)
 
 
 def data_versions(root: Path) -> list[tuple[str, str]]:
@@ -202,8 +260,12 @@ class LibraryWidget(QWidget):
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, PAGE_TOP, 0, 0)  # the shared Settings look (settings_ui.py)
         outer.setSpacing(0)
-        outer.addWidget(muted('What Prompta builds prompts from: the prompting techniques, the official rules for each '
-                              'model and the open-weight model cards.'))
+        outer.addWidget(
+            muted(
+                'What Prompta builds prompts from: the prompting techniques, the official rules for each '
+                'model and the open-weight model cards.'
+            )
+        )
         outer.addSpacing(SECTION_GAP)
         search_row = QHBoxLayout()
         search_row.setSpacing(6)  # same gap as the model field and its refresh button
@@ -292,13 +354,18 @@ class LibraryWidget(QWidget):
             item.setToolTip(0, entry['path'])
         versions = dict(data_versions(self.root))
         catalog = versions.get('Technique catalog', '').split(' · ')[0]
-        self.summary.setText(f"{len(self.entries)} materials · catalog {catalog} · prompts {versions.get('Pipeline prompts', 'unavailable')}")
+        self.summary.setText(
+            f"{len(self.entries)} materials · catalog {catalog} · "
+            f"prompts {versions.get('Pipeline prompts', 'unavailable')}"
+        )
         if keep_path:
             for i in range(self.tree.topLevelItemCount()):
-                group = self.tree.topLevelItem(i)
-                for j in range(group.childCount()):
-                    if self.entries[group.child(j).data(0, Qt.ItemDataRole.UserRole)]['path'] == keep_path:
-                        self.tree.setCurrentItem(group.child(j))
+                top = self.tree.topLevelItem(i)
+                if top is None:
+                    continue
+                for j in range(top.childCount()):
+                    if self.entries[top.child(j).data(0, Qt.ItemDataRole.UserRole)]['path'] == keep_path:
+                        self.tree.setCurrentItem(top.child(j))
         self._filter(self.search.text())
 
     def _filter(self, text: str) -> None:
@@ -332,21 +399,44 @@ class LibraryWidget(QWidget):
         source = ''
         url = entry.get('url', '')
         parsed = urlparse(url)
-        if parsed.scheme == 'https' and not parsed.username and not parsed.password and parsed.hostname in (
-            'archive.org', 'arxiv.org', 'platform.claude.com', 'docs.anthropic.com',
-            'developers.openai.com', 'platform.openai.com', 'learn.chatgpt.com',
-            'ai.google.dev', 'aistudio.google.com', 'docs.cloud.google.com', 'cloud.google.com', 'docs.x.ai', 'huggingface.co',
-            'docs.mistral.ai', 'docs.z.ai',
+        if (
+            parsed.scheme == 'https'
+            and not parsed.username
+            and not parsed.password
+            and parsed.hostname
+            in (
+                'archive.org',
+                'arxiv.org',
+                'platform.claude.com',
+                'docs.anthropic.com',
+                'developers.openai.com',
+                'platform.openai.com',
+                'learn.chatgpt.com',
+                'ai.google.dev',
+                'aistudio.google.com',
+                'docs.cloud.google.com',
+                'cloud.google.com',
+                'docs.x.ai',
+                'huggingface.co',
+                'docs.mistral.ai',
+                'docs.z.ai',
+            )
         ):
             source = f'<br><a href="{escape(url, quote=True)}">Original source ↗</a>'
-        where = '' if entry.get('content') is not None else f'<br><span style="color:#8a7d60">{escape(entry["path"])}</span>'
+        where = (
+            ''
+            if entry.get('content') is not None
+            else f'<br><span style="color:#8a7d60">{escape(entry["path"])}</span>'
+        )
         self.info.setText(f'<b>{escape(entry["title"])}</b><br>{escape(entry["use"])}{where}{source}')
         metadata, content = read_material(self.root, entry)
         self.integrity.setText(metadata)
         self.preview.setPlainText(content)
         self.open_button.setVisible(entry.get('content') is None)  # a built page has no file of its own to open
         self.open_button.setEnabled(safe_path(self.root, entry['path']).is_file())
-        self.open_button.setText('Open file' if Path(entry['path']).suffix.lower() in ('.pdf', '.md', '.txt', '.json') else 'Open folder')
+        self.open_button.setText(
+            'Open file' if Path(entry['path']).suffix.lower() in ('.pdf', '.md', '.txt', '.json') else 'Open folder'
+        )
 
     def _open(self) -> None:
         if self.current:

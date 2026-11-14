@@ -2,75 +2,18 @@
 
 from __future__ import annotations
 
-import json
-import os
 import re
 from html import escape
-from urllib.parse import urlparse, urlencode
-import shutil
-import sqlite3
-from datetime import datetime
-import subprocess
-from collections import deque
-from threading import Thread
-import sys
-import urllib.request
-from pathlib import Path
 
-try:
-    from .history import HistoryStore, history_topic
-    from .library import LibraryWidget
-    from .mcp_settings import McpSettingsWidget
-except ImportError:
-    from history import HistoryStore, history_topic
-    from library import LibraryWidget
-    from mcp_settings import McpSettingsWidget
 
-from PyQt6.QtCore import QModelIndex, QEvent, QObject, QPoint, QRect, QRectF, QSize, Qt, QUrl, QProcess, QThread, QTimer, QPropertyAnimation, QEasingCurve, pyqtSignal
-from PyQt6.QtGui import QStandardItem, QStandardItemModel, QColor, QCursor, QPainter, QPalette, QPen, QFont, QGuiApplication, QIcon, QPixmap, QKeySequence, QShortcut, QDesktopServices, QTextDocument
+from PyQt6.QtCore import QPoint, QRect, QSize, Qt
 from PyQt6.QtWidgets import (
-    QAbstractItemView,
-    QAbstractScrollArea,
-    QApplication,
-    QButtonGroup,
-    QCheckBox,
-    QComboBox,
-    QCompleter,
-    QDialog,
-    QFrame,
-    QGridLayout,
-    QHBoxLayout,
     QLabel,
     QLayout,
-    QLineEdit,
-    QListWidget,
-    QListWidgetItem,
-    QMainWindow,
-    QMessageBox,
-    QPlainTextEdit,
-    QProgressBar,
-    QPushButton,
-    QScrollArea,
-    QScrollBar,
-    QStyle,
-    QStyledItemDelegate,
-    QStyleOptionSlider,
-    QSizePolicy,
-    QSplitter,
-    QTabBar,
-    QTabWidget,
     QToolButton,
-    QToolTip,
     QVBoxLayout,
     QWidget,
 )
-
-try:
-    from .theme import CHAT_URLS, DARK_SCROLL_QSS, PROMPT_TARGETS, QSS, ROOT
-    from .widgets import *  # noqa: F401,F403 — base widgets moved out of this file
-except ImportError:
-    from theme import CHAT_URLS, DARK_SCROLL_QSS, PROMPT_TARGETS, QSS, ROOT
-    from widgets import *  # noqa: F401,F403
 
 
 GENERAL_TARGET = "general"
@@ -87,7 +30,6 @@ def split_warnings(warnings: list[str]) -> tuple[list[str], list[str]]:
     unique = list(dict.fromkeys(warnings))
     notes = [w for w in unique if w.startswith(NOTE_PREFIXES)]
     return [w for w in unique if w not in notes], notes
-TARGET_SEGMENTS = [(GENERAL_TARGET, "Any")] + [(key, label) for key, (label, _) in PROMPT_TARGETS.items() if key != "openModel"]
 
 
 def find_layout(layout: QLayout, widget: QWidget) -> QLayout | None:
@@ -151,7 +93,7 @@ class FlowLayout(QLayout):
 
     def __init__(self, spacing: int = 6, line_spacing: int = 8) -> None:
         super().__init__()
-        self._items = []
+        self._items: list = []
         self.line_spacing = line_spacing  # air between wrapped rows
         self.setSpacing(spacing)
         self.setContentsMargins(0, 0, 0, 0)
@@ -220,15 +162,10 @@ def spec_text(config: dict) -> tuple[str, str]:
     value = lambda key: config.get(key) if config.get(key) is not None else "default"
     max_tokens = str(value("max_tokens"))
     short, _, tail = max_tokens.partition(" (")
-    tooltip = " ".join(part for part in (f"max_tokens: {max_tokens}." if tail else "", config.get("rationale", "")) if part)
+    tooltip = " ".join(
+        part for part in (f"max_tokens: {max_tokens}." if tail else "", config.get("rationale", "")) if part
+    )
     return f"temp {value('temperature')} · top_p {value('top_p')} · max {short.lower()}", tooltip
-
-
-def field_label(text: str) -> QLabel:
-    label = QLabel(text.upper())
-    label.setObjectName("fieldLabel")
-    return label
-
 
 
 def note_chip(note: str) -> QLabel:

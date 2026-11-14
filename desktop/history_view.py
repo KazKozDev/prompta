@@ -8,12 +8,8 @@ import sqlite3
 from datetime import datetime
 from pathlib import Path
 
-try:
-    from .history import history_topic
-    from .settings_ui import LABEL_GAP, LIST_GAP, add_section, field_label, muted, settings_page, text_link
-except ImportError:
-    from history import history_topic
-    from settings_ui import LABEL_GAP, LIST_GAP, add_section, field_label, muted, settings_page, text_link
+from history import history_topic
+from settings_ui import LABEL_GAP, LIST_GAP, add_section, field_label, muted, settings_page, text_link
 
 from PyQt6.QtCore import QRectF, QSize, Qt
 from PyQt6.QtGui import QColor, QCursor, QPainter, QFont
@@ -29,21 +25,13 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-try:
-    from .theme import PROMPT_TARGETS
-    from .widgets import *  # noqa: F401,F403 — base widgets moved out of this file
-except ImportError:
-    from theme import PROMPT_TARGETS
-    from widgets import *  # noqa: F401,F403
-try:
-    from .result_view import *  # noqa: F401,F403
-    from .controls import Dropdown
-except ImportError:
-    from result_view import *  # noqa: F401,F403
-    from controls import Dropdown
+from theme import PROMPT_TARGETS
+from controls import Dropdown
+
+from widgets import DELETABLE_ROLE, HistoryDeleteClicks, HistoryDeleteDelegate, history_delete_rect, use_step_scroll
 
 
-DAY_ROLE = Qt.ItemDataRole.UserRole + 42   # a day header row in Settings → History
+DAY_ROLE = Qt.ItemDataRole.UserRole + 42  # a day header row in Settings → History
 TIME_ROLE = Qt.ItemDataRole.UserRole + 43  # HH:MM shown at the right of a request row
 
 
@@ -67,8 +55,11 @@ class HistorySettingsDelegate(HistoryDeleteDelegate):
             font.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, 2)
             painter.setFont(font)
             painter.setPen(QColor("#74694f"))
-            painter.drawText(rect.adjusted(self.PAD, 0, -self.PAD, -6),
-                             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom, str(index.data()).upper())
+            painter.drawText(
+                rect.adjusted(self.PAD, 0, -self.PAD, -6),
+                Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom,
+                str(index.data()).upper(),
+            )
             painter.restore()
             return
         hovered = bool(option.state & QStyle.StateFlag.State_MouseOver)
@@ -95,13 +86,18 @@ class HistorySettingsDelegate(HistoryDeleteDelegate):
             font.setPixelSize(12)
             painter.setFont(font)
             painter.setPen(QColor("#8a7f66"))
-            painter.drawText(rect.adjusted(0, 0, -self.PAD, 0), Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
-                             str(index.data(TIME_ROLE) or ""))
+            painter.drawText(
+                rect.adjusted(0, 0, -self.PAD, 0),
+                Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
+                str(index.data(TIME_ROLE) or ""),
+            )
         painter.restore()
 
 
 class HistoryMixin:
     """History in the main window: search, pick, delete, clear and retention settings."""
+
+    _shown_entry: int | None = None  # index in _history_items of the result on screen
 
     def _load_history(self) -> None:
         try:
@@ -118,13 +114,17 @@ class HistoryMixin:
         self.history.clear()
         self.history.addItem("— history —" if self._history_items else "— no history yet —", -1)
         for index, entry in enumerate(self._history_items):
-            searchable = entry['thoughts'] + ' ' + entry['label'] + ' ' + json.dumps(entry['payload'], ensure_ascii=False)
+            searchable = (
+                entry['thoughts'] + ' ' + entry['label'] + ' ' + json.dumps(entry['payload'], ensure_ascii=False)
+            )
             if needle and needle not in searchable.casefold():
                 continue
             label = history_topic(entry['thoughts'], entry['payload'], entry['label'])
             self.history.addItem(label, index)
             date = entry['created_at'][:16].replace('T', ' ')
-            self.history.setItemData(self.history.count() - 1, f"{label}\n{date}\n{entry['thoughts']}", Qt.ItemDataRole.ToolTipRole)
+            self.history.setItemData(
+                self.history.count() - 1, f"{label}\n{date}\n{entry['thoughts']}", Qt.ItemDataRole.ToolTipRole
+            )
         if self.history.count() == 1 and needle:
             self.history.setItemText(0, "— no matches —")
         target = self.history.findData(current)
@@ -157,8 +157,13 @@ class HistoryMixin:
         else:
             self.history.hidePopup()
 
-    HISTORY_LIMITS = [(100, "Keep the newest 100"), (500, "Keep the newest 500"), (2000, "Keep the newest 2,000"),
-                      (0, "Keep everything"), (-1, "Don't save history")]
+    HISTORY_LIMITS = [
+        (100, "Keep the newest 100"),
+        (500, "Keep the newest 500"),
+        (2000, "Keep the newest 2,000"),
+        (0, "Keep everything"),
+        (-1, "Don't save history"),
+    ]
     HISTORY_AGES = [(0, "Forever"), (30, "30 days"), (90, "90 days"), (365, "1 year")]
 
     def _history_prefs_path(self) -> Path:
@@ -183,8 +188,12 @@ class HistoryMixin:
         # The app's own pickers, as on Model & API, not system combo boxes.
         limits_items = [{"key": str(value), "label": label} for value, label in self.HISTORY_LIMITS]
         if not any(int(item["key"]) == self.history_store.max_entries for item in limits_items):
-            limits_items.append({"key": str(self.history_store.max_entries),
-                                 "label": f"Keep the newest {self.history_store.max_entries}"})
+            limits_items.append(
+                {
+                    "key": str(self.history_store.max_entries),
+                    "label": f"Keep the newest {self.history_store.max_entries}",
+                }
+            )
         self.history_limit = Dropdown(popup_width=260)
         self.history_limit.setAccessibleName("How many requests to keep")
         self.history_limit.set_items(limits_items)
@@ -255,7 +264,8 @@ class HistoryMixin:
         return f"{day.day} {day:%B}" + ("" if day.year == today.year else f" {day.year}")
 
     def _fill_history_settings_list(self) -> None:
-        """Settings → History: every saved request, newest first, under day headers; a click opens it, the cross deletes it."""
+        """Settings → History: every saved request, newest first, under day headers;
+        a click opens it, the cross deletes it."""
         listing = getattr(self, "history_settings_list", None)
         if listing is None:
             return
@@ -307,8 +317,11 @@ class HistoryMixin:
         path = self._history_prefs_path()
         try:
             path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-            path.write_text(json.dumps({"history_max": self.history_store.max_entries,
-                                        "history_days": self.history_store.max_age_days}))
+            path.write_text(
+                json.dumps(
+                    {"history_max": self.history_store.max_entries, "history_days": self.history_store.max_age_days}
+                )
+            )
             removed = self.history_store.prune()
         except (OSError, sqlite3.Error):
             self.history_notice.setText("Could not save the history setting.")
@@ -324,7 +337,8 @@ class HistoryMixin:
         if not self._history_items:
             return
         answer = QMessageBox.question(
-            self, "Delete all history?",
+            self,  # type: ignore[arg-type]  # the window this mixin is part of
+            "Delete all history?",
             f"Delete all {len(self._history_items)} saved requests and prompts? This cannot be undone.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
             QMessageBox.StandardButton.Cancel,
@@ -349,10 +363,17 @@ class HistoryMixin:
         try:
             entry = self.history_store.add(label, kind, thoughts, payload)
         except (OSError, ValueError, sqlite3.Error):
-            self.history_notice.setText("Could not save history to disk. This result is still available in this window.")
+            self.history_notice.setText(
+                "Could not save history to disk. This result is still available in this window."
+            )
             self.history_notice.show()
-            entry = {'label': label, 'kind': kind, 'thoughts': thoughts,
-                     'payload': payload, 'created_at': datetime.now().isoformat()}
+            entry = {
+                'label': label,
+                'kind': kind,
+                'thoughts': thoughts,
+                'payload': payload,
+                'created_at': datetime.now().isoformat(),
+            }
         self._history_items.append(entry)
         self._shown_entry = len(self._history_items) - 1  # prompt edits are saved into this entry
         self._filter_history(selected=len(self._history_items) - 1)
@@ -380,7 +401,7 @@ class HistoryMixin:
             elif kind == "procedure":
                 self.render_procedure(payload)
             else:
-                self.render(payload)
+                self.render_result(payload)
         except (KeyError, TypeError, ValueError):
             self.history_notice.setText("Could not open this history entry: invalid data.")
             self.history_notice.show()
@@ -389,17 +410,7 @@ class HistoryMixin:
         self.thoughts.setPlainText(entry['thoughts'])
         self._flag_outdated(payload)
         selected = next((key for key in PROMPT_TARGETS if payload.get(f"{key}Guidance")), None)
-        model_index = 0
-        if selected == "openModel":
-            # The hidden openModel toggle is only valid with a concrete model chosen in the dropdown.
-            model_index = max(0, self.prompt_model.findText(str(payload["openModelGuidance"].get("target", ""))))
-            if model_index == 0:
-                selected = None
-        previous = self.prompt_model.blockSignals(True)
-        self.prompt_model.setCurrentIndex(model_index)
-        self.prompt_model.blockSignals(previous)
-        self._open_mode = selected == "openModel"
-        for key in PROMPT_TARGETS:
-            getattr(self, f"{key}_only").setChecked(key == selected)
-        if hasattr(self, "_sync_segments"):
-            self._sync_segments()
+        open_model = ""
+        if selected == "openModel":  # history keeps the model's name; a model gone from the manifest means any LLM
+            open_model = self.target_selector.open_model_id(str(payload["openModelGuidance"].get("target", "")))
+        self.target_selector.set_target(selected, open_model)

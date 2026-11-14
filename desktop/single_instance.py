@@ -3,6 +3,7 @@
 Both copies would otherwise write the same history database and settings. The first launch listens on a
 local socket named per user; a later launch connects to it, says "show" and exits.
 """
+
 from __future__ import annotations
 
 import getpass

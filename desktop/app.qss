@@ -52,12 +52,6 @@ QPushButton#variantOption { background: transparent; border: 1px solid transpare
 QPushButton#variantOption:hover { color: #34465f; background: #f4e4b7; }
 QPushButton#variantOption:checked { background: #fff8e7; border-color: #d8c593; color: #6f5710; font-weight: 600; }
 QPushButton#variantOption:focus { border-color: #c69b12; }
-QCheckBox#targetOption { background: rgba(255, 245, 214, 222); border: 1px solid #d8c593; border-radius: 9px; padding: 9px 10px; spacing: 8px; color: #665b42; font-size: 12px; }
-QCheckBox#targetOption:hover { background: #fff0c6; border-color: #ede6cc; }
-QCheckBox#targetOption:checked { background: #fffbee; border-color: #f1e5ba; color: #6f5710; }
-QCheckBox#targetOption:focus { border-color: #c69b12; }
-QCheckBox#targetOption:disabled { color: #bab5a3; background: #fafbfc; border-color: #edf0f4; }
-QFrame#inputDivider { background: rgba(151, 119, 40, 40); border: none; }
 QLabel#variantsLabel { color: #665b42; font-size: 12px; font-weight: 500; }
 QPushButton#buildPrompt { background: #f4ca38; color: #352b10; border: 1px solid #f4ca38; border-radius: 10px; padding: 0 18px; font-size: 13px; font-weight: 600; }
 QPushButton#buildPrompt:hover { background: #e9bc24; border-color: #e9bc24; }
@@ -184,7 +178,6 @@ QWidget#segmentTrack, QFrame#segmentTrack { background: rgba(120, 96, 30, 26); b
 QPushButton#segment, QPushButton#segment[first="true"], QPushButton#segment[last="true"] {
   background: transparent; border: none; border-radius: 6px; color: #6b6047; font-size: 12px; padding: 0 4px; }
 QPushButton#segment:hover { background: rgba(255, 255, 255, 110); }
-QPushButton#segment[chevron="true"] { padding: 0 18px 0 4px; }  /* text clear of the chevron, like the pickers */
 QPushButton#segment:checked { background: #f4ca38; color: #2f260c; font-weight: 600; }
 QPushButton#segment:focus { border: none; }
 QPushButton#segment:disabled { background: transparent; color: #b8ad8f; }
@@ -291,7 +284,6 @@ QDialog QPushButton#deleteItem:hover { background: rgba(216, 197, 147, 90); }
 QLabel#aboutTitle { font-size: 13px; font-weight: 600; color: #332e24; }  /* below the dialog's 17px "Settings" title */
 QFrame#divider { background: #d8c593; border: none; }
 QLabel#procedureSteps { background: #fff8e7; border: 1px solid #d8c593; border-radius: 8px; padding: 12px; }
-QLabel#segmentChevron { background: transparent; }
 QPushButton#micIcon { background: transparent; border: none; }
 QLabel#hint { color: #4a4232; font-size: 12px; background: transparent; }  /* hover hints (widgets.HintLabel) */
 QScrollArea#clearScroll, QScrollArea#clearScroll > QWidget > QWidget { background: transparent; }

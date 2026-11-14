@@ -4,6 +4,7 @@
 Snapshots and hashes are evidence, never executable instructions. Run manually to
 refresh; reviewed rules must be rechecked after a snapshot changes.
 """
+
 import concurrent.futures
 import hashlib
 import json
@@ -27,6 +28,7 @@ PAGES = {
 for name in ('fable-5-1', 'fable-5', 'opus-5-5', 'opus-5', 'opus-4-8', 'sonnet-5-5', 'sonnet-5', 'haiku-5-5'):
     PAGES[name] = 'build-with-claude/prompt-engineering/prompting-claude-' + name
 
+
 class OfficialRedirects(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         if urlparse(newurl).scheme != 'https' or urlparse(newurl).hostname != 'platform.claude.com':
@@ -38,7 +40,9 @@ def download(item):
     source_id, path = item
     url = BASE + path
     opener = urllib.request.build_opener(OfficialRedirects())
-    with opener.open(urllib.request.Request(url + '.md', headers={'User-Agent': 'Prompta documentation snapshot'}), timeout=40) as response:
+    with opener.open(
+        urllib.request.Request(url + '.md', headers={'User-Agent': 'Prompta documentation snapshot'}), timeout=40
+    ) as response:
         raw = response.read(2_000_000)
         final_url = response.url
     text = raw.decode('utf-8')
@@ -55,11 +59,29 @@ def download(item):
             title = re.sub(r'\[(.*?)\]\(.*?\)', r'\1', match[2]).strip()
             anchor = re.sub(r'[^\w\s-]', '', title.lower()).replace(' ', '-')
             sections.append({'title': title, 'url': url + '#' + anchor, 'line': line_no})
-    return {'id': source_id, 'title': re.search(r'^title: (.+)$', text, re.M)[1],
-            'url': url, 'download_url': final_url, 'snapshot': snapshot,
-            'sha256': hashlib.sha256(raw).hexdigest(),
-            'retrieved_at': datetime.now(timezone.utc).isoformat(timespec='seconds'), 'sections': sections,
-            'scope': 'model-specific' if source_id in PAGES and source_id not in ('overview','best-practices','hallucinations','consistency','injection','prompt-leak','evaluations') else 'general'}
+    return {
+        'id': source_id,
+        'title': re.search(r'^title: (.+)$', text, re.M)[1],
+        'url': url,
+        'download_url': final_url,
+        'snapshot': snapshot,
+        'sha256': hashlib.sha256(raw).hexdigest(),
+        'retrieved_at': datetime.now(timezone.utc).isoformat(timespec='seconds'),
+        'sections': sections,
+        'scope': 'model-specific'
+        if source_id in PAGES
+        and source_id
+        not in (
+            'overview',
+            'best-practices',
+            'hallucinations',
+            'consistency',
+            'injection',
+            'prompt-leak',
+            'evaluations',
+        )
+        else 'general',
+    }
 
 
 def main():
@@ -68,6 +90,7 @@ def main():
         sources = list(pool.map(download, PAGES.items()))
     (ROOT / 'sources.json').write_text(json.dumps({'sources': sources}, ensure_ascii=False, indent=2) + '\n')
     print('Saved', len(sources), 'official sources;', sum(len(s['sections']) for s in sources), 'sections')
+
 
 if __name__ == '__main__':
     main()

@@ -3,7 +3,7 @@
 Turn a messy stream of thoughts into a ready prompt, with a zero-shot baseline to compare.
 
 ```bash
-python3 -m pip install PyQt6
+python3 -m pip install -r desktop/requirements.txt
 ```
 
 ![Prompta desktop app turning a rough request into a structured prompt](https://raw.githubusercontent.com/KazKozDev/prompta/master/docs/preview-desktop.png)
@@ -17,7 +17,7 @@ Runs on Ollama, no key · Official guides with source links · MIT
 You need Node.js 22.18+ and Python 3.12. The pipeline itself has no npm dependencies. In the repository root:
 
 ```bash
-python3 -m pip install PyQt6 && python3 desktop/app.py
+python3 -m pip install -r desktop/requirements.txt && python3 desktop/app.py
 ```
 
 The macOS window opens; pick a provider and model in Settings. Or run the same pipeline from the terminal

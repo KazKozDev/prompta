@@ -35,14 +35,18 @@ class VoiceInputTest(unittest.TestCase):
             voice_input.emit("partial", text="hello")
             voice_input.emit("recording")
         lines = out.getvalue().splitlines()
-        self.assertEqual([json.loads(line) for line in lines], [{"state": "partial", "text": "hello"}, {"state": "recording"}])
+        self.assertEqual(
+            [json.loads(line) for line in lines], [{"state": "partial", "text": "hello"}, {"state": "recording"}]
+        )
 
     def test_transcribe_drops_empty_segments_and_strips_text(self):
         model = FakeModel([FakeSegment(1.0, "  first "), FakeSegment(1.5, "   "), FakeSegment(2.5, "second")])
         self.assertEqual(voice_input.transcribe(model, b"", beam_size=1), [(1.0, "first"), (2.5, "second")])
         self.assertEqual(model.calls[0]["beam_size"], 1)
         self.assertTrue(model.calls[0]["vad_filter"])
-        self.assertFalse(model.calls[0]["condition_on_previous_text"], "each pass stands alone, no drift between passes")
+        self.assertFalse(
+            model.calls[0]["condition_on_previous_text"], "each pass stands alone, no drift between passes"
+        )
 
     def test_joined(self):
         self.assertEqual(voice_input.joined([(1.0, "a"), (2.0, "b c")]), "a b c")
@@ -52,8 +56,11 @@ class VoiceInputTest(unittest.TestCase):
         sounddevice = types.ModuleType("sounddevice")
         sounddevice.InputStream = lambda **_: self.fail("the microphone must not open without a model")
         fakes = {"numpy": types.ModuleType("numpy"), "sounddevice": sounddevice}
-        with tempfile.TemporaryDirectory() as empty, patch.dict(sys.modules, fakes), \
-                patch.object(voice_input, "MODEL", Path(empty)):
+        with (
+            tempfile.TemporaryDirectory() as empty,
+            patch.dict(sys.modules, fakes),
+            patch.object(voice_input, "MODEL", Path(empty)),
+        ):
             with self.assertRaisesRegex(RuntimeError, "Whisper model is missing"):
                 voice_input.main()
 

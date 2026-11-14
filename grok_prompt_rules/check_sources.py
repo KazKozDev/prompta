@@ -5,6 +5,7 @@ Read-only: downloads each source as Markdown, compares its SHA-256 with sources.
 reports changes. It never rewrites snapshots; changed rules must be reviewed by hand.
 Exit code 1 when any source changed or could not be checked.
 """
+
 import hashlib
 import json
 import sys
@@ -26,7 +27,9 @@ class OfficialRedirects(urllib.request.HTTPRedirectHandler):
 def fetch(url: str) -> bytes:
     if urlparse(url).scheme != 'https' or urlparse(url).hostname != HOST:
         raise ValueError('Not an official Grok documentation URL: ' + url)
-    request = urllib.request.Request(url, headers={'User-Agent': 'Prompta documentation snapshot', 'Accept': 'text/markdown'})
+    request = urllib.request.Request(
+        url, headers={'User-Agent': 'Prompta documentation snapshot', 'Accept': 'text/markdown'}
+    )
     with urllib.request.build_opener(OfficialRedirects()).open(request, timeout=40) as response:
         if 'markdown' not in response.headers.get('Content-Type', ''):
             raise ValueError('Expected Markdown, got ' + response.headers.get('Content-Type', '?'))
