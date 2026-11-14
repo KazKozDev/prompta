@@ -14,6 +14,7 @@ import sys
 from typing import Any
 
 from PyQt6.QtCore import QEvent, QObject, Qt
+from PyQt6.QtGui import QGuiApplication
 from PyQt6.QtWidgets import QApplication, QWidget
 
 GRAPHITE = (0x36, 0x37, 0x3A)  # dark graphite grey
@@ -39,7 +40,8 @@ def _send(
 
 def paint_title_bar(window: QWidget, rgb: tuple[int, int, int] = GRAPHITE) -> bool:
     """Colour the window's title bar; False where there is nothing to do (not macOS, no native window)."""
-    if sys.platform != "darwin":
+    # winId() is an NSView only on Cocoa; offscreen (tests, screenshots.py) messaging it crashes the process.
+    if sys.platform != "darwin" or QGuiApplication.platformName() != "cocoa":
         return False
     try:
         objc = _runtime()
