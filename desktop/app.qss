@@ -4,6 +4,8 @@ QWidget { font-family: 'Helvetica Neue'; font-size: 13px; color: #4a4232; }
 QMainWindow { background: #f5f6f8; }
 QWidget#root { background: transparent; }
 QDialog { background: #fff8e7; }
+/* Settings pages: the warm cream of the About tab (whose photo backdrop covers it) */
+QDialog#settingsDialog, QDialog#settingsDialog QScrollArea, QDialog#settingsDialog QWidget#scrollContent { background: #fef3cd; }
 QPushButton#settings { background: transparent; border: 1px solid transparent; border-radius: 9px; }
 QPushButton#settings:hover { background: #e7edf5; border-color: #d8c593; }
 QPushButton#settings:pressed { background: #f2eddc; }
@@ -47,11 +49,6 @@ QComboBox QAbstractItemView {
 QListWidget#historyList { background: #fff8e7; color: #4a4232; border: none; outline: none; font-size: 13px; }
 QListWidget#historyList::item { padding: 7px 30px 7px 10px; border: none; border-radius: 5px; }
 QListWidget#historyList::item:hover, QListWidget#historyList::item:selected { background: #f6e5b3; color: #4a4232; }
-QFrame#variantCount { background: rgba(245, 231, 191, 225); border: 1px solid #d8c593; border-radius: 10px; }
-QPushButton#variantOption { background: transparent; border: 1px solid transparent; border-radius: 7px; color: #827456; padding: 0; font-size: 13px; font-weight: 500; }
-QPushButton#variantOption:hover { color: #34465f; background: #f4e4b7; }
-QPushButton#variantOption:checked { background: #fff8e7; border-color: #d8c593; color: #6f5710; font-weight: 600; }
-QPushButton#variantOption:focus { border-color: #c69b12; }
 QLabel#variantsLabel { color: #665b42; font-size: 12px; font-weight: 500; }
 QPushButton#buildPrompt { background: #f4ca38; color: #352b10; border: 1px solid #f4ca38; border-radius: 10px; padding: 0 18px; font-size: 13px; font-weight: 600; }
 QPushButton#buildPrompt:hover { background: #e9bc24; border-color: #e9bc24; }

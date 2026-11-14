@@ -23,11 +23,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from unittest.mock import patch  # noqa: E402
 
+from PyQt6 import sip  # noqa: E402
 from PyQt6.QtCore import QSettings  # noqa: E402
 
 QSettings.setPath(QSettings.Format.IniFormat, QSettings.Scope.UserScope, os.environ["HOME"])  # not the real prefs
 
 import app as prompta  # noqa: E402
+import keychain  # noqa: E402
+from generator_settings import GeneratorSettings  # noqa: E402
 
 
 def settle(qt_app, rounds: int = 10) -> None:
@@ -41,8 +44,8 @@ def main() -> int:
     qt_app = prompta.make_app(sys.argv[:1])
     with (
         patch.object(prompta, "load_local_providers", return_value={}),
-        patch.object(prompta.keychain, "load", return_value=""),
-        patch.object(prompta.PromptaWindow, "load_models"),
+        patch.object(keychain, "load", return_value=""),
+        patch.object(GeneratorSettings, "load_models"),
         patch.object(prompta.PromptaWindow, "load_techniques"),
     ):
         window = prompta.PromptaWindow()
@@ -50,14 +53,15 @@ def main() -> int:
     window.thoughts.setPlainText(
         "I want AI to review my meeting notes and extract decisions, tasks, and owners into a table"
     )
-    window.render_result(prompta.demo_result())
+    window.result_column.render_result(prompta.demo_result())
     window.status.setText("Contextual prompting · ready")
     window.resize(1160, 1180)
     settle(qt_app)
     shots = [out / "main.png"]
     window.grab().save(str(shots[0]))
 
-    dialog, tabs = window.settings_dialog, window.settings_tabs
+    dialog = window.settings_dialog
+    tabs = dialog.tabs
     dialog.resize(820, 560)
     dialog.show()
     for index in range(tabs.count()):
@@ -68,6 +72,7 @@ def main() -> int:
         dialog.grab().save(str(shots[-1]))
     dialog.close()
     window.close()
+    sip.delete(window)  # now, with its children, not during interpreter exit after the QApplication is gone
     for path in shots:
         print(path)
     return 0

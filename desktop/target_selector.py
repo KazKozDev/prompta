@@ -10,7 +10,7 @@ from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QVBoxLayout, QWidget
 
 from controls import Dropdown
-from result_view import GENERAL_TARGET
+from result_view import CONTROL_HEIGHT, GENERAL_TARGET
 from settings_ui import field_label
 from theme import PROMPT_TARGETS
 from widgets import MODEL_FAMILIES
@@ -57,6 +57,8 @@ class TargetSelector(QWidget):
         self.picker.setAccessibleName("Written for: LLM model")
         self.picker.setToolTip("The model the prompt is written for. Your generator model stays the same.")
         self.picker.set_items(target_items(open_models), keep=GENERAL_TARGET)
+        self.picker.ensurePolished()  # its own stylesheet would reset the minimum height when polished later
+        self.picker.setFixedHeight(CONTROL_HEIGHT)
         self.picker.changed.connect(lambda *_: self.changed.emit())
         layout.addWidget(self.picker)
 

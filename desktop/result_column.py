@@ -1,14 +1,31 @@
-"""Result rendering in the Prompta window: the variant tabs, the brief, refinement questions and rules."""
+"""The result column: the finished prompts as tabs (zero-shot baseline first), how they were built, the
+warnings, and the "What I assumed" card that the window places under the request.
+
+No window: the column reads the request through a callable and reports through signals.
+"""
 
 from __future__ import annotations
 
 from html import escape
 import re
-import sqlite3
 
-from PyQt6.QtCore import QSize, QTimer, Qt
-from PyQt6.QtGui import QCursor, QIcon
-from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QTabWidget, QToolTip, QVBoxLayout, QWidget
+from collections.abc import Callable
+
+from PyQt6.QtCore import QSize, Qt, pyqtSignal
+from PyQt6.QtGui import QCursor, QFont, QFontMetrics, QIcon
+from PyQt6.QtWidgets import (
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QLayout,
+    QPushButton,
+    QScrollArea,
+    QSizePolicy,
+    QTabWidget,
+    QToolTip,
+    QVBoxLayout,
+    QWidget,
+)
 
 from result_view import (
     BLOCK_GAP,
@@ -22,11 +39,122 @@ from result_view import (
 )
 from settings_ui import field_label
 from theme import PROMPT_TARGETS, ROOT, is_official_source
-from widgets import PromptEdit, WrappingField
+from widgets import DashedScrollBar, PromptEdit, WrappingField, use_step_scroll
 
 
-class ResultMixin:
-    """The result column: prompts in tabs, the brief, refinement questions, rules and usage."""
+class Wordmark(QLabel):
+    """The app name, very large and faint, centred in the empty result area; its size follows the width."""
+
+    def __init__(self, text: str) -> None:
+        super().__init__(text)
+        self.setObjectName("wordmark")
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)  # never widens the window
+        font = self.font()  # weight and tracking in code: a stylesheet font rule would reset the fitted size
+        font.setWeight(QFont.Weight.ExtraBold)
+        font.setLetterSpacing(QFont.SpacingType.PercentageSpacing, 108)
+        self.setFont(font)
+
+    def resizeEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        super().resizeEvent(event)
+        font = self.font()
+        font.setPixelSize(100)
+        width = QFontMetrics(font).horizontalAdvance(self.text()) or 1
+        size = max(40, min(220, int(100 * self.width() * 0.78 / width)))
+        if font.pixelSize() != size or self.font().pixelSize() != size:
+            font.setPixelSize(size)
+            self.setFont(font)
+
+
+class AssumptionsCard(QFrame):
+    """ "What I assumed": the brief's answers and assumptions as editable rows. The Build button reads
+    `change_count` (it says Rebuild then) and the run sends `revised_brief` instead of a new brief."""
+
+    change_count: Callable[[], int]
+    revised_brief: Callable[[], dict | None]
+
+
+class ResultColumn(QScrollArea):
+    """Everything right of the request. Signals: `assumptionsCard` hands over the card for the request column
+    (None when the result it belonged to is gone), `briefEdited` when its edits change, `rebuildRequested` on Enter
+    in a card field, `promptEdited(variant, text)` when the user edits a prompt (0 is the zero-shot baseline)."""
+
+    assumptionsCard = pyqtSignal(object)
+    briefEdited = pyqtSignal()
+    rebuildRequested = pyqtSignal()
+    promptEdited = pyqtSignal(int, str)
+
+    def __init__(self, request_text: Callable[[], str], parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._request_text = request_text
+        self.visible_warnings: list[str] = []
+        self.prompt_edit: PromptEdit | None = None
+        self.question_answers: list[tuple[str, WrappingField]] = []
+        self.assumption_rows: list[dict] = []
+        self.add_assumption_button: QPushButton | None = None
+        self.wordmark: Wordmark | None = None
+        self.setObjectName("outputScroll")
+        self.setVerticalScrollBar(DashedScrollBar(Qt.Orientation.Vertical, self))
+        self.setHorizontalScrollBar(DashedScrollBar(Qt.Orientation.Horizontal, self))
+        self.setFrameShape(QFrame.Shape.NoFrame)
+        self.viewport().setAutoFillBackground(False)
+        use_step_scroll(self)
+        self.setWidgetResizable(True)
+        self.output_holder = QWidget()
+        self.output_holder.setObjectName("outputContent")
+        self.output_layout = QVBoxLayout(self.output_holder)
+        self.output_layout.setContentsMargins(0, 0, 0, 0)
+        self.output_layout.setSpacing(10)
+        # The scroll area must grow with its content, or the widgets overlap.
+        self.output_layout.setSizeConstraint(QLayout.SizeConstraint.SetMinimumSize)
+        self.setWidget(self.output_holder)
+        self.output_holder.setAutoFillBackground(False)
+
+    def clear(self) -> None:
+        def clear(layout: QLayout) -> None:
+            while layout.count():
+                item = layout.takeAt(0)
+                if widget := item.widget():
+                    widget.hide()
+                    widget.deleteLater()
+                elif child := item.layout():
+                    clear(child)
+                    child.deleteLater()
+
+        clear(self.output_layout)
+        self.assumptionsCard.emit(None)  # the questions belong to the result being replaced
+
+    # ── empty result area: the app name, large and faint; results replace it ──
+    def show_placeholder(self) -> None:
+        self.clear()
+        self.output_layout.addStretch(5)  # just above centre
+        self.wordmark = Wordmark("PROMPTA")
+        self.output_layout.addWidget(self.wordmark)
+        slogan = QLabel("THOUGHTS IN. PROMPTS OUT.")  # the field-label lettering: capitals, tracked, medium
+        slogan.setObjectName("slogan")
+        slogan.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        slogan.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        self.output_layout.addWidget(slogan)
+        self.output_layout.addStretch(6)
+
+    def show_error(self, message: str) -> None:
+        self.clear()
+        error = QLabel(f"Error: {message}")
+        error.setObjectName("error")
+        error.setWordWrap(True)
+        self.output_layout.addStretch(1)
+        self.output_layout.addWidget(error)
+        self.output_layout.addStretch(1)
+
+    def flag_outdated(self, payload: dict, current_version: str) -> None:
+        """A saved result built under earlier pipeline rules says so, and how to get a current one."""
+        if not current_version or payload.get("promptVersion") == current_version:
+            return
+        note = QLabel("Built with earlier Prompta rules. Build prompt makes it again with the current ones.")
+        note.setObjectName("warn")
+        note.setWordWrap(True)
+        self.output_layout.insertWidget(0, note)
 
     def _add_usage(self, payload: dict) -> None:
         usage = payload.get("usage")
@@ -50,7 +178,7 @@ class ResultMixin:
         text = payload.get("zeroShotPrompt")
         if not text:
             brief = payload.get("brief") or {}
-            task = brief.get("goal") or self.thoughts.toPlainText().strip()
+            task = brief.get("goal") or self._request_text()
             if not task:
                 return
             text = f"Task:\n{task}"
@@ -78,7 +206,7 @@ class ResultMixin:
         description.setWordWrap(True)
         details.addWidget(description)
         self.output_layout.addWidget(card)
-        editor = PromptEdit(text, self.output_scroll)
+        editor = PromptEdit(text, self)
         editor.setAccessibleName("Zero-shot baseline prompt")
         editor.setFixedHeight(260)
         details.addWidget(editor)
@@ -89,7 +217,7 @@ class ResultMixin:
         self.output_layout.addSpacing(14)
 
     def render_procedure(self, procedure: dict) -> None:
-        self._clear_output()
+        self.clear()
 
         technique = procedure["technique"]
         title = QLabel(technique["name"])
@@ -133,7 +261,7 @@ class ResultMixin:
         if payload.get("zeroShotPrompt"):
             return payload["zeroShotPrompt"]
         brief = payload.get("brief") or {}
-        return f"Task:\n{brief.get('goal') or self.thoughts.toPlainText().strip()}"
+        return f"Task:\n{brief.get('goal') or self._request_text()}"
 
     def _prompt_view(
         self, prompts: list[tuple[str, str]], target: str | None, zero_shot: str, named_tabs: bool = False
@@ -141,7 +269,7 @@ class ResultMixin:
         """Tabs: Variant 0 is always the zero-shot baseline; the built prompts follow and the first one is selected."""
 
         def editor(text: str) -> PromptEdit:
-            box = PromptEdit(text, self.output_scroll, target)
+            box = PromptEdit(text, self, target)
             box.fit_to_content()
             return box
 
@@ -174,7 +302,7 @@ class ResultMixin:
 
         for index in range(tabs.count()):  # the user's edits go into the saved result
             page = tabs.widget(index)
-            page.textChanged.connect(lambda i=index, e=page: self._prompt_edited(i, e.toPlainText()))
+            page.textChanged.connect(lambda i=index, e=page: self.promptEdited.emit(i, e.toPlainText()))
             base = tabs.tabText(index)
             page.on_edited = lambda edited, i=index, b=base: tabs.setTabText(i, f"{b} •" if edited else b)
 
@@ -201,74 +329,6 @@ class ResultMixin:
             editor.set_original(originals.get(str(index), editor.toPlainText()))
             editor.blockSignals(False)
             editor._update_edited()
-
-    def _prompt_edited(self, variant: int, text: str) -> None:
-        """Remember the edit and save it shortly after typing stops."""
-        if self._shown_entry is None:
-            return
-        if not hasattr(self, "_edit_timer"):
-            self._edit_timer = QTimer(self)  # type: ignore[arg-type]  # self is the window
-            self._edit_timer.setSingleShot(True)
-            self._edit_timer.timeout.connect(self._save_prompt_edits)
-            self._pending_edits: dict[tuple[int, int], str] = {}
-        self._pending_edits[(self._shown_entry, variant)] = text
-        self._edit_timer.start(700)
-
-    @staticmethod
-    def _prompt_at(kind: str, payload: dict, variant: int) -> str:
-        if variant == 0:
-            return payload.get("zeroShotPrompt", "")
-        if kind == "manual":
-            return payload["variants"][variant - 1]["prompt"] if payload.get("variants") else payload["prompt"]
-        return (
-            payload["synthesis"]["prompt"]
-            if variant == 1
-            else payload["alternatives"][variant - 2]["synthesis"]["prompt"]
-        )
-
-    @classmethod
-    def _apply_prompt_edit(cls, kind: str, payload: dict, variant: int, text: str) -> None:
-        """Variant 0 is the zero-shot baseline; 1 is the first built prompt; the rest follow in order.
-        The model's text is kept under originalPrompts on the first edit, so it can be restored."""
-        originals = payload.setdefault("originalPrompts", {})
-        originals.setdefault(str(variant), cls._prompt_at(kind, payload, variant))
-        if originals[str(variant)] == text:
-            del originals[str(variant)]
-        if not originals:
-            del payload["originalPrompts"]
-        if variant == 0:
-            payload["zeroShotPrompt"] = text
-        elif kind == "manual":
-            if payload.get("variants"):
-                payload["variants"][variant - 1]["prompt"] = text
-            if variant == 1:
-                payload["prompt"] = text
-        elif variant == 1:
-            payload["synthesis"]["prompt"] = text
-        else:
-            payload["alternatives"][variant - 2]["synthesis"]["prompt"] = text
-
-    def _save_prompt_edits(self) -> None:
-        pending, self._pending_edits = self._pending_edits, {}
-        touched: set[int] = set()
-        for (entry_index, variant), text in pending.items():
-            if not 0 <= entry_index < len(self._history_items):
-                continue
-            entry = self._history_items[entry_index]
-            try:
-                self._apply_prompt_edit(entry["kind"], entry["payload"], variant, text)
-            except (KeyError, IndexError, TypeError):
-                continue
-            touched.add(entry_index)
-        for entry_index in touched:
-            entry = self._history_items[entry_index]
-            if entry.get("id") is None:
-                continue  # never reached the disk: the edit lives in this window only
-            try:
-                self.history_store.update_payload(entry["id"], entry["payload"])
-            except (OSError, sqlite3.Error):
-                self.history_notice.setText("Could not save your prompt edit to disk. It stays in this window.")
-                self.history_notice.show()
 
     ZERO_SHOT_NOTE = (
         "Zero-shot: the task stated directly, without a prompting technique. A baseline to compare the variants with."
@@ -315,7 +375,7 @@ class ResultMixin:
         Rebuilding sends the edited brief back, so nothing is re-guessed and no edit is lost."""
         if not brief:
             return
-        original_request = source_thoughts if source_thoughts is not None else self.thoughts.toPlainText().strip()
+        original_request = source_thoughts if source_thoughts is not None else self._request_text()
         questions = self._brief_questions(brief)
         assumptions = [
             item.strip() for item in brief.get("assumptions") or [] if isinstance(item, str) and item.strip()
@@ -323,7 +383,7 @@ class ResultMixin:
         if not questions and not assumptions:
             return
 
-        box = QFrame()
+        box = AssumptionsCard()
         box.setObjectName("questionsCard")
         layout = QVBoxLayout(box)
         layout.setContentsMargins(14, 10, 12, 12)
@@ -356,7 +416,7 @@ class ResultMixin:
             return count
 
         def sync() -> None:
-            self._sync_build_label()
+            self.briefEdited.emit()
 
         def add_row(question: str | None, text: str | None) -> WrappingField:
             line = QWidget()
@@ -402,7 +462,7 @@ class ResultMixin:
             add_row(None, None).setFocus()
 
         def request_unchanged() -> bool:
-            return self.thoughts.toPlainText().strip() == original_request
+            return self._request_text() == original_request
 
         def change_count() -> int:
             return changes() if request_unchanged() else 0
@@ -426,7 +486,7 @@ class ResultMixin:
             return {**brief, "assumptions": revised_assumptions, "questions": revised_questions}
 
         def apply() -> None:  # Enter in a card field does what the Build button does
-            self.run_pipeline()
+            self.rebuildRequested.emit()
 
         for question, default in questions:
             add_row(question, default)
@@ -446,8 +506,7 @@ class ResultMixin:
         self.question_answers = [(row["question"], row["field"]) for row in rows if row["question"]]
         self.assumption_rows = assumption_rows
         self.add_assumption_button = add
-        self._set_assumptions_card(box)
-        self._sync_build_label()
+        self.assumptionsCard.emit(box)
 
     @staticmethod
     def _brief_questions(brief: dict | None) -> list[tuple[str, str]]:
@@ -492,7 +551,7 @@ class ResultMixin:
         return label
 
     def render_result(self, result: dict, *, source_thoughts: str | None = None) -> None:
-        self._clear_output()
+        self.clear()
         brief = result["brief"]
         choice = result["choice"]
         synthesis = result["synthesis"]
@@ -531,7 +590,7 @@ class ResultMixin:
         layout.addSpacing(BLOCK_GAP)  # air between the prompt and what follows
         variant_items = [(choice, synthesis)] + [(a["choice"], a["synthesis"]) for a in alternatives]
         pages: list[list[QWidget]] = [[] for _ in range(len(variant_items) + 1)]  # 0 = zero-shot
-        self.visible_warnings: list[str] = []
+        self.visible_warnings = []
         variant_notes: list[list[str]] = []
         for page, (_, item) in enumerate(variant_items, 1):
             warnings, notes = split_warnings(item["warnings"])
@@ -590,7 +649,7 @@ class ResultMixin:
         tabs.currentChanged.connect(lambda index: meta_label.setText(metas[index]))  # header names the shown technique
 
     def render_manual(self, manual: dict, *, source_thoughts: str | None = None) -> None:
-        self._clear_output()
+        self.clear()
         variants = manual.get("variants") or [
             {
                 "technique": manual["technique"],

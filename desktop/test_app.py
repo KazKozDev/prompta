@@ -14,6 +14,7 @@ _QSettings.setPath(
 import os as _os
 
 _os.environ['PROMPTA_LOG_DIR'] = _tempfile.mkdtemp()  # nor the real dictation log
+import gc
 import subprocess
 import tempfile
 from pathlib import Path
@@ -25,10 +26,11 @@ from unittest.mock import Mock, patch
 
 from PyQt6.QtWidgets import QApplication, QPushButton, QLabel, QListWidget, QPlainTextEdit, QScrollArea
 from app import PromptaWindow
+import generator_settings
+from generator_settings import GeneratorSettings
 from PyQt6.QtCore import Qt
 from widgets import DELETABLE_ROLE
 from workers import Worker
-import app as app_module
 
 
 def app_selectable():
@@ -45,7 +47,7 @@ class DesktopSmokeTest(unittest.TestCase):
     def setUp(self):
         from mcp_settings import prefs
 
-        prefs().remove(PromptaWindow.GENERATOR_PREFS)  # each test starts from a first launch
+        prefs().remove(GeneratorSettings.GENERATOR_PREFS)  # each test starts from a first launch
         self.temp = tempfile.TemporaryDirectory()
         self.store = HistoryStore(Path(self.temp.name) / 'history.sqlite3')
         self.store_patch = patch('app.HistoryStore', return_value=self.store)
@@ -54,8 +56,22 @@ class DesktopSmokeTest(unittest.TestCase):
             'app.load_local_providers', return_value={}
         )  # the real personal file stays out of tests
         self.local_patch.start()
+        # The real macOS Keychain stays out of tests too: no read, no write, no delete.
+        self.keychain_patch = patch.multiple(
+            'keychain', load=Mock(return_value=''), save=Mock(return_value=True), forget=Mock()
+        )
+        self.keychain_patch.start()
+        # Nor the network: a provider switch would start a real model-list fetch that outlives the test.
+        self.loader_patch = patch('generator_settings.ModelsLoader')
+        self.loader_patch.start()
 
     def tearDown(self):
+        self.loader_patch.stop()
+        self.keychain_patch.stop()
+        GeneratorSettings._running_loaders.clear()
+        # Collect and deliver what the test left behind now, so a late callback into a deleted widget fails here.
+        gc.collect()
+        self.app.processEvents()
         self.local_patch.stop()
         self.store_patch.stop()
         self.temp.cleanup()
@@ -88,16 +104,16 @@ class DesktopSmokeTest(unittest.TestCase):
         self.assertEqual(load_local_providers(Path(self.temp.name) / 'missing.json'), {})
         with (
             patch('app.load_local_providers', return_value=local),
-            patch('app.keychain.load', return_value=''),
-            patch.object(PromptaWindow, 'load_models'),
+            patch('keychain.load', return_value=''),
+            patch.object(GeneratorSettings, 'load_models'),
             patch.object(PromptaWindow, 'load_techniques'),
         ):
             window = PromptaWindow()
-            window.provider.set_current('meta', emit=True)
+            window.generator.provider.set_current('meta', emit=True)
         self.local_patch.start()
-        self.assertEqual(window.model.current_key(), 'muse-spark-1.3')
-        self.assertEqual(window.api_key.text(), 'file-key')
-        provider, model, key, url, label = window._generator_for_mcp()
+        self.assertEqual(window.generator.model.current_key(), 'muse-spark-1.3')
+        self.assertEqual(window.generator.api_key.text(), 'file-key')
+        provider, model, key, url, label = window.generator.for_mcp()
         self.assertEqual(
             (provider, model, url, label), ('openai', 'muse-spark-1.3', 'https://api.meta.ai/v1', 'Meta (Muse Spark)')
         )
@@ -111,7 +127,7 @@ class DesktopSmokeTest(unittest.TestCase):
 
     def test_settings_history_lists_opens_and_deletes_requests(self):
         def window():
-            with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+            with patch.object(GeneratorSettings, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
                 return PromptaWindow()
 
         first = window()
@@ -130,7 +146,7 @@ class DesktopSmokeTest(unittest.TestCase):
             )
         first.close()
         second = window()
-        listing = second.history_settings_list
+        listing = second.history.settings_list
 
         def rows():  # request rows, without the day headers
             return [
@@ -139,30 +155,30 @@ class DesktopSmokeTest(unittest.TestCase):
 
         self.assertEqual(listing.item(0).text(), 'Today')  # a day header, not a request
         self.assertEqual(len(rows()), 2)
-        self.assertEqual(second.history_settings_title.text(), 'REQUESTS · 2')
+        self.assertEqual(second.history.settings_title.text(), 'REQUESTS · 2')
         self.assertIn('Письмо', listing.item(rows()[0]).text())  # newest first
-        second.history_settings_search.setText('Чётные')
+        second.history.settings_search.setText('Чётные')
         self.assertEqual(len(rows()), 1)
-        second.history_settings_search.setText('')
-        second._open_from_settings_list(listing.item(rows()[1]))
+        second.history.settings_search.setText('')
+        second.history._open_from_settings_list(listing.item(rows()[1]))
         self.assertEqual(second.thoughts.toPlainText(), 'Чётные числа')
-        second._delete_from_settings_list(rows()[0])
+        second.history._delete_from_settings_list(rows()[0])
         self.assertEqual(len(rows()), 1)
         self.assertEqual(len(self.store.load()), 1)
         second.close()
 
     def test_about_tab_credits_the_author(self):
-        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+        with patch.object(GeneratorSettings, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
             window = PromptaWindow()
-        tabs = window.settings_tabs
+        tabs = window.settings_dialog.tabs
         self.assertEqual(tabs.tabText(tabs.count() - 1), 'About')
-        self.assertIn('KazKozDev', window.about_author.text())
-        self.assertIn('https://github.com/KazKozDev', window.about_author.text())
+        self.assertIn('KazKozDev', window.about.author.text())
+        self.assertIn('https://github.com/KazKozDev', window.about.author.text())
         self.assertRegex(
-            window.about_how.text(),
+            window.about.how.text(),
             r'^A model reads your request .* one of \d+ prompting techniques, .*prompt with it\.$',
         )
-        versions = dict(window.about_versions())
+        versions = dict(window.about.versions())
         self.assertRegex(versions['Technique catalog'], r' · 90 entries$')
         self.assertRegex(versions['Claude guidance'], r'^\d+ rules · checked \d{4}-\d{2}-\d{2}$')
         self.assertNotIn('unavailable', versions.values())
@@ -178,9 +194,9 @@ class DesktopSmokeTest(unittest.TestCase):
         date = re.search(r'\d{4}-\d{2}-\d{2}$', claude.text(0)).group(0)
         tree.setCurrentItem(claude)
         self.assertIn(f'checked {date}', window.library.integrity.text())
-        self.assertIn('Copy version info', window.about_links.text())
-        window.copy_version_info()
-        self.assertIn('Copied', window.about_links.text())
+        self.assertIn('Copy version info', window.about.links.text())
+        window.about.copy_version_info()
+        self.assertIn('Copied', window.about.links.text())
         copied = QApplication.clipboard().text()
         self.assertIn('Prompta 0.1.0', copied)
         self.assertIn('Pipeline prompts: ', copied)
@@ -188,7 +204,7 @@ class DesktopSmokeTest(unittest.TestCase):
 
     def test_history_survives_restart_and_search_restores_correct_query(self):
         def window():
-            with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+            with patch.object(GeneratorSettings, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
                 return PromptaWindow()
 
         first = window()
@@ -207,18 +223,18 @@ class DesktopSmokeTest(unittest.TestCase):
             )
         first.close()
         reopened = window()
-        self.assertEqual(reopened.history.count(), 3)
-        reopened._filter_history('УНИКАЛЬНЫЙ')
-        self.assertEqual(reopened.history.count(), 2)
-        reopened.history.setCurrentIndex(1)
-        self.assertEqual(reopened.prompt_edit.toPlainText(), 'Уникальный второй промпт')
+        self.assertEqual(reopened.history.combo.count(), 3)
+        reopened.history.filter('УНИКАЛЬНЫЙ')
+        self.assertEqual(reopened.history.combo.count(), 2)
+        reopened.history.combo.setCurrentIndex(1)
+        self.assertEqual(reopened.result_column.prompt_edit.toPlainText(), 'Уникальный второй промпт')
         self.assertEqual(reopened.thoughts.toPlainText(), 'Письмо')
-        reopened._filter_history('чётные')
-        self.assertEqual(reopened.history.count(), 2)
-        reopened.history.setCurrentIndex(1)
-        self.assertEqual(reopened.prompt_edit.toPlainText(), 'Первый промпт')
-        reopened._filter_history('нет совпадений')
-        self.assertEqual(reopened.history.count(), 1)
+        reopened.history.filter('чётные')
+        self.assertEqual(reopened.history.combo.count(), 2)
+        reopened.history.combo.setCurrentIndex(1)
+        self.assertEqual(reopened.result_column.prompt_edit.toPlainText(), 'Первый промпт')
+        reopened.history.filter('нет совпадений')
+        self.assertEqual(reopened.history.combo.count(), 1)
         self.assertEqual(len(self.store.load()), 2)
         self.assertEqual(self.store.path.stat().st_mode & 0o777, 0o600)
         reopened.close()
@@ -227,7 +243,7 @@ class DesktopSmokeTest(unittest.TestCase):
         for i in range(5):
             self.store.add(f'q{i}', 'manual', f'q{i}', {'topic': f'q{i}'})
         with (
-            patch.object(PromptaWindow, 'load_models'),
+            patch.object(GeneratorSettings, 'load_models'),
             patch.object(PromptaWindow, 'load_techniques'),
             patch.dict('os.environ', {}, clear=False),
         ):
@@ -235,10 +251,10 @@ class DesktopSmokeTest(unittest.TestCase):
             os_env.pop('PROMPTA_HISTORY_MAX', None)
             os_env.pop('PROMPTA_HISTORY_DAYS', None)
             window = PromptaWindow()
-            window.history_limit.set_items(window.history_limit._items + [{'key': '2', 'label': 'Keep the newest 2'}])
-            window.history_limit.set_current('2', emit=True)
+            window.history.limit.set_items(window.history.limit._items + [{'key': '2', 'label': 'Keep the newest 2'}])
+            window.history.limit.set_current('2', emit=True)
         self.assertEqual([e['label'] for e in self.store.load()], ['q3', 'q4'])
-        self.assertEqual(len(window._history_items), 2)
+        self.assertEqual(len(window.history.items), 2)
         saved = __import__('json').loads(self.store.path.with_name('settings.json').read_text())
         self.assertEqual(saved['history_max'], 2)
         window.close()
@@ -248,35 +264,36 @@ class DesktopSmokeTest(unittest.TestCase):
 
         for name in ('Первая', 'Вторая'):
             self.store.add(name, 'manual', name, {'topic': name})
-        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+        with patch.object(GeneratorSettings, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
             window = PromptaWindow()
         with patch('PyQt6.QtWidgets.QMessageBox.question', return_value=QMessageBox.StandardButton.Cancel):
-            window.delete_all_history_button.click()
+            window.history.delete_all_button.click()
         self.assertEqual(len(self.store.load()), 2, 'cancel keeps everything')
         with patch('PyQt6.QtWidgets.QMessageBox.question', return_value=QMessageBox.StandardButton.Yes):
-            window.delete_all_history_button.click()
+            window.history.delete_all_button.click()
         self.assertFalse(self.store.path.exists())
-        self.assertEqual(window._history_items, [])
-        self.assertEqual(window.history.count(), 1)
+        self.assertEqual(window.history.items, [])
+        self.assertEqual(window.history.combo.count(), 1)
         window.close()
 
     def test_cross_deletes_history_entry_from_list_and_disk(self):
         for name in ('Первая', 'Вторая', 'Третья'):
             self.store.add(name, 'manual', name, {'topic': name})
-        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+        with patch.object(GeneratorSettings, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
             window = PromptaWindow()
-        window.history.setCurrentIndex(3)
-        window.history.showPopup()
-        listing = window.history._popup_frame.findChild(QListWidget)
+        window.history.combo.setCurrentIndex(3)
+        window.history.combo.showPopup()
+        listing = window.history.combo._popup_frame.findChild(QListWidget)
         self.assertFalse(listing.item(0).data(DELETABLE_ROLE))
         self.assertTrue(listing.item(2).data(DELETABLE_ROLE))
-        window.history.deleteRequested.emit(2)
+        window.history.combo.deleteRequested.emit(2)
         self.assertEqual([e['label'] for e in self.store.load()], ['Первая', 'Третья'])
         self.assertEqual(
-            [window.history.itemText(i) for i in range(window.history.count())], ['— history —', 'Первая', 'Третья']
+            [window.history.combo.itemText(i) for i in range(window.history.combo.count())],
+            ['— history —', 'Первая', 'Третья'],
         )
-        self.assertEqual(window.history.currentText(), 'Третья')
-        window.history.hidePopup()
+        self.assertEqual(window.history.combo.currentText(), 'Третья')
+        window.history.combo.hidePopup()
         window.close()
 
     def test_repeated_results_fit_narrow_window_without_stale_rows(self):
@@ -284,7 +301,7 @@ class DesktopSmokeTest(unittest.TestCase):
         from theme import QSS
         from PyQt6.QtCore import QEvent
 
-        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+        with patch.object(GeneratorSettings, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
             window = PromptaWindow()
         window.setStyleSheet(QSS)
         window.resize(932, 870)
@@ -324,11 +341,11 @@ class DesktopSmokeTest(unittest.TestCase):
         try:
             for width in (932, 1160, 932):
                 window.resize(width, 870)
-                window.render_result(result)
+                window.result_column.render_result(result)
                 self.app.processEvents()
                 self.app.sendPostedEvents(None, QEvent.Type.DeferredDelete)
                 self.app.processEvents()
-                labels = window.output_holder.findChildren(QLabel)
+                labels = window.result_column.output_holder.findChildren(QLabel)
                 self.assertEqual(sum(label.text() == 'PROMPT' for label in labels), 0)
                 self.assertEqual(
                     sum(label.objectName() == 'briefMeta' for label in labels),
@@ -337,7 +354,11 @@ class DesktopSmokeTest(unittest.TestCase):
                 )
                 self.assertEqual(
                     len(
-                        [b for b in window.output_holder.findChildren(QPushButton) if b.objectName() != 'restorePrompt']
+                        [
+                            b
+                            for b in window.result_column.output_holder.findChildren(QPushButton)
+                            if b.objectName() != 'restorePrompt'
+                        ]
                     ),
                     4,
                 )
@@ -349,7 +370,7 @@ class DesktopSmokeTest(unittest.TestCase):
                 self.assertLess(
                     goal.mapTo(window, goal.rect().bottomLeft()).y(), chip.mapTo(window, chip.rect().topLeft()).y()
                 )
-                self.assertEqual(window.output_scroll.horizontalScrollBar().maximum(), 0, 'the result fits the width')
+                self.assertEqual(window.result_column.horizontalScrollBar().maximum(), 0, 'the result fits the width')
         finally:
             window.close()
 
@@ -408,7 +429,7 @@ class DesktopSmokeTest(unittest.TestCase):
             area.close()
 
     def test_generation_line_tracks_success_error_and_cancellation(self):
-        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+        with patch.object(GeneratorSettings, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
             window = PromptaWindow()
         window.show()
         self.app.processEvents()
@@ -475,14 +496,14 @@ class DesktopSmokeTest(unittest.TestCase):
                 'source_ref': 'test',
             },
         )
-        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+        with patch.object(GeneratorSettings, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
             window = PromptaWindow()
         try:
             window.setStyleSheet(QSS)
             window.resize(932, 760)
             window.show()
             self.app.processEvents()
-            window.history.setCurrentIndex(1)
+            window.history.combo.setCurrentIndex(1)
             self.app.processEvents()
             self.assertLessEqual(window.minimumSizeHint().width(), 932)
             self.assertLessEqual(window.width(), 932)
@@ -533,12 +554,12 @@ class DesktopSmokeTest(unittest.TestCase):
         from theme import QSS
         from PyQt6.QtCore import Qt
 
-        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+        with patch.object(GeneratorSettings, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
             window = PromptaWindow()
         window.setStyleSheet(QSS)
         window.show()
         try:
-            for picker in (window.technique, window.provider, window.model):
+            for picker in (window.technique, window.generator.provider, window.generator.model):
                 picker._open()
                 self.app.processEvents()
                 popup = picker._popup
@@ -547,12 +568,12 @@ class DesktopSmokeTest(unittest.TestCase):
                 self.assertEqual(image.pixelColor(0, 0).alpha(), 0)
                 self.assertEqual(image.pixelColor(image.width() // 2, 0).alpha(), 255)
                 popup.close()
-            window.history.showPopup()
+            window.history.combo.showPopup()
             self.app.processEvents()
-            popup = window.history._popup_frame
+            popup = window.history.combo._popup_frame
             self.assertTrue(popup.testAttribute(Qt.WidgetAttribute.WA_TranslucentBackground))
             self.assertEqual(popup.grab().toImage().pixelColor(0, 0).alpha(), 0)
-            window.history.hidePopup()
+            window.history.combo.hidePopup()
         finally:
             window.close()
 
@@ -568,29 +589,29 @@ class DesktopSmokeTest(unittest.TestCase):
             'source_ref': 'test',
         }
         self.store.add('Saved topic', 'manual', 'Saved request', manual)
-        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+        with patch.object(GeneratorSettings, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
             window = PromptaWindow()
         window.setStyleSheet(QSS)
         window.show()
         try:
-            window.history.showPopup()
+            window.history.combo.showPopup()
             self.app.processEvents()
-            popup = window.history._popup_frame
+            popup = window.history.combo._popup_frame
             listing = popup.findChild(QListWidget)
             self.assertEqual(listing.count(), 2)
             listing.itemClicked.emit(listing.item(1))
             self.assertFalse(popup.isVisible())
             self.assertEqual(window.thoughts.toPlainText(), 'Saved request')
-            self.assertEqual(window.prompt_edit.toPlainText(), 'Saved prompt')
-            window.history.showPopup()
+            self.assertEqual(window.result_column.prompt_edit.toPlainText(), 'Saved prompt')
+            window.history.combo.showPopup()
             self.app.processEvents()
-            self.assertTrue(window.history._popup_frame.isVisible())
-            window.history.hidePopup()
+            self.assertTrue(window.history.combo._popup_frame.isVisible())
+            window.history.combo.hidePopup()
         finally:
             window.close()
 
     def test_variant_segments_are_exclusive_and_reach_pipeline(self):
-        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+        with patch.object(GeneratorSettings, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
             window = PromptaWindow()
         try:
             self.assertEqual(window.variants.value(), 1)
@@ -639,7 +660,7 @@ class DesktopSmokeTest(unittest.TestCase):
         from PyQt6.QtWidgets import QLabel
         from theme import QSS
 
-        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+        with patch.object(GeneratorSettings, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
             window = PromptaWindow()
         try:
             window.setStyleSheet(QSS)
@@ -673,41 +694,46 @@ class DesktopSmokeTest(unittest.TestCase):
 
     def test_corrupt_history_is_not_overwritten(self):
         self.store.path.write_bytes(b'broken database')
-        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+        with patch.object(GeneratorSettings, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
             window = PromptaWindow()
-        self.assertFalse(window.history_notice.isHidden())
+        self.assertFalse(window.history.notice.isHidden())
         self.assertEqual(self.store.path.read_bytes(), b'broken database')
         window.close()
 
     def test_api_settings_and_thoughts_label(self):
         from PyQt6.QtWidgets import QLabel, QLineEdit
 
-        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+        with patch.object(GeneratorSettings, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
             window = PromptaWindow()
         labels = {label.text(): label for label in window.findChildren(QLabel)}
         self.assertNotIn('THOUGHTS', labels)
         self.assertEqual(window.thoughts.placeholderText(), 'Describe what you need')
         self.assertEqual(window.thoughts.accessibleName(), 'Thoughts')
         self.assertFalse(window.settings_button.icon().isNull())
-        self.assertTrue(window.settings_dialog.isAncestorOf(window.api_key))
-        for control in (window.provider, window.model, window.refresh_button, window.models_hint):
+        self.assertTrue(window.settings_dialog.isAncestorOf(window.generator.api_key))
+        for control in (
+            window.generator.provider,
+            window.generator.model,
+            window.generator.refresh_button,
+            window.generator.models_hint,
+        ):
             self.assertTrue(window.settings_dialog.isAncestorOf(control))
             self.assertFalse(control.isVisibleTo(window))
-        self.assertEqual(window.api_key.echoMode(), QLineEdit.EchoMode.Password)
+        self.assertEqual(window.generator.api_key.echoMode(), QLineEdit.EchoMode.Password)
         window.settings_button.click()
         self.assertTrue(window.settings_dialog.isVisible())
-        self.assertTrue(window.provider.isVisible())
-        self.assertTrue(window.model.isVisible())
+        self.assertTrue(window.generator.provider.isVisible())
+        self.assertTrue(window.generator.model.isVisible())
 
-        window.api_key.setText('synthetic-test-key')
+        window.generator.api_key.setText('synthetic-test-key')
         window.settings_dialog.accept()
         self.assertFalse(window.settings_dialog.isVisible())
         window.thoughts.setPlainText('Synthetic test')
         no_keychain = Mock(load=lambda provider: '', save=Mock(return_value=True), forget=Mock())
-        with patch.object(app_module, 'keychain', no_keychain), patch('app.Worker') as worker_type:
-            window.provider.set_current('openai', emit=True)  # loads this provider's own (empty) key
-            window.api_key.setText('synthetic-test-key')
-            window.model.set_current('synthetic-model')
+        with patch.object(generator_settings, 'keychain', no_keychain), patch('app.Worker') as worker_type:
+            window.generator.provider.set_current('openai', emit=True)  # loads this provider's own (empty) key
+            window.generator.api_key.setText('synthetic-test-key')
+            window.generator.model.set_current('synthetic-model')
             window.run_pipeline()
             payload = worker_type.call_args.args[0]
             self.assertEqual(payload['apiKey'], 'synthetic-test-key')
@@ -742,11 +768,11 @@ class DesktopSmokeTest(unittest.TestCase):
             self.assertNotIn('history.sqlite3', entry['path'])
             if entry.get('expected_hash'):
                 self.assertIn('Matches saved source hash', read_material(ROOT, entry)[0])
-        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+        with patch.object(GeneratorSettings, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
             window = PromptaWindow()
         try:
-            window.settings_tabs.setCurrentIndex(1)
-            self.assertEqual(window.settings_tabs.tabText(1), 'Library')
+            window.settings_dialog.tabs.setCurrentIndex(1)
+            self.assertEqual(window.settings_dialog.tabs.tabText(1), 'Library')
             self.assertTrue(window.library.preview.isReadOnly())
             self.assertTrue(window.library.info.text())
             window.library.search.setText('Grok')
@@ -832,15 +858,15 @@ class DesktopSmokeTest(unittest.TestCase):
             popup.close()
 
     def test_clear_workspace_preserves_settings_history_and_discards_pending_result(self):
-        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+        with patch.object(GeneratorSettings, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
             window = PromptaWindow()
         try:
             window.thoughts.setPlainText('Draft to clear')
             window.target_picker._choose('chatgpt')
             window.variants.setValue(5)
-            window.api_key.setText('synthetic-key')
-            window._filter_history('filter')
-            window._history_items.append(
+            window.generator.api_key.setText('synthetic-key')
+            window.history.filter('filter')
+            window.history.items.append(
                 {'label': 'Saved', 'thoughts': 'Saved task', 'payload': {}, 'created_at': '2026-11-06'}
             )
             worker = Mock()
@@ -849,13 +875,16 @@ class DesktopSmokeTest(unittest.TestCase):
             window.clear_button.click()
             worker.cancel.assert_called_once()
             self.assertEqual(window.thoughts.toPlainText(), '')
-            self.assertEqual(window.history.currentIndex(), 0)
-            self.assertEqual(len(window._history_items), 1)
-            self.assertEqual(window._selected_target(), 'chatgpt')
+            self.assertEqual(window.history.combo.currentIndex(), 0)
+            self.assertEqual(len(window.history.items), 1)
+            self.assertEqual(window.target_selector.target(), 'chatgpt')
             self.assertEqual(window.variants.value(), 5)
-            self.assertEqual(window.api_key.text(), 'synthetic-key')
+            self.assertEqual(window.generator.api_key.text(), 'synthetic-key')
             self.assertTrue(window.generation_progress.isHidden())
-            with patch.object(window, 'render_result') as render, patch.object(window, '_push_history') as save:
+            with (
+                patch.object(window.result_column, 'render_result') as render,
+                patch.object(window.history, 'push') as save,
+            ):
                 window.on_finished({'ok': True, 'result': {}})
                 render.assert_not_called()
                 save.assert_not_called()
@@ -938,17 +967,17 @@ class DesktopSmokeTest(unittest.TestCase):
         editor.close()
 
     def test_open_model_dropdown_excludes_other_targets_and_routes_request(self):
-        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+        with patch.object(GeneratorSettings, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
             window = PromptaWindow()
         try:
             picker = window.target_picker
             self.assertEqual(sum(1 for item in picker._items if item['key'].startswith('open:')), 15)
             picker._choose('chatgpt')
             picker._choose('open:kimi-k3-1-pro')
-            self.assertEqual(window._selected_target(), 'openModel')
+            self.assertEqual(window.target_selector.target(), 'openModel')
             self.assertFalse(window.technique.isEnabled())
             window.thoughts.setPlainText('Build a small snake game')
-            window.model.set_current('test-model')
+            window.generator.model.set_current('test-model')
             with patch('app.Worker') as worker:
                 window.run_pipeline()
                 payload = worker.call_args.args[0]
@@ -957,15 +986,15 @@ class DesktopSmokeTest(unittest.TestCase):
                 self.assertNotIn('manualTechnique', payload)
             window.worker = None
             picker._choose('grok')
-            self.assertEqual(window._selected_target(), 'grok')
+            self.assertEqual(window.target_selector.target(), 'grok')
             picker._choose('general')
-            self.assertIsNone(window._selected_target())
+            self.assertIsNone(window.target_selector.target())
             self.assertTrue(window.technique.isEnabled())
         finally:
             window.close()
 
     def test_open_model_history_entry_restores_target_model(self):
-        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+        with patch.object(GeneratorSettings, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
             window = PromptaWindow()
         try:
             name = next(item['label'] for item in window.target_picker._items if item['key'] == 'open:glm-5-3')
@@ -1014,16 +1043,16 @@ class DesktopSmokeTest(unittest.TestCase):
                 'created_at': '2026-01-01T00:00',
                 'payload': payload,
             }
-            window._history_items = [entry]
-            window._filter_history()
-            window.history.setCurrentIndex(1)
-            self.assertEqual(window._selected_target(), 'openModel')
+            window.history.items = [entry]
+            window.history.filter()
+            window.history.combo.setCurrentIndex(1)
+            self.assertEqual(window.target_selector.target(), 'openModel')
             self.assertEqual(window.target_picker.current_key(), 'open:glm-5-3')
             # An unknown model falls back to any LLM rather than an open-model target without a model.
             payload['openModelGuidance']['target'] = 'No such model'
-            window.history.setCurrentIndex(0)
-            window.history.setCurrentIndex(1)
-            self.assertIsNone(window._selected_target())
+            window.history.combo.setCurrentIndex(0)
+            window.history.combo.setCurrentIndex(1)
+            self.assertIsNone(window.target_selector.target())
             self.assertEqual(window.target_picker.current_key(), 'general')
             self.assertTrue(window.technique.isEnabled())
         finally:
@@ -1068,16 +1097,16 @@ class DesktopSmokeTest(unittest.TestCase):
             safe_path(root, '../outside.md')
 
     def test_claude_toggle_preserves_generator_and_excludes_generic_techniques(self):
-        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+        with patch.object(GeneratorSettings, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
             window = PromptaWindow()
-        self.assertIsNone(window._selected_target())
-        model = window.model.current_key()
-        provider = window.provider.current_key()
+        self.assertIsNone(window.target_selector.target())
+        model = window.generator.model.current_key()
+        provider = window.generator.provider.current_key()
         window.technique.set_current('zero_shot')
         window.target_picker._choose('claude')
         self.assertFalse(window.technique.isEnabled())
-        self.assertEqual(window.model.current_key(), model)
-        self.assertEqual(window.provider.current_key(), provider)
+        self.assertEqual(window.generator.model.current_key(), model)
+        self.assertEqual(window.generator.provider.current_key(), provider)
         window.thoughts.setPlainText('Synthetic parity test')
         with patch('app.Worker') as worker_type:
             window.run_pipeline()
@@ -1110,10 +1139,10 @@ class DesktopSmokeTest(unittest.TestCase):
             },
             'rejected': [],
         }
-        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+        with patch.object(GeneratorSettings, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
             window = PromptaWindow()
         window.thoughts.setPlainText("Find job titles")
-        window.render_result(result)
+        window.result_column.render_result(result)
         card = window.assumptions_card
         self.assertIsNot(card.parentWidget(), window.thoughts, 'its own block under the request, not inside the field')
         self.assertFalse(card.findChildren(QScrollArea), 'no scroll inside the card')
@@ -1125,10 +1154,11 @@ class DesktopSmokeTest(unittest.TestCase):
             ],
             'no second assumptions box beside the prompt',
         )
-        fields = [answer for _, answer in window.question_answers]
+        fields = [answer for _, answer in window.result_column.question_answers]
         self.assertEqual([f.text() for f in fields], ['all of Europe', ''], 'the assumed answer is shown as the value')
         self.assertEqual(
-            [row['field'].text() for row in window.assumption_rows], ['Leftover assumption', 'Senior roles only']
+            [row['field'].text() for row in window.result_column.assumption_rows],
+            ['Leftover assumption', 'Senior roles only'],
         )
         self.assertEqual(window.run_button.text(), window.build_label, 'no edits: an ordinary build')
         self.assertFalse(
@@ -1137,9 +1167,9 @@ class DesktopSmokeTest(unittest.TestCase):
         )
 
         fields[0].setText('Germany')
-        window.assumption_rows[0]['widget'].findChild(QPushButton, 'removeAssumption').click()
-        window.add_assumption_button.click()
-        window.assumption_rows[-1]['field'].setText('Include direct sources')
+        window.result_column.assumption_rows[0]['widget'].findChild(QPushButton, 'removeAssumption').click()
+        window.result_column.add_assumption_button.click()
+        window.result_column.assumption_rows[-1]['field'].setText('Include direct sources')
         fields[1].setText('last 12 months')
         self.assertTrue(
             window.run_button.text().startswith('Rebuild · 4 changes'), 'the one button says what it will do'
@@ -1167,7 +1197,7 @@ class DesktopSmokeTest(unittest.TestCase):
             'a cleared answer drops that assumption',
         )
         with patch('app.Worker') as worker:
-            window.model.set_current('test-model')
+            window.generator.model.set_current('test-model')
             window.worker = None
             window.run_pipeline()
             self.assertEqual(
@@ -1225,22 +1255,22 @@ class DesktopSmokeTest(unittest.TestCase):
                 ],
             },
         }
-        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+        with patch.object(GeneratorSettings, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
             first = PromptaWindow()
         first.thoughts.setPlainText('Synthetic parity request')
-        first.api_key.setText('synthetic-secret-not-for-history')
+        first.generator.api_key.setText('synthetic-secret-not-for-history')
         first.on_finished({'ok': True, 'result': result})
         self.assertTrue(any('href=' in label.text() for label in first.findChildren(QLabel)))
         first.close()
         self.assertNotIn(b'synthetic-secret-not-for-history', self.store.path.read_bytes())
-        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+        with patch.object(GeneratorSettings, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
             reopened = PromptaWindow()
-        reopened._filter_history('test-version')
-        reopened.history.setCurrentIndex(1)
-        self.assertEqual(reopened._selected_target(), 'claude')
+        reopened.history.filter('test-version')
+        reopened.history.combo.setCurrentIndex(1)
+        self.assertEqual(reopened.target_selector.target(), 'claude')
         self.assertFalse(reopened.technique.isEnabled())
         self.assertEqual(reopened.thoughts.toPlainText(), 'Synthetic parity request')
-        self.assertEqual(reopened._history_items[0]['payload']['claudeGuidance']['rule_set_version'], 'test-version')
+        self.assertEqual(reopened.history.items[0]['payload']['claudeGuidance']['rule_set_version'], 'test-version')
         reopened.close()
 
     def test_history_shows_short_topic_but_keeps_full_request_searchable(self):
@@ -1249,11 +1279,11 @@ class DesktopSmokeTest(unittest.TestCase):
             'brief': {'topic': 'Итоги встреч', 'goal': 'Извлечение решений задач ответственных из заметок встреч'}
         }
         self.store.add('Old technique label', 'pipeline', query, payload)
-        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+        with patch.object(GeneratorSettings, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
             window = PromptaWindow()
-        self.assertEqual(window.history.itemText(1), 'Итоги встреч')
-        window._filter_history('уникальный_срок')
-        self.assertEqual(window.history.count(), 2)
+        self.assertEqual(window.history.combo.itemText(1), 'Итоги встреч')
+        window.history.filter('уникальный_срок')
+        self.assertEqual(window.history.combo.count(), 2)
         self.assertEqual(self.store.load()[0]['thoughts'], query)
         self.assertEqual(
             history_topic('I want an AI prompt for meeting notes extraction', {}),
@@ -1270,17 +1300,17 @@ class DesktopSmokeTest(unittest.TestCase):
     def test_targets_are_exclusive_and_keep_generator_model(self):
         for target in ('chatgpt', 'gemini', 'grok'):
             with self.subTest(target=target):
-                with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+                with patch.object(GeneratorSettings, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
                     window = PromptaWindow()
-                model, provider = window.model.current_key(), window.provider.current_key()
-                self.assertIsNone(window._selected_target())
+                model, provider = window.generator.model.current_key(), window.generator.provider.current_key()
+                self.assertIsNone(window.target_selector.target())
                 window.technique.set_current('zero_shot')
                 window.target_picker._choose('claude')
                 window.target_picker._choose(target)
-                self.assertEqual(window._selected_target(), target)
+                self.assertEqual(window.target_selector.target(), target)
                 self.assertFalse(window.technique.isEnabled())
-                self.assertEqual(window.model.current_key(), model)
-                self.assertEqual(window.provider.current_key(), provider)
+                self.assertEqual(window.generator.model.current_key(), model)
+                self.assertEqual(window.generator.provider.current_key(), provider)
                 window.thoughts.setPlainText('Synthetic parity task')
                 with patch('app.Worker') as worker_type:
                     window.run_pipeline()
@@ -1298,7 +1328,7 @@ class DesktopSmokeTest(unittest.TestCase):
     def test_chatgpt_and_gemini_history_restore_their_own_sources_and_target(self):
         from PyQt6.QtWidgets import QLabel
 
-        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+        with patch.object(GeneratorSettings, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
             window = PromptaWindow()
         for target, source in (
             ('chatgpt', 'https://learn.chatgpt.com/docs/prompting#prompts'),
@@ -1306,7 +1336,7 @@ class DesktopSmokeTest(unittest.TestCase):
             ('grok', 'https://docs.x.ai/developers/model-capabilities/text/best-practices#design-the-eval'),
         ):
             window.thoughts.setPlainText(f'{target} synthetic parity task')
-            window.api_key.setText('synthetic-key-not-for-storage')
+            window.generator.api_key.setText('synthetic-key-not-for-storage')
             window.on_finished(
                 {
                     'ok': True,
@@ -1356,20 +1386,20 @@ class DesktopSmokeTest(unittest.TestCase):
             )
         window.close()
         self.assertNotIn(b'synthetic-key-not-for-storage', self.store.path.read_bytes())
-        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+        with patch.object(GeneratorSettings, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
             reopened = PromptaWindow()
         for target in ('chatgpt', 'gemini', 'grok'):
-            reopened._filter_history(target)
-            self.assertEqual(reopened.history.count(), 2)
-            self.assertLessEqual(len(reopened.history.itemText(1).split()), 4)
-            reopened.history.setCurrentIndex(1)
-            self.assertEqual(reopened._selected_target(), target)
+            reopened.history.filter(target)
+            self.assertEqual(reopened.history.combo.count(), 2)
+            self.assertLessEqual(len(reopened.history.combo.itemText(1).split()), 4)
+            reopened.history.combo.setCurrentIndex(1)
+            self.assertEqual(reopened.target_selector.target(), target)
             self.assertEqual(reopened.thoughts.toPlainText(), f'{target} synthetic parity task')
             self.assertTrue(
                 any(
                     'href=' in label.text()
-                    for label in reopened.output_holder.findChildren(QLabel)
-                    if label.isVisibleTo(reopened.output_holder)
+                    for label in reopened.result_column.output_holder.findChildren(QLabel)
+                    if label.isVisibleTo(reopened.result_column.output_holder)
                 )
             )
         reopened.close()
@@ -1499,7 +1529,7 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
         editor.close()
 
     def test_each_variant_copies_its_own_prompt(self):
-        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+        with patch.object(GeneratorSettings, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
             window = PromptaWindow()
         config = {'temperature': 0.2, 'top_p': 0.95, 'max_tokens': '1024', 'rationale': 'test'}
         choice = {'name': 'Test', 'key': 'test', 'confidence': 1, 'reason': 'test', 'whyNotCheaper': 'test'}
@@ -1507,7 +1537,7 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
         def synthesis(text):
             return {'prompt': text, 'config': config, 'warnings': []}
 
-        window.render_result(
+        window.result_column.render_result(
             {
                 'brief': {
                     'goal': 'test',
@@ -1528,7 +1558,7 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
         )
         from PyQt6.QtWidgets import QPlainTextEdit
 
-        editors = window.output_holder.findChildren(QPlainTextEdit)
+        editors = window.result_column.output_holder.findChildren(QPlainTextEdit)
         self.assertEqual(len(editors), 4)
         zero = [editor for editor in editors if editor.accessibleName() == 'Zero-shot baseline prompt']
         self.assertEqual(len(zero), 1)
@@ -1558,7 +1588,7 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
         window.close()
 
     def test_manual_history_error_and_input_validation(self):
-        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+        with patch.object(GeneratorSettings, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
             window = PromptaWindow()
         window.run_pipeline()
         self.assertIsNone(window.worker)
@@ -1570,17 +1600,17 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
             'source_ref': 'test',
         }
         window.on_finished({'ok': True, 'manual': manual})
-        self.assertEqual(window.history.count(), 2)
-        self.assertEqual(window.prompt_edit.toPlainText(), manual['prompt'])
+        self.assertEqual(window.history.combo.count(), 2)
+        self.assertEqual(window.result_column.prompt_edit.toPlainText(), manual['prompt'])
         window.on_finished({'ok': False, 'error': 'synthetic error'})
         self.assertTrue(window.run_button.isEnabled())
         self.assertEqual(window.run_button.text(), window.build_label)
-        window._on_history_selected(1)
-        self.assertEqual(window.prompt_edit.toPlainText(), manual['prompt'])
+        window.history._on_selected(1)
+        self.assertEqual(window.result_column.prompt_edit.toPlainText(), manual['prompt'])
         window.close()
 
     def _prompta_window(self):
-        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+        with patch.object(GeneratorSettings, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
             return PromptaWindow()
 
     def test_prompt_edits_are_saved_to_history_and_survive_restart(self):
@@ -1612,11 +1642,11 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
         try:
             window.thoughts.setPlainText('Saved task')
             window.on_finished({'ok': True, 'manual': manual})
-            tabs = window.output_scroll.widget().findChild(QTabWidget)
+            tabs = window.result_column.widget().findChild(QTabWidget)
             tabs.widget(2).setPlainText('BETA edited by the user, long enough to keep.')
             tabs.widget(0).setPlainText('Zero-shot edited by the user, long enough.')
-            window._edit_timer.stop()
-            window._save_prompt_edits()
+            window.history._edit_timer.stop()
+            window.history.save_edits()
         finally:
             window.close()
         saved = self.store.load()[-1]['payload']
@@ -1627,8 +1657,8 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
         )
         reopened = self._prompta_window()
         try:
-            reopened.history.setCurrentIndex(reopened.history.findData(len(reopened._history_items) - 1))
-            tabs = reopened.output_scroll.widget().findChild(QTabWidget)
+            reopened.history.combo.setCurrentIndex(reopened.history.combo.findData(len(reopened.history.items) - 1))
+            tabs = reopened.result_column.widget().findChild(QTabWidget)
             self.assertEqual(tabs.widget(2).toPlainText(), 'BETA edited by the user, long enough to keep.')
             self.assertTrue(tabs.widget(2).is_edited() and tabs.widget(2).restore.isVisibleTo(tabs.widget(2)))
             self.assertTrue(tabs.tabText(2).endswith('•'), 'the tab shows the variant was edited')
@@ -1636,8 +1666,8 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
             tabs.widget(2).restore.click()
             self.assertEqual(tabs.widget(2).toPlainText(), 'BETA original prompt text, long enough.')
             self.assertFalse(tabs.tabText(2).endswith('•'))
-            reopened._edit_timer.stop()
-            reopened._save_prompt_edits()
+            reopened.history._edit_timer.stop()
+            reopened.history.save_edits()
         finally:
             reopened.close()
         saved = self.store.load()[-1]['payload']
@@ -1652,7 +1682,7 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
         window = self._prompta_window()
         try:
             window.thoughts.setPlainText('Build a snake game')
-            window.model.set_current('test-model')
+            window.generator.model.set_current('test-model')
             picker = window.target_picker
             keys = [i['key'] for i in picker._items]
             self.assertEqual(keys[:6], ['general', 'claude', 'chatgpt', 'gemini', 'grok', 'hermes'])
@@ -1689,8 +1719,8 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
             request = payload()
             self.assertFalse(request['hermesOnly'])
             self.assertEqual(request['openModel'], 'glm-5-3')
-            self.assertEqual(window._selected_target(), 'openModel')
-            self.assertFalse(window.advanced.isVisibleTo(window), 'techniques are for Any only')
+            self.assertEqual(window.target_selector.target(), 'openModel')
+            self.assertFalse(window.technique_panel.isVisibleTo(window), 'techniques are for Any only')
             glm = next(item['label'] for item in picker._items if item['key'] == 'open:glm-5-3')
             self.assertEqual(picker.text(), glm, 'the dropdown names the chosen model')
             picker._choose('general')
@@ -1721,7 +1751,7 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
                 'confidence': 0.7,
                 'whyNotCheaper': 'w',
             }
-            window.render_result(
+            window.result_column.render_result(
                 {
                     'brief': {
                         'topic': 'Snake game',
@@ -1740,7 +1770,10 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
                 }
             )
             self.cls_app_process()
-            widgets = [window.output_layout.itemAt(i).widget() for i in range(window.output_layout.count())]
+            widgets = [
+                window.result_column.output_layout.itemAt(i).widget()
+                for i in range(window.result_column.output_layout.count())
+            ]
             tabs = next(w for w in widgets if isinstance(w, QTabWidget))
             details = next(w for w in widgets if isinstance(w, Disclosure))
             self.assertLess(widgets.index(tabs), widgets.index(details))
@@ -1749,7 +1782,7 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
             )
             self.assertEqual(tabs.currentIndex(), 1, 'the built prompt is shown first')
             self.assertEqual(tabs.widget(0).toPlainText(), 'Task: snake')
-            self.assertIn('FIRST PROMPT', window.prompt_edit.toPlainText())
+            self.assertIn('FIRST PROMPT', window.result_column.prompt_edit.toPlainText())
             self.assertIn('SECOND PROMPT', tabs.widget(2).toPlainText())
             self.assertTrue(details.body.isVisibleTo(window), 'details are open by default')
             self.assertEqual(details.title(), 'How this prompt was built')
@@ -1764,7 +1797,7 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
             ]
             self.assertEqual(len(first_reason), 1, 'only the shown variant explains itself')
             self.assertTrue(meta.text().startswith('Code prompting'))
-            self.assertTrue(tabs.widget(1).spec.text().startswith('temp '), 'run settings sit in the prompt block')
+            self.assertTrue(tabs.widget(1).spec.text().startswith('Recommended: temp '), 'settings in prompt')
             self.assertIsNone(tabs.widget(0).spec, 'zero-shot has no run settings')
             tabs.setCurrentIndex(2)
             second_reason = [
@@ -1787,21 +1820,21 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
             save=lambda provider, key: saved.__setitem__(provider, key) or True,
             forget=lambda provider: saved.pop(provider, None),
         )
-        with patch.object(app_module, 'keychain', fake):
+        with patch.object(generator_settings, 'keychain', fake):
             window = self._prompta_window()
             try:
-                window.provider.set_current('gemini', emit=True)
-                self.assertEqual(window.api_key.text(), '')
-                self.assertFalse(window.remember_key.isChecked(), 'off until the user asks')
-                window.api_key.setText('gemini-key')
-                window.remember_key.setChecked(True)
+                window.generator.provider.set_current('gemini', emit=True)
+                self.assertEqual(window.generator.api_key.text(), '')
+                self.assertFalse(window.generator.remember_key.isChecked(), 'off until the user asks')
+                window.generator.api_key.setText('gemini-key')
+                window.generator.remember_key.setChecked(True)
                 self.assertEqual(saved, {'gemini': 'gemini-key'})
-                window.provider.set_current('openai', emit=True)
-                self.assertEqual(window.api_key.text(), '', 'each provider has its own key')
-                window.provider.set_current('gemini', emit=True)
-                self.assertEqual(window.api_key.text(), 'gemini-key')
-                self.assertTrue(window.remember_key.isChecked())
-                window.remember_key.setChecked(False)
+                window.generator.provider.set_current('openai', emit=True)
+                self.assertEqual(window.generator.api_key.text(), '', 'each provider has its own key')
+                window.generator.provider.set_current('gemini', emit=True)
+                self.assertEqual(window.generator.api_key.text(), 'gemini-key')
+                self.assertTrue(window.generator.remember_key.isChecked())
+                window.generator.remember_key.setChecked(False)
                 self.assertEqual(saved, {}, 'unchecking removes the saved key')
             finally:
                 window.close()
@@ -1813,24 +1846,24 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
             save=lambda provider, key: saved.__setitem__(provider, key) or True,
             forget=lambda provider: saved.pop(provider, None),
         )
-        with patch.object(app_module, 'keychain', fake), patch.object(PromptaWindow, 'load_models'):
+        with patch.object(generator_settings, 'keychain', fake), patch.object(GeneratorSettings, 'load_models'):
             window = self._prompta_window()
             try:
-                window.provider.set_current('openai_compatible', emit=True)
-                self.assertEqual(window.api_key.text(), 'compat-key')
+                window.generator.provider.set_current('openai_compatible', emit=True)
+                self.assertEqual(window.generator.api_key.text(), 'compat-key')
                 window.thoughts.setPlainText('Synthetic test')
-                window.model_name.setText('local-model')
-                window.api_key.setText('')
+                window.generator.model_name.setText('local-model')
+                window.generator.api_key.setText('')
                 with patch('app.Worker') as worker_type:
                     window.run_pipeline()
                     worker_type.assert_not_called()
                 self.assertEqual(window.status.text(), 'Add the server URL in Settings')
-                window.model_base_url.setText('http://127.0.0.1:8080/v1')
-                window.provider.set_current('openai', emit=True)
-                self.assertEqual(window.model_base_url.text(), '', 'OpenAI has its own URL')
-                window.provider.set_current('openai_compatible', emit=True)
-                self.assertEqual(window.model_base_url.text(), 'http://127.0.0.1:8080/v1')
-                window.api_key.setText('')
+                window.generator.model_base_url.setText('http://127.0.0.1:8080/v1')
+                window.generator.provider.set_current('openai', emit=True)
+                self.assertEqual(window.generator.model_base_url.text(), '', 'OpenAI has its own URL')
+                window.generator.provider.set_current('openai_compatible', emit=True)
+                self.assertEqual(window.generator.model_base_url.text(), 'http://127.0.0.1:8080/v1')
+                window.generator.api_key.setText('')
                 with patch('app.Worker') as worker_type:
                     window.run_pipeline()
                     payload = worker_type.call_args.args[0]
@@ -1842,30 +1875,30 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
 
     def test_each_provider_lists_its_own_models_and_compatible_types_one(self):
         no_keychain = Mock(load=lambda provider: '', save=Mock(return_value=True), forget=Mock())
-        with patch.object(PromptaWindow, 'load_models'), patch.object(app_module, 'keychain', no_keychain):
+        with patch.object(GeneratorSettings, 'load_models'), patch.object(generator_settings, 'keychain', no_keychain):
             window = self._prompta_window()
             try:
-                window._on_models_loaded(['qwen3:30b', 'glm-5.3:cloud'], 'ollama')
-                window.model.set_current('qwen3:30b')
-                window.provider.set_current('gemini', emit=True)
-                self.assertEqual(window.model._items, [], 'no Ollama models under Gemini')
-                window._on_models_loaded(['gemini-3-pro', 'gemini-3-flash'], 'gemini')
-                self.assertEqual(window._current_model(), 'gemini-3-pro')
-                window._on_models_loaded(['late-ollama-model'], 'ollama')  # a fetch that ends after a switch
-                self.assertEqual([i['key'] for i in window.model._items], ['gemini-3-pro', 'gemini-3-flash'])
+                window.generator._on_models_loaded(['qwen3:30b', 'glm-5.3:cloud'], 'ollama')
+                window.generator.model.set_current('qwen3:30b')
+                window.generator.provider.set_current('gemini', emit=True)
+                self.assertEqual(window.generator.model._items, [], 'no Ollama models under Gemini')
+                window.generator._on_models_loaded(['gemini-3-pro', 'gemini-3-flash'], 'gemini')
+                self.assertEqual(window.generator.current_model(), 'gemini-3-pro')
+                window.generator._on_models_loaded(['late-ollama-model'], 'ollama')  # a fetch that ends after a switch
+                self.assertEqual([i['key'] for i in window.generator.model._items], ['gemini-3-pro', 'gemini-3-flash'])
 
-                window.provider.set_current('openai_compatible', emit=True)
-                self.assertTrue(window.model.isHidden(), 'a custom server has no list: the name is typed')
-                self.assertTrue(window.refresh_button.isHidden())
-                self.assertFalse(window.model_name.isHidden())
-                window.model_name.setText('mlx-community/Qwen3-8B')
-                self.assertEqual(window._current_model(), 'mlx-community/Qwen3-8B')
+                window.generator.provider.set_current('openai_compatible', emit=True)
+                self.assertTrue(window.generator.model.isHidden(), 'a custom server has no list: the name is typed')
+                self.assertTrue(window.generator.refresh_button.isHidden())
+                self.assertFalse(window.generator.model_name.isHidden())
+                window.generator.model_name.setText('mlx-community/Qwen3-8B')
+                self.assertEqual(window.generator.current_model(), 'mlx-community/Qwen3-8B')
 
-                window.provider.set_current('ollama', emit=True)
-                self.assertTrue(window.model_name.isHidden())
-                self.assertEqual([i['key'] for i in window.model._items], ['late-ollama-model'])
-                window.provider.set_current('gemini', emit=True)
-                self.assertEqual(window._current_model(), 'gemini-3-pro', 'each provider keeps its choice')
+                window.generator.provider.set_current('ollama', emit=True)
+                self.assertTrue(window.generator.model_name.isHidden())
+                self.assertEqual([i['key'] for i in window.generator.model._items], ['late-ollama-model'])
+                window.generator.provider.set_current('gemini', emit=True)
+                self.assertEqual(window.generator.current_model(), 'gemini-3-pro', 'each provider keeps its choice')
             finally:
                 window.close()
 
@@ -1914,23 +1947,23 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
 
     def test_generator_settings_survive_a_restart(self):
         no_keychain = Mock(load=lambda provider: '', save=Mock(return_value=True), forget=Mock())
-        with patch.object(app_module, 'keychain', no_keychain):
+        with patch.object(generator_settings, 'keychain', no_keychain):
             window = self._prompta_window()
-            window.provider.set_current('openai_compatible', emit=True)
-            window.model_base_url.setText('http://127.0.0.1:8080/v1')
-            window.model_name.setText('mlx-community/Qwen3-8B')
-            window.model_name.editingFinished.emit()
-            window.provider.set_current('gemini', emit=True)
-            window.model.set_current('gemini-3-pro', emit=True)
+            window.generator.provider.set_current('openai_compatible', emit=True)
+            window.generator.model_base_url.setText('http://127.0.0.1:8080/v1')
+            window.generator.model_name.setText('mlx-community/Qwen3-8B')
+            window.generator.model_name.editingFinished.emit()
+            window.generator.provider.set_current('gemini', emit=True)
+            window.generator.model.set_current('gemini-3-pro', emit=True)
             window.close()
 
             again = self._prompta_window()
             try:
-                self.assertEqual(again.provider.current_key(), 'gemini', 'the last provider comes back')
-                self.assertEqual(again._current_model(), 'gemini-3-pro')
-                again.provider.set_current('openai_compatible', emit=True)
-                self.assertEqual(again.model_base_url.text(), 'http://127.0.0.1:8080/v1')
-                self.assertEqual(again._current_model(), 'mlx-community/Qwen3-8B')
+                self.assertEqual(again.generator.provider.current_key(), 'gemini', 'the last provider comes back')
+                self.assertEqual(again.generator.current_model(), 'gemini-3-pro')
+                again.generator.provider.set_current('openai_compatible', emit=True)
+                self.assertEqual(again.generator.model_base_url.text(), 'http://127.0.0.1:8080/v1')
+                self.assertEqual(again.generator.current_model(), 'mlx-community/Qwen3-8B')
             finally:
                 again.close()
 
@@ -1982,15 +2015,15 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
 
     def test_catalog_list_says_where_it_came_from(self):
         no_keychain = Mock(load=lambda provider: '', save=Mock(return_value=True), forget=Mock())
-        with patch.object(PromptaWindow, 'load_models'), patch.object(app_module, 'keychain', no_keychain):
+        with patch.object(GeneratorSettings, 'load_models'), patch.object(generator_settings, 'keychain', no_keychain):
             window = self._prompta_window()
             try:
-                window.provider.set_current('anthropic', emit=True)
-                window._on_models_loaded(['claude-a', 'claude-b'], 'anthropic', 'catalog')
-                self.assertIn('models.dev', window.models_hint.text())
-                window.provider.set_current('ollama', emit=True)
-                window.provider.set_current('anthropic', emit=True)
-                self.assertIn('models.dev', window.models_hint.text(), 'the hint survives a switch back')
+                window.generator.provider.set_current('anthropic', emit=True)
+                window.generator._on_models_loaded(['claude-a', 'claude-b'], 'anthropic', 'catalog')
+                self.assertIn('models.dev', window.generator.models_hint.text())
+                window.generator.provider.set_current('ollama', emit=True)
+                window.generator.provider.set_current('anthropic', emit=True)
+                self.assertIn('models.dev', window.generator.models_hint.text(), 'the hint survives a switch back')
             finally:
                 window.close()
 
@@ -2000,14 +2033,14 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
             notes = lambda: [
                 l for l in window.findChildren(QLabel) if l.text().startswith('Built with earlier Prompta rules')
             ]
-            window._flag_outdated({'promptVersion': 'v1'})
+            column = window.result_column
+            column.flag_outdated({'promptVersion': 'v1'}, '')
             self.assertFalse(notes(), 'unknown current version: no claim')
-            window.prompt_version = 'v2'
-            window._flag_outdated({'promptVersion': 'v2'})
+            column.flag_outdated({'promptVersion': 'v2'}, 'v2')
             self.assertFalse(notes())
-            window._flag_outdated({'promptVersion': 'v1'})
+            column.flag_outdated({'promptVersion': 'v1'}, 'v2')
             self.assertEqual(len(notes()), 1)
-            window._flag_outdated({})
+            column.flag_outdated({}, 'v2')
             self.assertEqual(len(notes()), 2, 'results saved before versions were recorded are old too')
         finally:
             window.close()
@@ -2024,7 +2057,7 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
                 'one button: Build turns into Stop',
             )
             window.target_picker._choose('open:glm-5-3')
-            self.assertFalse(window.advanced.isVisibleTo(window), 'techniques are for Any only')
+            self.assertFalse(window.technique_panel.isVisibleTo(window), 'techniques are for Any only')
         finally:
             window.close()
 
@@ -2045,18 +2078,18 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
     def test_advanced_section_holds_technique_and_variants(self):
         window = self._prompta_window()
         try:
-            self.assertIs(window.technique.parentWidget(), window.advanced.body)
-            self.assertIs(window.variants.parentWidget(), window.advanced.body)
-            self.assertTrue(window.advanced.body.isVisibleTo(window), 'Advanced never folds')
-            self.assertEqual(window.advanced.title(), 'Technique')
+            self.assertIs(window.technique.parentWidget(), window.technique_panel.body)
+            self.assertIs(window.variants.parentWidget(), window.technique_panel.body)
+            self.assertTrue(window.technique_panel.body.isVisibleTo(window), 'Advanced never folds')
+            self.assertEqual(window.technique_panel.title(), 'Technique')
             window.variants.buttons.button(2).click()
-            self.assertEqual(window.advanced.title(), 'Technique', 'the heading stays put')
+            self.assertEqual(window.technique_panel.title(), 'Technique', 'the heading stays put')
             self.assertEqual(window.variants.value(), 2)
             window.target_picker._choose('claude')
-            self.assertFalse(window.advanced.isVisibleTo(window), 'techniques exist only for Any')
+            self.assertFalse(window.technique_panel.isVisibleTo(window), 'techniques exist only for Any')
             self.assertEqual(window.variants.value(), 1)
             window.target_picker._choose('general')  # back to Any
-            self.assertTrue(window.advanced.isVisibleTo(window))
+            self.assertTrue(window.technique_panel.isVisibleTo(window))
             self.assertTrue(window.variants.isVisibleTo(window))
             self.assertEqual(window.variants.value(), 2, 'the count comes back')
             self.assertTrue(window.run_button.text().startswith('Build prompt'))
@@ -2104,11 +2137,17 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
             )
             window.on_finished({'ok': True, 'result': result([note], guidance)})
             self.assertEqual(window.status.text(), 'Gemini · official guidance · ready')
-            visible = [w for w in window.output_holder.findChildren(QLabel, 'warn') if w.isVisibleTo(window)]
+            visible = [
+                w for w in window.result_column.output_holder.findChildren(QLabel, 'warn') if w.isVisibleTo(window)
+            ]
             self.assertEqual(visible, [])
             window.on_finished({'ok': True, 'result': result([note, 'Unfilled placeholders: examples'])})
             self.assertEqual(window.status.text(), 'Gemini · official guidance · 1 warning below the prompt')
-            visible = [w.text() for w in window.output_holder.findChildren(QLabel, 'warn') if w.isVisibleTo(window)]
+            visible = [
+                w.text()
+                for w in window.result_column.output_holder.findChildren(QLabel, 'warn')
+                if w.isVisibleTo(window)
+            ]
             self.assertEqual(visible, ['• Unfilled placeholders: examples'])
         finally:
             window.close()
@@ -2135,9 +2174,12 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
             self.assertEqual(window.technique.current_keys(), ['cot', 'few'])
             self.assertTrue(items['few'].property('selected'))
             self.assertEqual(
-                window.advanced.button.text(), 'TECHNIQUE', 'the selection shows in the field, not the heading'
+                window.technique_panel.button.text(), 'TECHNIQUE', 'the selection shows in the field, not the heading'
             )
-            self.assertFalse(window.technique_label.isVisibleTo(window))
+            self.assertFalse(
+                [label for label in window.findChildren(QLabel) if label.text().startswith('TECHNIQUE ·')],
+                'no separate counted label: the catalog size is in the heading tooltip',
+            )
             self.assertFalse(window.variants.isVisibleTo(window), 'the 1–5 count shows only for automatic choice')
             saved = window.technique.current_keys()
             window.technique.set_current_keys([], emit=True)
@@ -2154,7 +2196,7 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
             popup.close()
 
             window.thoughts.setPlainText('Explain recursion')
-            window.model.set_current('test-model')
+            window.generator.model.set_current('test-model')
             with patch('app.Worker') as worker:
                 window.run_pipeline()
                 payload = worker.call_args.args[0]
@@ -2181,14 +2223,18 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
                     },
                 }
             )
-            tabs = window.output_holder.findChild(QTabWidget, 'variantTabs')
+            tabs = window.result_column.output_holder.findChild(QTabWidget, 'variantTabs')
             self.assertEqual(
                 [tabs.tabText(i) for i in range(tabs.count())], ['Zero-shot', 'Few-shot', 'Chain of thought']
             )
             self.assertIn('Chain of thought prompt', tabs.widget(2).toPlainText())
             self.assertEqual(tabs.widget(0).toPlainText(), 'Task')
             self.assertEqual(window.status.text(), '2 techniques built · 1 failed, see below the prompt')
-            warn = [w.text() for w in window.output_holder.findChildren(QLabel, 'warn') if w.isVisibleTo(window)]
+            warn = [
+                w.text()
+                for w in window.result_column.output_holder.findChildren(QLabel, 'warn')
+                if w.isVisibleTo(window)
+            ]
             self.assertEqual(warn, ['• Not built — ToT: timeout'])
             window.technique.set_current_keys(['cot'])
             with patch('app.Worker') as worker:
@@ -2221,7 +2267,7 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
                     }
                 )
             window.clear_workspace()
-            picker = window.history_picker
+            picker = window.history.picker
             self.assertIsInstance(picker, Dropdown, 'the same picker as every other dropdown')
             self.assertEqual(
                 [item['label'] for item in picker._items], ['Прогноз Офиса В Барселоне', 'Игра Змейка В Питоне']
@@ -2233,7 +2279,7 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
             self.assertEqual(shown, ['0'])
             picker._choose('0')
             self.assertEqual(window.thoughts.toPlainText(), 'игра змейка в питоне')
-            self.assertIn('Snake prompt', window.prompt_edit.toPlainText())
+            self.assertIn('Snake prompt', window.result_column.prompt_edit.toPlainText())
             self.assertEqual(picker.current_key(), '0', 'the opened entry is the current one')
             self.assertEqual(picker.text(), '', 'a toolbar icon, no label')
         finally:
@@ -2256,12 +2302,12 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
                         },
                     }
                 )
-            picker = window.history_picker
+            picker = window.history.picker
             self.assertTrue(all(item.get('deletable') for item in picker._items))
-            with patch.object(window.history, 'showPopup') as native_popup:
+            with patch.object(window.history.combo, 'showPopup') as native_popup:
                 picker.deleteRequested.emit('0')
                 native_popup.assert_not_called()  # the hidden old list must not pop up
-            self.assertEqual([entry['thoughts'] for entry in window._history_items], ['second request'])
+            self.assertEqual([entry['thoughts'] for entry in window.history.items], ['second request'])
             self.assertEqual([item['label'] for item in picker._items], ['second request'])
         finally:
             window.close()
@@ -2314,7 +2360,7 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
             qwen = [item['label'] for item in open_items if item['category'] == 'QWEN · ALIBABA · open-weight']
             self.assertEqual(qwen[:3], ['Qwen3-Coder-Next', 'Qwen3.8 2.4T A95B', 'Qwen3.8 Flash Next'])
             picker._choose('open:qwen3-coder-next')
-            self.assertEqual(window._selected_target(), 'openModel')
+            self.assertEqual(window.target_selector.target(), 'openModel')
         finally:
             window.close()
 

@@ -8,36 +8,28 @@ History is stored locally; API keys are never written to disk.
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 import sys
 from pathlib import Path
 
-import keychain
-from history import HistoryStore, history_topic
+from history import HistoryStore
 from library import LibraryWidget
-from settings_ui import SECTION_GAP, add_section, settings_page
+from settings_ui import field_label
 from mcp_settings import McpSettingsWidget
 
-from PyQt6.QtCore import QSize, Qt, QTimer
-from PyQt6.QtGui import QColor, QFontMetrics, QPalette, QFont, QIcon, QKeySequence, QShortcut
+from PyQt6.QtCore import QSize, Qt
+from PyQt6.QtGui import QColor, QPalette, QIcon, QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QApplication,
-    QCheckBox,
-    QComboBox,
-    QDialog,
     QFrame,
     QHBoxLayout,
     QLabel,
     QLayout,
-    QLineEdit,
     QMainWindow,
     QProgressBar,
     QPushButton,
     QScrollArea,
-    QSizePolicy,
     QSplitter,
-    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -45,25 +37,26 @@ from PyQt6.QtWidgets import (
 from theme import COMPATIBLE, PROMPT_TARGETS, QSS, ROOT
 from single_instance import SingleInstance, bring_forward
 
-from history_view import HistoryMixin
+from history_view import HistoryView
 from target_selector import TargetSelector
-from window_result import ResultMixin
-from window_settings import SettingsMixin
+from technique_panel import TechniquePanel
+from result_column import ResultColumn
+from about_page import AboutPage
+from generator_settings import GeneratorSettings
+from settings_dialog import SettingsDialog
 import qt_log
+from mac_titlebar import paint_title_bar
 
-from controls import BackgroundWidget, Card, Dropdown, ExecutionProfileDropdown, IconDropdown, VariantSelector
-from result_view import ACTION_HEIGHT, CONTROL_HEIGHT, Disclosure, find_layout, muted_label
+from controls import BackgroundWidget, Card, ExecutionProfileDropdown
+from result_view import ACTION_HEIGHT, CONTROL_HEIGHT
 from widgets import (
-    DashedScrollBar,
     DashedScrollPainter,
     HintFilter,
-    HistoryComboBox,
     PopupAnimation,
     ThoughtsEdit,
-    title_font,
     use_step_scroll,
 )
-from workers import BRIDGE, FALLBACK_MODELS, Worker, fetch_ollama_models, node_binary
+from workers import BRIDGE, TechniquesLoader, Worker, fetch_ollama_models, node_binary
 
 LOCAL_PROVIDERS_FILE = ROOT / "desktop" / "providers.local.json"  # personal, gitignored
 
@@ -94,32 +87,7 @@ def load_local_providers(path: Path = LOCAL_PROVIDERS_FILE) -> dict[str, dict]:
     return found
 
 
-class Wordmark(QLabel):
-    """The app name, very large and faint, centred in the empty result area; its size follows the width."""
-
-    def __init__(self, text: str) -> None:
-        super().__init__(text)
-        self.setObjectName("wordmark")
-        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)  # never widens the window
-        font = self.font()  # weight and tracking in code: a stylesheet font rule would reset the fitted size
-        font.setWeight(QFont.Weight.ExtraBold)
-        font.setLetterSpacing(QFont.SpacingType.PercentageSpacing, 108)
-        self.setFont(font)
-
-    def resizeEvent(self, event) -> None:  # noqa: N802 - Qt naming
-        super().resizeEvent(event)
-        font = self.font()
-        font.setPixelSize(100)
-        width = QFontMetrics(font).horizontalAdvance(self.text()) or 1
-        size = max(40, min(220, int(100 * self.width() * 0.78 / width)))
-        if font.pixelSize() != size or self.font().pixelSize() != size:
-            font.setPixelSize(size)
-            self.setFont(font)
-
-
-class PromptaWindow(HistoryMixin, SettingsMixin, ResultMixin, QMainWindow):
+class PromptaWindow(QMainWindow):
     """Main window: the finished prompt comes first (variants as tabs); brief, zero-shot baseline,
     technique rationale and sources fold into "How this prompt was built". The target the prompt is
     written for lives in TargetSelector (target_selector.py): requests and history restore go through it."""
@@ -127,9 +95,6 @@ class PromptaWindow(HistoryMixin, SettingsMixin, ResultMixin, QMainWindow):
     run_button: QPushButton
 
     def __init__(self) -> None:
-        self.visible_warnings: list[str] = []
-        self.catalog_summary = ""
-        self._variants_before_manual: int | None = None
         super().__init__()
         app = QApplication.instance()
         if not hasattr(app, "popup_animation_filter"):
@@ -145,8 +110,8 @@ class PromptaWindow(HistoryMixin, SettingsMixin, ResultMixin, QMainWindow):
         self.resize(min(1160, available.width() - 48), min(820, available.height() - 80))
         self.worker: Worker | None = None
         self.history_store = HistoryStore()
-        self._shown_entry: int | None = None  # index in _history_items of the result on screen
-        self._history_items: list[dict] = []
+        self.history = HistoryView(self.history_store, self._render_history_entry, self)
+        self.history.opened.connect(self._on_history_opened)
         self._active_thoughts = ""
         self._discard_result = False
 
@@ -158,9 +123,9 @@ class PromptaWindow(HistoryMixin, SettingsMixin, ResultMixin, QMainWindow):
         outer.setSpacing(3)
 
         header = QHBoxLayout()
-        self.header_layout = header
         header.setSpacing(20)
         header.addStretch(1)  # the window title already says Prompta
+        header.addWidget(self.history.picker)
         self.clear_button = QPushButton()
         self.clear_button.setObjectName("settings")
         self.clear_button.setIcon(QIcon(str(ROOT / "desktop/trash.svg")))
@@ -203,6 +168,7 @@ class PromptaWindow(HistoryMixin, SettingsMixin, ResultMixin, QMainWindow):
         use_step_scroll(input_scroll)
         splitter.addWidget(input_scroll)
         splitter.addWidget(self._build_output())
+        self.settings_dialog = self._build_settings()
         splitter.setSizes([440, 700])
         outer.addWidget(splitter, 1)
 
@@ -210,52 +176,25 @@ class PromptaWindow(HistoryMixin, SettingsMixin, ResultMixin, QMainWindow):
         self.status.setObjectName("status")
         outer.addSpacing(3)  # keep the original 6px above the status line
         outer.addWidget(self.status)
-        self._load_history()
+        self.history.load()
         for button in self.findChildren(QPushButton):
             button.setCursor(Qt.CursorShape.PointingHandCursor)
 
-        self.provider.changed.connect(self._on_provider_changed)
-        self.provider.changed.connect(lambda *_: self._sync_model_line())
-        self.model.changed.connect(lambda *_: self._sync_model_line())
-        self.model_name.textChanged.connect(lambda *_: self._sync_model_line())
-        self.api_key.editingFinished.connect(self._reload_models_for_key)  # a new key can unlock the provider's list
-        self.model_base_url.textChanged.connect(lambda *_: self._sync_model_line())
-        self._restore_generator()  # last provider, model and URLs; loads that provider's models
-        for signal in (
-            self.provider.changed,
-            self.model.changed,
-            self.model_name.editingFinished,
-            self.model_base_url.editingFinished,
-        ):
-            signal.connect(lambda *_: self._save_generator())
+        self.generator.changed.connect(self._sync_model_line)
+        self.generator.notice.connect(self.status.setText)
+        self.generator.restore()  # last provider, model and URLs; loads that provider's models
         self._sync_model_line()
-        self._publish_generator()  # the MCP server sees the restored choice even before anything changes
         self.load_techniques()
 
         shortcut = QShortcut(QKeySequence("Ctrl+Return"), self)
         shortcut.activated.connect(self.run_pipeline)
         shortcut2 = QShortcut(QKeySequence("Meta+Return"), self)
         shortcut2.activated.connect(self.run_pipeline)
-        self._restyle_input()
         self.build_label = "Build prompt   ⌘↵"
         self.run_button.setText(self.build_label)
         self.run_button.setToolTip("⌘↵ builds the prompt")
         self.status.setText("")
-        # History is a picker like every other: the same button, chevron and panel with search inside.
-        self.history_picker = IconDropdown(
-            "search.svg",
-            "Search history",
-            searchable=True,
-            popup_width=480,
-            search_placeholder="Search requests and prompts",
-        )
-        self.history_picker.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.history_picker.changed.connect(self._on_history_picked)
-        self.history_picker.deleteRequested.connect(self._on_history_delete)
-        self.header_layout.insertWidget(self.header_layout.indexOf(self.clear_button), self.history_picker)
-        self._sync_history_row()
-        self._fit_input_column()  # the restyled column (target switch with Open) is wider than at construction
-        self._restyle_settings()
+        self._fit_input_column()  # the column with the history picker in the header is wider than at construction
 
     # ── left column ───────────────────────────────────────────────
     def _build_input(self) -> QWidget:
@@ -283,149 +222,6 @@ class PromptaWindow(HistoryMixin, SettingsMixin, ResultMixin, QMainWindow):
         self.assumptions_card: QWidget | None = None
 
         box.addSpacing(4)
-        self.technique_label = self._mini_label("Technique")
-        box.addWidget(self.technique_label)
-        self.technique = Dropdown(
-            "— choose a technique —",
-            columns=2,
-            searchable=True,
-            popup_width=820,
-            search_placeholder="Filter techniques",
-        )
-        box.addWidget(self.technique)
-
-        self.local_providers = load_local_providers()
-        self.provider = Dropdown("Ollama", popup_width=300)
-        self.provider.set_items(
-            [
-                {"key": "ollama", "label": "Ollama (local/cloud)"},
-                {"key": "gemini", "label": "Gemini"},
-                {"key": "openai", "label": "OpenAI"},
-                {"key": COMPATIBLE, "label": "OpenAI-compatible"},
-                {"key": "anthropic", "label": "Anthropic (Claude)"},
-                {"key": "xai", "label": "xAI (Grok)"},
-            ]
-            + [{"key": key, "label": item["label"]} for key, item in self.local_providers.items()]
-        )
-        self.provider.set_current("ollama")
-        self._url_owner = "ollama"
-
-        model_row = QHBoxLayout()
-        model_row.setSpacing(6)
-        self.model = Dropdown("Choose a model", searchable=True, popup_width=460, search_placeholder="Filter models")
-        self.model.set_items([{"key": name, "label": name} for name in FALLBACK_MODELS])
-        self.model.set_current("minimax-m3.1-flash:cloud")
-        model_row.addWidget(self.model, 1)
-        # Other providers have no list to pick from: their model name is typed by hand, kept per provider.
-        self.model_name = QLineEdit()
-        self.model_name.setPlaceholderText("Model name, e.g. gpt-5.1 or mlx-community/Qwen3-8B")
-        self.model_name.setAccessibleName("Model name")
-        self.model_name.setMinimumHeight(34)
-        self.model_name.hide()
-        self._model_lists: dict[str, list[str]] = {}  # each provider shows only its own models
-        self._list_sources: dict[str, str] = {}  # "catalog" when a list came from models.dev, not the provider
-        for key, item in self.local_providers.items():  # a personal provider starts with the models it names
-            if item["models"]:
-                self._model_lists[key] = item["models"]
-                self._list_sources[key] = "local"
-        self._model_choices: dict[str, str] = {}
-        model_row.addWidget(self.model_name, 1)
-        self.refresh_button = QPushButton("↻")
-        self.refresh_button.setObjectName("ghost")
-        self.refresh_button.setFixedSize(34, 34)
-        self.refresh_button.setToolTip("Refresh the provider's model list")
-        self.refresh_button.clicked.connect(self.load_models)
-        model_row.addWidget(self.refresh_button)
-        self.models_hint = QLabel("Loading Ollama models")
-        self.models_hint.setObjectName("muted")
-        self.models_hint.setWordWrap(True)
-
-        self.settings_dialog = QDialog(self)
-        self.settings_dialog.setWindowTitle("Settings")
-        self.settings_dialog.setModal(True)
-        self.settings_dialog.setMinimumWidth(420)
-        self.settings_dialog.resize(860, 640)
-        # About shows the window's photo over the whole dialog, clearly visible: the veil thins out to the right.
-        self.settings_backdrop = BackgroundWidget(veil=(236, 120))
-        self.settings_backdrop.setParent(self.settings_dialog)
-        self.settings_backdrop.hide()
-        self.settings_dialog.installEventFilter(self)
-        settings_outer = QVBoxLayout(self.settings_dialog)
-        settings_outer.setContentsMargins(24, 24, 24, 24)
-        settings_outer.setSpacing(14)
-        settings_title = QLabel("Settings")
-        settings_title.setObjectName("title")  # same face as the main window header
-        settings_title.setFont(title_font())
-        settings_outer.addWidget(settings_title)
-        self.settings_tabs = QTabWidget()
-        self.settings_tabs.setAccessibleName("Settings sections")
-        model_page, settings_layout = settings_page(
-            "The model that writes your prompts. Each provider keeps its own model, key and URL."
-        )
-        self.api_key = QLineEdit()
-        self.api_key.setEchoMode(QLineEdit.EchoMode.Password)
-        self.api_key.setPlaceholderText("Not needed for Ollama and local servers")
-        self.api_key.setAccessibleName("API key")
-        self.remember_key = QCheckBox("Remember in Keychain")
-        self.remember_key.setToolTip(
-            "Save this provider's key in your macOS login Keychain and fill it in next time. "
-            "Unchecking removes the saved key; without it the key stays in memory until you quit."
-        )
-        self.remember_key.toggled.connect(self._on_remember_key_toggled)
-        self.remember_key.setObjectName("settingsCheck")
-        self.model_base_url = QLineEdit()
-        self._base_urls: dict[str, str] = {}  # each provider keeps its own URL while you switch between them
-        self.model_base_url.setPlaceholderText("Optional · http://127.0.0.1:8080/v1")
-        self.model_base_url.setAccessibleName("Model base URL")
-        self.model_base_url.setToolTip(
-            "Requests and any API key you enter go to this endpoint. Empty uses the provider's "
-            "default; OpenAI-compatible servers (MLX, LM Studio, vLLM, OpenRouter) need theirs."
-        )
-        # The app's own form: a caps label over each full-width field, shared gaps, one grey line where it helps.
-        add_section(settings_layout, "Provider", self.provider)
-        add_section(settings_layout, "Model", model_row, hint=self.models_hint)
-        add_section(settings_layout, "API key", self.api_key)
-        settings_layout.addSpacing(10)
-        settings_layout.addWidget(self.remember_key)  # under the key, flush with the fields
-        add_section(
-            settings_layout,
-            "Base URL",
-            self.model_base_url,
-            hint="Empty uses the provider's default. OpenAI-compatible servers need their own.",
-        )
-        self._load_saved_key(self.provider.current_key())
-        settings_layout.addStretch(1)
-        self.settings_tabs.addTab(model_page, "Model && API")
-        self.library = LibraryWidget(ROOT)
-        self.settings_tabs.addTab(self.library, "Library")
-        self.mcp_settings = McpSettingsWidget(
-            ROOT, node_binary, self._mini_label, self._generator_for_mcp, self._mcp_key_missing
-        )
-        mcp_scroll = QScrollArea()  # the apps list is taller than the dialog: scroll, don't squeeze rows
-        mcp_scroll.setWidgetResizable(True)
-        mcp_scroll.setFrameShape(QFrame.Shape.NoFrame)
-        mcp_scroll.setObjectName("clearScroll")
-        mcp_scroll.setWidget(self.mcp_settings)
-        use_step_scroll(mcp_scroll)
-        self.settings_tabs.addTab(mcp_scroll, "MCP server")
-        self.settings_tabs.addTab(self._build_history_settings(), "History")
-        self.settings_tabs.addTab(self._build_about_settings(), "About")
-        self.settings_tabs.currentChanged.connect(self._settings_tab_changed)
-        settings_outer.addWidget(self.settings_tabs, 1)
-        settings_outer.addSpacing(SECTION_GAP - settings_outer.spacing())  # the Done row stands apart like a section
-        settings_actions = QHBoxLayout()
-        # The Library's summary line sits on the Done row, shown only while Library is open.
-        settings_actions.addWidget(self.library.summary, 0, Qt.AlignmentFlag.AlignVCenter)
-        settings_actions.addWidget(self.delete_all_history_button, 0, Qt.AlignmentFlag.AlignVCenter)
-        settings_actions.addWidget(self.mcp_settings.copy_button, 0, Qt.AlignmentFlag.AlignVCenter)
-        settings_actions.addWidget(self.about_footer, 0, Qt.AlignmentFlag.AlignVCenter)
-        self._sync_settings_footer(self.settings_tabs.currentIndex())
-        settings_actions.addStretch(1)
-        done_button = QPushButton("Done")
-        done_button.setObjectName("primary")
-        done_button.clicked.connect(self.settings_dialog.accept)
-        settings_actions.addWidget(done_button)
-        settings_outer.addLayout(settings_actions)
 
         try:
             open_models = json.loads((ROOT / "open_model_prompt_guides/manifest.json").read_text())["models"]
@@ -433,25 +229,37 @@ class PromptaWindow(HistoryMixin, SettingsMixin, ResultMixin, QMainWindow):
             open_models = []  # the picker then offers any LLM and the official targets only
         self.target_selector = TargetSelector(open_models)
         self.target_picker = self.target_selector.picker
-        self.target_selector.changed.connect(self._on_target_changed)
+        # Official targets and open-weight models follow their own guidance: the technique catalog is for Any only.
+        self.target_selector.changed.connect(lambda: self.technique_panel.set_target(self.target_selector.target()))
         box.addWidget(self.target_selector)
+        # Where the prompt goes and where it runs belong together: right under the target switch.
+        # Where it runs decides which tool steps the prompt may rely on.
+        runs_in = QVBoxLayout()
+        runs_in.setContentsMargins(0, 6, 0, 2)  # 16px rows: Written for → Runs in → Technique
+        runs_in.setSpacing(8)
+        runs_in.addWidget(field_label("Runs in"))
+        self.execution_profile = ExecutionProfileDropdown()
+        self.execution_profile.setAccessibleName("Where will the prompt run?")
+        self.execution_profile.setToolTip(
+            "Where the generated prompt will be used. Tool steps in the prompt follow what that environment can do."
+        )
+        self.execution_profile.ensurePolished()  # its own stylesheet would reset the height when polished later
+        self.execution_profile.setFixedHeight(CONTROL_HEIGHT)
+        runs_in.addWidget(self.execution_profile)
+        box.addLayout(runs_in)
 
         box.addSpacing(4)
-        variants_row = QHBoxLayout()
-        variants_row.setSpacing(8)
-        variants_label = self._mini_label("Prompt variants")
-        variants_row.addWidget(variants_label)
-        variants_row.addStretch(1)
-        self.variants = VariantSelector()
-        variants_row.addWidget(self.variants)
-        box.addLayout(variants_row)
+        self.technique_panel = TechniquePanel()
+        self.technique = self.technique_panel.technique
+        self.variants = self.technique_panel.variants
+        box.addWidget(self.technique_panel)
 
         actions = QHBoxLayout()
         actions.setSpacing(8)
         self.build_label = "Build prompt"
         self.run_button = QPushButton(self.build_label)
         self.run_button.setObjectName("buildPrompt")
-        self.run_button.setFixedHeight(42)
+        self.run_button.setFixedHeight(ACTION_HEIGHT)
         # While a run is going the same button stops it.
         self.run_button.clicked.connect(lambda: self.cancel_run() if self._running() else self.run_pipeline())
         actions.addWidget(self.run_button, 1)
@@ -478,60 +286,10 @@ class PromptaWindow(HistoryMixin, SettingsMixin, ResultMixin, QMainWindow):
 
         return card
 
-    def _selected_target(self) -> str | None:
-        return self.target_selector.target()
-
-    def _on_target_changed(self) -> None:
-        """Official targets and open-weight models follow their own guidance: the technique catalog is for Any only."""
-        selected = self._selected_target()
-        self.technique.setEnabled(selected is None)
-        self.technique.setToolTip(
-            f"{PROMPT_TARGETS[selected][0]} mode uses official rules instead of the technique catalog."
-            if selected
-            else "Choose a technique to build a prompt using its method"
-        )
-        if hasattr(self, "advanced"):
-            self._update_advanced_title()
-
     APP_VERSION = "0.1.0"
     AUTHOR = "KazKozDev"
     AUTHOR_URL = "https://github.com/KazKozDev"
     REPO_URL = "https://github.com/KazKozDev/prompta"
-
-    def _mcp_key_missing(self) -> str:
-        """The provider whose key the MCP server cannot read from Keychain, or "" when nothing is missing."""
-        provider = self.provider.current_key()
-        if provider == "ollama" or (provider == COMPATIBLE and not self.api_key.text().strip()):
-            return ""
-        local = self.local_providers.get(provider)
-        if local and local.get("api_key"):  # the server reads providers.local.json too; an env var it may not see
-            return ""
-        return "" if keychain.load(provider) else self.provider.text()
-
-    def _load_saved_key(self, provider: str) -> None:
-        """Each provider has its own key: show the saved one, or an empty field."""
-        saved = keychain.load(provider) if provider != "ollama" else ""
-        local = self.local_providers.get(provider)
-        if local and not saved:  # a personal provider may keep its key in its env var or the gitignored file
-            saved = os.environ.get(str(local.get("key_env") or ""), "") or str(local.get("api_key") or "")
-            self.api_key.setText(saved)
-            previous = self.remember_key.blockSignals(True)
-            self.remember_key.setChecked(False)
-            self.remember_key.blockSignals(previous)
-            return
-        self.api_key.setText(saved)
-        previous = self.remember_key.blockSignals(True)
-        self.remember_key.setChecked(bool(saved))
-        self.remember_key.blockSignals(previous)
-
-    def _on_remember_key_toggled(self, checked: bool) -> None:
-        provider = self.provider.current_key()
-        if checked:
-            key = self.api_key.text().strip()
-            if key and not keychain.save(provider, key):
-                self.status.setText("Could not save the key to Keychain")
-        else:
-            keychain.forget(provider)
 
     # ── right column ──────────────────────────────────────────────
     def _build_output(self) -> QWidget:
@@ -542,63 +300,69 @@ class PromptaWindow(HistoryMixin, SettingsMixin, ResultMixin, QMainWindow):
 
         history_row = QHBoxLayout()
         history_row.setSpacing(8)
-        self.history = HistoryComboBox()
-        self.history.deletable = True
-        # Saved titles must not become the minimum width of the entire window.
-        self.history.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
-        self.history.setMinimumContentsLength(12)
-        self.history.addItem("— no history yet —", -1)
-        self.history.currentIndexChanged.connect(self._on_history_selected)
-        self.history.deleteRequested.connect(self._delete_history)
-        history_row.addWidget(self.history, 1)
+        history_row.addWidget(self.history.combo, 1)  # hidden: it still drives restore
         box.addLayout(history_row)
         box.addSpacing(8)
-        self.history_notice = QLabel()
-        self.history_notice.setObjectName("error")
-        self.history_notice.setWordWrap(True)
-        self.history_notice.hide()
-        box.addWidget(self.history_notice)
+        box.addWidget(self.history.notice)
 
-        self.output_scroll = QScrollArea()
-        self.output_scroll.setObjectName("outputScroll")
-        self.output_scroll.setVerticalScrollBar(DashedScrollBar(Qt.Orientation.Vertical, self.output_scroll))
-        self.output_scroll.setHorizontalScrollBar(DashedScrollBar(Qt.Orientation.Horizontal, self.output_scroll))
-        self.output_scroll.setFrameShape(QFrame.Shape.NoFrame)
-        self.output_scroll.viewport().setAutoFillBackground(False)
-        use_step_scroll(self.output_scroll)
-        self.output_scroll.setWidgetResizable(True)
-        self.output_holder = QWidget()
-        self.output_holder.setObjectName("outputContent")
-        self.output_layout = QVBoxLayout(self.output_holder)
-        self.output_layout.setContentsMargins(0, 0, 0, 0)
-        self.output_layout.setSpacing(10)
-        # The scroll area must grow with its content, or the widgets overlap.
-        self.output_layout.setSizeConstraint(QLayout.SizeConstraint.SetMinimumSize)
-        self.output_scroll.setWidget(self.output_holder)
-        self.output_holder.setAutoFillBackground(False)
-        box.addWidget(self.output_scroll, 1)
+        self.result_column = ResultColumn(lambda: self.thoughts.toPlainText().strip())
+        self.result_column.assumptionsCard.connect(self._on_assumptions_card)
+        self.result_column.briefEdited.connect(lambda: self._sync_build_label())
+        self.result_column.rebuildRequested.connect(lambda: self.run_pipeline())
+        self.result_column.promptEdited.connect(self.history.prompt_edited)  # edits go into the saved result
+        box.addWidget(self.result_column, 1)
 
-        self._show_placeholder()
+        self.result_column.show_placeholder()
         return card
 
-    def _clear_output(self) -> None:
-        def clear(layout: QLayout) -> None:
-            while layout.count():
-                item = layout.takeAt(0)
-                if widget := item.widget():
-                    widget.hide()
-                    widget.deleteLater()
-                elif child := item.layout():
-                    clear(child)
-                    child.deleteLater()
+    # ── settings ──────────────────────────────────────────────────
+    def _build_settings(self) -> SettingsDialog:
+        dialog = SettingsDialog(self)
+        self.generator = GeneratorSettings(load_local_providers())
+        dialog.add_page(self.generator, "Model && API", focus=self.generator.api_key)
+        self.library = LibraryWidget(ROOT)
+        dialog.add_page(
+            self.library, "Library", footer=self.library.summary, on_show=self.library.reload, focus=self.library.search
+        )
+        self.mcp_settings = McpSettingsWidget(
+            ROOT, node_binary, field_label, self.generator.for_mcp, self.generator.key_missing_for_mcp
+        )
+        mcp_scroll = QScrollArea()  # the apps list is taller than the dialog: scroll, don't squeeze rows
+        mcp_scroll.setWidgetResizable(True)
+        mcp_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        mcp_scroll.setObjectName("clearScroll")
+        mcp_scroll.setWidget(self.mcp_settings)
+        use_step_scroll(mcp_scroll)
+        dialog.add_page(
+            mcp_scroll, "MCP server", footer=self.mcp_settings.copy_button, on_show=self.mcp_settings.refresh
+        )
+        dialog.add_page(self.history.page, "History", footer=self.history.delete_all_button)
+        self.history.leaveSettings.connect(dialog.accept)
+        self.about = AboutPage(
+            self.APP_VERSION, self.AUTHOR, self.AUTHOR_URL, self.REPO_URL, self.history_store.path.parent
+        )
+        dialog.add_page(self.about, "About", footer=self.about.footer, backdrop=True)
+        return dialog
 
-        clear(self.output_layout)
-        self._set_assumptions_card(None)  # the questions belong to the result being replaced
+    def open_settings(self) -> None:
+        self.settings_dialog.open()
+
+    def load_techniques(self) -> None:
+        self.techniques_loader = TechniquesLoader()
+        self.techniques_loader.loaded.connect(self._on_techniques_loaded)
+        self.techniques_loader.start()
+
+    def _on_techniques_loaded(self, techniques: list) -> None:
+        loader = getattr(self, "techniques_loader", None)
+        self.prompt_version = getattr(loader, "prompt_version", "") or getattr(self, "prompt_version", "")
+        self.technique_panel.set_techniques(techniques)
+
+    def _on_assumptions_card(self, card: QWidget | None) -> None:
+        self._set_assumptions_card(card)
         self._sync_build_label()
 
     # ── run ───────────────────────────────────────────────────────
     def clear_workspace(self) -> None:
-        self._shown_entry = None
         self._discard_result = True
         running = self.worker is not None and self.worker.isRunning()
         if running:
@@ -607,11 +371,8 @@ class PromptaWindow(HistoryMixin, SettingsMixin, ResultMixin, QMainWindow):
         self.thoughts.clear()
         self.thoughts.setToolTip("")
         self._active_thoughts = ""
-        previous = self.history.blockSignals(True)
-        self.history.setCurrentIndex(0)
-        self.history.blockSignals(previous)
-        self.history_notice.hide()
-        self._show_placeholder()
+        self.history.deselect()
+        self.result_column.show_placeholder()
         self.generation_progress.hide()
         self.generation_progress.setValue(0)
         self._set_running(running)
@@ -619,13 +380,7 @@ class PromptaWindow(HistoryMixin, SettingsMixin, ResultMixin, QMainWindow):
         self.thoughts.setFocus()
 
     def _sync_model_line(self) -> None:
-        model = self._current_model()
-        where = self.provider.text()
-        if self.model_base_url.text().strip():
-            where += " · custom URL"
-        self.model_line.setText(
-            f"Generator model: {model} · {where}" if model else "Generator model: none chosen · open Settings"
-        )
+        self.model_line.setText(self.generator.model_line())
 
     def _running(self) -> bool:
         return self.worker is not None and self.worker.isRunning()
@@ -688,42 +443,25 @@ class PromptaWindow(HistoryMixin, SettingsMixin, ResultMixin, QMainWindow):
             self.status.setText("Enter your thoughts")
             return
 
-        provider = self.provider.current_key()
-        model = self._current_model()
-        api_key = self.api_key.text().strip()
-        if self.remember_key.isChecked() and api_key and api_key != keychain.load(provider):
-            keychain.save(provider, api_key)  # the key that works is the one to remember
-
-        if not model:
-            self.status.setText("Choose a model")
-            return
-        base_url = self.model_base_url.text().strip() or self._local_url(provider)
-        if provider == COMPATIBLE and not base_url:
-            self.status.setText("Add the server URL in Settings")
-            return
-        if provider not in ("ollama", COMPATIBLE) and not api_key and not (provider == "openai" and base_url):
-            self.status.setText("Add an API key in Settings")
+        generator, missing = self.generator.request()
+        if missing:
+            self.status.setText(missing)
             return
 
-        technique_keys = self.technique.current_keys()
+        technique_keys = self.technique_panel.technique_keys()
         payload = {
             "thoughts": thoughts,
-            "provider": self._api_provider(provider),  # same API, its own key and URL
-            "model": model,
-            "apiKey": api_key,
-            "baseUrl": base_url,
+            **generator,  # provider, model, key and URL
             **self.target_selector.flags(),
             "variants": self.variants.value(),
         }
-        execution_profile = getattr(self, "execution_profile", None)
-        if execution_profile is not None:
-            profile = execution_profile.current_key()
-            payload["executionProfile"] = profile
-            if profile == "agent":
-                payload["agentCapabilities"] = list(execution_profile.AGENT_CAPABILITIES)
+        profile = self.execution_profile.current_key()
+        payload["executionProfile"] = profile
+        if profile == "agent":
+            payload["agentCapabilities"] = list(self.execution_profile.AGENT_CAPABILITIES)
         if self.target_selector.open_model():
             payload["openModel"] = self.target_selector.open_model()
-        if technique_keys and self._selected_target() is None:
+        if technique_keys:
             if len(technique_keys) == 1:
                 payload["manualTechnique"] = technique_keys[0]
             else:
@@ -734,7 +472,7 @@ class PromptaWindow(HistoryMixin, SettingsMixin, ResultMixin, QMainWindow):
         self._set_running(True)
         self.generation_progress.setValue(0)
         self.generation_progress.show()
-        selected = self._selected_target()
+        selected = self.target_selector.target()
         target_label = (
             self.target_selector.open_model_label()
             if selected == "openModel"
@@ -778,25 +516,19 @@ class PromptaWindow(HistoryMixin, SettingsMixin, ResultMixin, QMainWindow):
             if getattr(self, "_rebuilding_brief", False):
                 self.status.setText(f"Rebuild failed: {data.get('error', 'unknown error')}")
                 return
-            self._clear_output()
-            error = QLabel(f"Error: {data.get('error', 'unknown error')}")
-            error.setObjectName("error")
-            error.setWordWrap(True)
-            self.output_layout.addStretch(1)
-            self.output_layout.addWidget(error)
-            self.output_layout.addStretch(1)
+            self.result_column.show_error(data.get("error", "unknown error"))
             self.status.setText("Error")
             return
 
         if data.get("procedure"):
-            self.render_procedure(data["procedure"])
-            self._push_history(data["procedure"]["technique"]["name"], "procedure", data["procedure"])
+            self.result_column.render_procedure(data["procedure"])
+            self._save_result(data["procedure"]["technique"]["name"], "procedure", data["procedure"])
             self.status.setText(f"{data['procedure']['technique']['name']} · procedure, no prompt")
             return
 
         if data.get("manual"):
-            self.render_manual(data["manual"], source_thoughts=self._active_thoughts)
-            self._push_history(data["manual"]["technique"]["name"], "manual", data["manual"])
+            self.result_column.render_manual(data["manual"], source_thoughts=self._active_thoughts)
+            self._save_result(data["manual"]["technique"]["name"], "manual", data["manual"])
             self.status.setText(f"{data['manual']['technique']['name']} · built using this method")
             built, failed = len(data["manual"].get("variants") or []), len(data["manual"].get("failed") or [])
             if built > 1:
@@ -805,9 +537,9 @@ class PromptaWindow(HistoryMixin, SettingsMixin, ResultMixin, QMainWindow):
                 )
             return
 
-        self.render_result(data["result"], source_thoughts=self._active_thoughts)
-        self._push_history(data["result"]["choice"]["name"], "pipeline", data["result"])
-        count = len(self.visible_warnings)
+        self.result_column.render_result(data["result"], source_thoughts=self._active_thoughts)
+        self._save_result(data["result"]["choice"]["name"], "pipeline", data["result"])
+        count = len(self.result_column.visible_warnings)
         name = data["result"]["choice"]["name"]
         self.status.setText(
             f"{name} · {count} warning{'s' if count != 1 else ''} below the prompt" if count else f"{name} · ready"
@@ -815,188 +547,33 @@ class PromptaWindow(HistoryMixin, SettingsMixin, ResultMixin, QMainWindow):
 
     # ── result rendering ──────────────────────────────────────────
 
-    # ── empty result area: the app name, large and faint; results replace it ──
-    def _show_placeholder(self) -> None:
-        self._clear_output()
-        self.output_layout.addStretch(5)  # just above centre
-        self.wordmark = Wordmark("PROMPTA")
-        self.output_layout.addWidget(self.wordmark)
-        slogan = QLabel("THOUGHTS IN. PROMPTS OUT.")  # the field-label lettering: capitals, tracked, medium
-        slogan.setObjectName("slogan")
-        slogan.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        slogan.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
-        self.output_layout.addWidget(slogan)
-        self.output_layout.addStretch(6)
+    # ── history ───────────────────────────────────────────────────
+    def _save_result(self, label: str, kind: str, payload: dict) -> None:
+        self.history.push(label, kind, self._active_thoughts or self.thoughts.toPlainText().strip(), payload)
 
-    # ── history picker ────────────────────────────────────────────
-    def _sync_history_row(self) -> None:
-        """Fill the history picker, newest first; searchable by topic, request and prompt text."""
-        self.history.hide()  # still drives restore
-        picker = getattr(self, "history_picker", None)
-        if picker is None:
-            return
-        items = []
-        for index in range(len(self._history_items) - 1, -1, -1):
-            entry = self._history_items[index]
-            label = history_topic(entry['thoughts'], entry['payload'], entry['label'])
-            request = ' '.join(entry['thoughts'].split())
-            items.append(
-                {
-                    "key": str(index),
-                    "label": label,
-                    # The date, and the request when the topic does not already say it.
-                    "hint": entry['created_at'][:10]
-                    + ("" if request.casefold() == label.casefold() else f" · {request[:90]}"),
-                    "search": json.dumps(entry['payload'], ensure_ascii=False),
-                    "deletable": True,
-                }
-            )
-        picker.set_items(items)
-        shown = getattr(self, "_shown_entry", None)
-        previous = picker.blockSignals(True)
-        picker.set_current(str(shown) if isinstance(shown, int) and 0 <= shown < len(self._history_items) else "")
-        picker.blockSignals(previous)
-        picker.setVisible(bool(self._history_items))
-        self._fill_history_settings_list()  # Settings → History shows the same entries
+    def _render_history_entry(self, entry: dict) -> None:
+        """Show a saved result; raises KeyError, TypeError or ValueError for data it cannot show."""
+        kind, payload = entry["kind"], entry["payload"]
+        self.thoughts.setPlainText(entry["thoughts"])
+        if kind == "manual":
+            self.result_column.render_manual(payload)
+        elif kind == "procedure":
+            self.result_column.render_procedure(payload)
+        else:
+            self.result_column.render_result(payload)
 
-    def _on_history_delete(self, key: str) -> None:
-        if not key.isdigit():
-            return
-        row = self.history.findData(int(key))
-        if row > 0:
-            self._delete_history(row)
-        # Keys are list positions, so the open panel is stale: reopen it with the remaining entries.
-        picker = self.history_picker
-        if picker._popup is not None:
-            picker._popup.close()
-        if self._history_items:
-            QTimer.singleShot(0, picker._open)
-
-    def _on_history_picked(self, key: str) -> None:
-        if key.isdigit():
-            self._open_history_index(int(key))
-            self._sync_history_row()  # the button names the entry now on screen
-
-    def _open_history_index(self, item_index: int) -> None:
-        self._filter_history("", selected=item_index)
-        combo_index = self.history.findData(item_index)
-        if combo_index > 0:
-            self.history.setCurrentIndex(combo_index)
-            self._on_history_selected(combo_index)
-
-    # ── left column ───────────────────────────────────────────────
-    def _restyle_input(self) -> None:
-        card_layout = self.thoughts.parentWidget().layout()
-        assert card_layout is not None, "_build_input lays out the input card"
-
-        variants_row = find_layout(card_layout, self.variants)
-        variants_label = next(
-            variants_row.itemAt(i).widget()
-            for i in range(variants_row.count())
-            if isinstance(variants_row.itemAt(i).widget(), QLabel)
-        )
-        self.advanced = Disclosure("Technique", field_label=True, collapsible=False)
-        self.advanced.body_layout.setContentsMargins(0, 0, 0, 8)
-        # It never folds: a plain field label like "Written for" and "Runs in", not the padded toggle button.
-        self.advanced.button.hide()
-        self.technique_heading = self._mini_label("Technique")
-        self.technique_heading.setContentsMargins(0, 0, 0, 2)  # 8px to its field, as in the rows above
-        self.advanced.body_layout.addWidget(self.technique_heading)
-        self.advanced.body_layout.setSpacing(6)
-        self.technique.set_multi(True)
-        self.technique._placeholder = "— automatic —"
-        self.technique.set_current_keys([])
-        for moved in (self.technique_label, self.technique):
-            card_layout.removeWidget(moved)
-            self.advanced.body_layout.addWidget(moved)
-        for unplaced in (variants_label, self.variants):
-            variants_row.removeWidget(unplaced)
-        # Full-width segmented switch under the technique picker, with a plain caption saying what the numbers are.
-        variants_label.hide()
-        variants_label.deleteLater()
-        self.advanced.body_layout.addSpacing(6)
-        self.variants_caption = muted_label(
-            "Variants · prompts built with different techniques to compare", "variantsCaption"
-        )
-        self.advanced.body_layout.addWidget(self.variants_caption)
-        self.advanced.body_layout.addWidget(self.variants)
-        self.variants.setObjectName("segmentTrack")
-        self.variants.setMinimumSize(0, 0)
-        self.variants.setMaximumSize(16777215, 16777215)
-        self.variants.layout().setContentsMargins(2, 2, 2, 2)
-        self.variants.layout().setSpacing(2)
-        buttons = self.variants.buttons.buttons()
-        for index, button in enumerate(buttons):
-            button.setObjectName("segment")
-            button.setProperty("first", index == 0)
-            button.setProperty("last", index == len(buttons) - 1)
-            button.setMinimumHeight(0)
-            button.setMaximumHeight(16777215)
-            button.setCursor(Qt.CursorShape.PointingHandCursor)
-        # The selector was already polished with its old object names; re-apply the stylesheet.
-        for styled in [self.variants, *buttons]:
-            styled.style().unpolish(styled)
-            styled.style().polish(styled)
-        actions = find_layout(card_layout, self.run_button)
-        index = next(i for i in range(card_layout.count()) if card_layout.itemAt(i).layout() is actions)
-        card_layout.insertWidget(index, self.advanced)
-        # Where the finished prompt runs: decides which tool steps the prompt may rely on.
-        runs_in = QVBoxLayout()
-        runs_in.setContentsMargins(0, 0, 0, 8)
-        runs_in.setSpacing(8)
-        runs_in.addWidget(self._mini_label("Runs in"))
-        self.execution_profile = ExecutionProfileDropdown()
-        self.execution_profile.setAccessibleName("Where will the prompt run?")
-        self.execution_profile.setFixedHeight(CONTROL_HEIGHT)
-        self.execution_profile.setToolTip(
-            "Where the generated prompt will be used. Tool steps in the prompt follow what that environment can do."
-        )
-        runs_in.addWidget(self.execution_profile)
-        # Where the prompt goes and where it runs belong together: right under the target switch.
-        runs_in.setContentsMargins(0, 6, 0, 2)  # 16px rows: Written for → Runs in → Technique
-        card_layout.insertLayout(card_layout.indexOf(self.target_selector) + 1, runs_in)
-        self.technique.changed.connect(self._update_advanced_title)
-        self.variants.buttons.idClicked.connect(self._update_advanced_title)
-        self.advanced.button.toggled.connect(self._update_advanced_title)
-        self.technique_label.hide()  # its count moves into the Advanced title
-        # One control height for fields and segmented tracks so rows line up.
-        for field in (self.history, self.technique, self.variants, self.execution_profile, self.target_picker):
-            field.ensurePolished()  # its own stylesheet would reset the minimum height when polished later
-            field.setFixedHeight(CONTROL_HEIGHT)
-        for button in self.variants.buttons.buttons():
-            button.setFixedHeight(CONTROL_HEIGHT - 4)
-        self.run_button.setFixedHeight(ACTION_HEIGHT)
-        self._on_target_changed()
-
-    def _update_advanced_title(self, *_: object) -> None:
-        keys = self.technique.current_keys()
-        # The Open segment counts as a target even before a model is picked: techniques are for Any only.
-        target = self._selected_target()
-        manual = bool(keys) and target is None
-        # The 1–5 count is only for Any + automatic technique choice. Otherwise one prompt is built:
-        # show 1 while locked, then restore the user's count.
-        locked = manual or target is not None
-        if locked and self._variants_before_manual is None:
-            self._variants_before_manual = self.variants.value()
-            self.variants.setValue(1)
-        elif not locked and self._variants_before_manual is not None:
-            self.variants.setValue(self._variants_before_manual)
-            self._variants_before_manual = None
-        self.variants.setEnabled(not locked)
-        self.variants.setVisible(not locked)
-        if hasattr(self, "variants_caption"):
-            self.variants_caption.setVisible(not locked)
-        self.variants.setToolTip("How many of the best-fitting techniques to pick; each gives one prompt")
-        # Techniques exist only for Any: official targets and open-weight models follow their own guidance.
-        self.advanced.setVisible(target is None)
-        self.advanced.set_title("Technique")
-        self.advanced.button.setToolTip(self.catalog_summary or "")
-        self.technique_heading.setToolTip(self.catalog_summary or "")
+    def _on_history_opened(self, entry: dict) -> None:
+        payload = entry["payload"]
+        self.thoughts.setPlainText(entry["thoughts"])
+        self.result_column.flag_outdated(payload, getattr(self, "prompt_version", ""))
+        selected = next((key for key in PROMPT_TARGETS if payload.get(f"{key}Guidance")), None)
+        open_model = ""
+        if selected == "openModel":  # history keeps the model's name; a model gone from the manifest means any LLM
+            open_model = self.target_selector.open_model_id(str(payload["openModelGuidance"].get("target", "")))
+        self.target_selector.set_target(selected, open_model)
 
     def closeEvent(self, event) -> None:  # noqa: N802
-        if getattr(self, "_edit_timer", None) is not None and self._edit_timer.isActive():
-            self._edit_timer.stop()
-            self._save_prompt_edits()  # do not lose the last keystrokes on quit
+        self.history.flush_edits()  # do not lose the last keystrokes on quit
         super().closeEvent(event)
 
 
@@ -1092,6 +669,7 @@ def main() -> int:
     window = PromptaWindow()
     instance.activated.connect(lambda: bring_forward(window))
     window.show()
+    paint_title_bar(window)  # dark graphite title bar; app.qss only styles the content
 
     if screenshot:
         # Layout self-check: render a demo result and save the window as PNG.
@@ -1100,7 +678,7 @@ def main() -> int:
         window.thoughts.setPlainText(
             "I want AI to review my meeting notes and extract decisions, tasks, and owners into a table"
         )
-        window._on_models_loaded(fetch_ollama_models())
+        window.generator._on_models_loaded(fetch_ollama_models())
         # the screenshot needs the techniques too: fetch them synchronously through the bridge
         try:
             proc = subprocess.run(
@@ -1114,7 +692,7 @@ def main() -> int:
             window._on_techniques_loaded(json.loads(proc.stdout or "{}").get("techniques", []))
         except Exception:
             pass
-        window.render_result(demo_result())
+        window.result_column.render_result(demo_result())
         window.status.setText("Contextual prompting · ready")  # what on_finished shows for a result without warnings
         window.resize(1160, 1180)
         for _ in range(10):  # let the prompt card's fixed height settle into the layout
@@ -1126,8 +704,8 @@ def main() -> int:
             popup_path = sys.argv[popup_index + 1] if len(sys.argv) > popup_index + 1 else "/tmp/popup.png"
             base = popup_path.rsplit(".", 1)[0]
             for name, widget in (
-                ("provider", window.provider),
-                ("model", window.model),
+                ("provider", window.generator.provider),
+                ("model", window.generator.model),
                 ("technique", window.technique),
             ):
                 widget._open()

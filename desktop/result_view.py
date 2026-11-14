@@ -158,14 +158,14 @@ def chip_label(text: str, tooltip: str = "") -> QLabel:
 
 
 def spec_text(config: dict) -> tuple[str, str]:
-    """Run settings as one quiet line plus hover text: 'temp 0.3 · top_p 0.95 · max 1024'."""
+    """Run settings as one quiet line plus hover text: 'Recommended: temp 0.3 · top_p 0.95 · max 1024'."""
     value = lambda key: config.get(key) if config.get(key) is not None else "default"
     max_tokens = str(value("max_tokens"))
     short, _, tail = max_tokens.partition(" (")
     tooltip = " ".join(
         part for part in (f"max_tokens: {max_tokens}." if tail else "", config.get("rationale", "")) if part
     )
-    return f"temp {value('temperature')} · top_p {value('top_p')} · max {short.lower()}", tooltip
+    return f"Recommended: temp {value('temperature')} · top_p {value('top_p')} · max {short.lower()}", tooltip
 
 
 def note_chip(note: str) -> QLabel:

@@ -537,20 +537,22 @@ class Card(QFrame):
 
 
 class VariantSelector(QFrame):
+    """A full-width segmented switch: how many prompts to build, 1 to 5."""
+
     def __init__(self) -> None:
         super().__init__()
-        self.setObjectName("variantCount")
+        self.setObjectName("segmentTrack")
         self.setAccessibleName("Number of prompt variants")
-        self.setFixedSize(184, 36)
         row = QHBoxLayout(self)
-        row.setContentsMargins(3, 3, 3, 3)
-        row.setSpacing(3)
+        row.setContentsMargins(2, 2, 2, 2)
+        row.setSpacing(2)
         self.buttons = QButtonGroup(self)
         self.buttons.setExclusive(True)
         for count in range(1, 6):
             button = QPushButton(str(count))
-            button.setObjectName("variantOption")
-            button.setFixedHeight(28)
+            button.setObjectName("segment")
+            button.setProperty("first", count == 1)
+            button.setProperty("last", count == 5)
             button.setCheckable(True)
             button.setAccessibleName(f"{count} prompt variant{'s' if count > 1 else ''}")
             button.setToolTip(button.accessibleName())

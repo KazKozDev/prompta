@@ -47,7 +47,7 @@ class ResultHelpersTest(unittest.TestCase):
         line, tooltip = spec_text(
             {"temperature": 0.2, "top_p": None, "max_tokens": "1024 (short answer)", "rationale": "Terse."}
         )
-        self.assertEqual(line, "temp 0.2 · top_p default · max 1024")
+        self.assertEqual(line, "Recommended: temp 0.2 · top_p default · max 1024")
         self.assertEqual(tooltip, "max_tokens: 1024 (short answer). Terse.")
 
     def test_note_chip_shows_the_head_and_keeps_the_note_on_hover(self):
