@@ -52,7 +52,7 @@ class AboutPage(QWidget):
             layout,
             "Your data",
             muted(
-                "Everything stays on this Mac: history, its limits and the model list cache in "
+                "Everything stays on this Mac: history, its limits, the model list cache and the dictation model in "
                 "~/Library/Application Support/Prompta, other settings in ~/.config/Prompta, API keys in the "
                 "macOS Keychain. Your requests and prompts go only to the provider chosen in Model & API."
             ),

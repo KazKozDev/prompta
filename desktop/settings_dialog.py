@@ -64,8 +64,9 @@ class SettingsDialog(QDialog):
         outer = QVBoxLayout(self)
         outer.setContentsMargins(24, 24, 24, 24)
         outer.setSpacing(14)
-        title = QLabel("Settings")
-        title.setObjectName("title")  # same face as the main window header
+        title = QLabel("SETTINGS")
+        title.setObjectName("title")  # same face as the main window header, spaced capitals (app.qss)
+        title.setAccessibleName("Settings")
         title.setFont(title_font())
         outer.addWidget(title)
         self.tabs = QTabWidget()

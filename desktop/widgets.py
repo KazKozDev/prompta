@@ -21,6 +21,7 @@ from PyQt6.QtCore import (
     Qt,
     QUrl,
     QProcess,
+    QProcessEnvironment,
     QTimer,
     QPropertyAnimation,
     QEasingCurve,
@@ -57,6 +58,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from dictation import installed_model, worker_command
 from theme import CHAT_URLS, DARK_SCROLL_QSS, FROZEN, PROMPT_TARGETS, ROOT
 
 
@@ -409,6 +411,7 @@ def use_step_scroll(area, scroll_target=None) -> None:
 
 
 class ThoughtsEdit(QPlainTextEdit):
+    dictationSetupRequested = pyqtSignal()  # the microphone was clicked but the Whisper model is not downloaded
     voice_process: QProcess | None
     _dictation_base: str | None = None
 
@@ -463,10 +466,11 @@ class ThoughtsEdit(QPlainTextEdit):
                 self.voice_process.write(b"stop\n")
                 self._voice_state("transcribing")
             return
-        interpreter = ROOT / ".venv-whisper/bin/python"
-        self._voice_log(f"click: start · interpreter {'found' if interpreter.exists() else 'MISSING'}")
-        if not interpreter.exists():
-            # The standalone app ships without Whisper (its model alone is ~500 MB); from source it is a setup step.
+        command, model = worker_command(), installed_model()
+        self._voice_log(
+            f"click: start · runtime {'found' if command else 'MISSING'} · model {'found' if model else 'MISSING'}"
+        )
+        if command is None:
             message = (
                 "Dictation is not included in this build."
                 if FROZEN
@@ -475,18 +479,19 @@ class ThoughtsEdit(QPlainTextEdit):
             self.setToolTip(message)
             self._voice_failure(message)
             return
+        if model is None:  # downloaded on demand: Settings → Dictation
+            self.setToolTip("Download the Whisper model in Settings → Dictation.")
+            self._voice_log("error: no model, opening Settings → Dictation")
+            self.dictationSetupRequested.emit()
+            return
+        program, arguments = command
         self.voice_process = QProcess(self)
-        # Through prompta-mic when it is built: it carries the microphone usage text the system Python lacks,
-        # so macOS asks for access instead of silently recording silence.
-        helper = ROOT / "release/Prompta.app/Contents/MacOS/prompta-mic"
-        script = str(ROOT / "desktop/voice_input.py")
-        if helper.exists():
-            self.voice_process.setProgram(str(helper))
-            self.voice_process.setArguments([str(interpreter), script])
-        else:
-            self.voice_process.setProgram(str(interpreter))
-            self.voice_process.setArguments([script])
-        self._voice_log(f"worker via {'prompta-mic' if helper.exists() else 'python directly'}")
+        environment = QProcessEnvironment.systemEnvironment()
+        environment.insert("PROMPTA_WHISPER_MODEL", str(model))
+        self.voice_process.setProcessEnvironment(environment)
+        self.voice_process.setProgram(program)
+        self.voice_process.setArguments(arguments)
+        self._voice_log(f"worker via {Path(program).name}")
         self.voice_process.readyReadStandardOutput.connect(self._voice_output)
         self.voice_process.readyReadStandardError.connect(self._voice_stderr)
         self.voice_process.finished.connect(self._voice_finished)

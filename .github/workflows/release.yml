@@ -23,7 +23,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Python dependencies
-        run: python3 -m pip install --quiet -r desktop/requirements-dev.txt
+        run: python3 -m pip install --quiet -r desktop/requirements-dev.txt -r desktop/requirements-voice.txt
       - name: Tag matches the version
         run: |
           APP="$(python3 -c 'import sys; sys.path.insert(0, "desktop"); from test_version import app_version; print(app_version())')"

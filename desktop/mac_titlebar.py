@@ -13,7 +13,8 @@ import ctypes.util
 import sys
 from typing import Any
 
-from PyQt6.QtWidgets import QWidget
+from PyQt6.QtCore import QEvent, QObject, Qt
+from PyQt6.QtWidgets import QApplication, QWidget
 
 GRAPHITE = (0x36, 0x37, 0x3A)  # dark graphite grey
 
@@ -73,3 +74,27 @@ def paint_title_bar(window: QWidget, rgb: tuple[int, int, int] = GRAPHITE) -> bo
         return True
     except (OSError, AttributeError, TypeError, ValueError):
         return False  # an older or unusual system keeps the standard title bar
+
+
+class _TitleBarPainter(QObject):
+    """Paints every ordinary window and dialog the moment it first shows: the main window, Settings,
+    the sources list, confirmations. Popups, tooltips and sheets keep their own look."""
+
+    def eventFilter(self, obj: QObject | None, event: QEvent | None) -> bool:
+        if (
+            event is not None
+            and event.type() == QEvent.Type.Show
+            and isinstance(obj, QWidget)
+            and obj.isWindow()
+            and obj.windowType() in (Qt.WindowType.Window, Qt.WindowType.Dialog)
+            and not obj.property("graphiteTitleBar")
+        ):
+            obj.setProperty("graphiteTitleBar", paint_title_bar(obj))
+        return False
+
+
+def paint_all_title_bars(app: QApplication) -> None:
+    """The graphite title bar for all of the app's windows, present and future."""
+    painter = _TitleBarPainter(app)
+    app.title_bar_painter = painter  # type: ignore[attr-defined]  # kept alive with the app
+    app.installEventFilter(painter)

@@ -34,7 +34,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from theme import COMPATIBLE, PROMPT_TARGETS, QSS, ROOT
+from theme import COMPATIBLE, FROZEN, PROMPT_TARGETS, QSS, ROOT
 from single_instance import SingleInstance, bring_forward
 
 from history_view import HistoryView
@@ -42,10 +42,11 @@ from target_selector import TargetSelector
 from technique_panel import TechniquePanel
 from result_column import ResultColumn
 from about_page import AboutPage
+from dictation import DictationPage
 from generator_settings import GeneratorSettings
 from settings_dialog import SettingsDialog
 import qt_log
-from mac_titlebar import paint_title_bar
+from mac_titlebar import paint_all_title_bars
 
 from controls import BackgroundWidget, Card, ExecutionProfileDropdown
 from result_view import ACTION_HEIGHT, CONTROL_HEIGHT
@@ -58,7 +59,12 @@ from widgets import (
 )
 from workers import BRIDGE, TechniquesLoader, Worker, fetch_ollama_models, node_binary
 
-LOCAL_PROVIDERS_FILE = ROOT / "desktop" / "providers.local.json"  # personal, gitignored
+# Personal, gitignored. The installed app ships no personal files, so it reads them from Application Support.
+LOCAL_PROVIDERS_FILE = (
+    Path.home() / "Library" / "Application Support" / "Prompta" / "providers.local.json"
+    if FROZEN
+    else ROOT / "desktop" / "providers.local.json"
+)
 
 
 def load_local_providers(path: Path = LOCAL_PROVIDERS_FILE) -> dict[str, dict]:
@@ -264,14 +270,20 @@ class PromptaWindow(QMainWindow):
         self.run_button.clicked.connect(lambda: self.cancel_run() if self._running() else self.run_pipeline())
         actions.addWidget(self.run_button, 1)
 
-        box.addLayout(actions)
+        # The button sits 5px closer to the blocks above it, and the model line 5px closer to the button,
+        # than the column's usual spacing.
+        build_block = QVBoxLayout()
+        build_block.setSpacing(max(0, box.spacing() - 5))
+        build_block.addLayout(actions)
+        box.addSpacing(-5)
+        box.addLayout(build_block)
         # Which model writes the prompt, visible without opening Settings.
         self.model_line = QPushButton()
         self.model_line.setObjectName("modelLine")
         self.model_line.setCursor(Qt.CursorShape.PointingHandCursor)
         self.model_line.setToolTip("The model that writes the prompt · click to change it in Settings")
         self.model_line.clicked.connect(self.open_settings)
-        box.addWidget(self.model_line, 0, Qt.AlignmentFlag.AlignLeft)
+        build_block.addWidget(self.model_line, 0, Qt.AlignmentFlag.AlignLeft)
         self.generation_progress = QProgressBar()
         self.generation_progress.setObjectName("generationProgress")
         self.generation_progress.setAccessibleName("Prompt generation in progress")
@@ -338,6 +350,10 @@ class PromptaWindow(QMainWindow):
         )
         dialog.add_page(self.history.page, "History", footer=self.history.delete_all_button)
         self.history.leaveSettings.connect(dialog.accept)
+        self.dictation = DictationPage(lambda: self.thoughts.voice_process is not None)
+        dialog.add_page(self.dictation, "Dictation", on_show=self.dictation.refresh)
+        self.thoughts.dictationSetupRequested.connect(self.open_dictation_settings)
+        QApplication.instance().aboutToQuit.connect(self.dictation.download.cancel)  # no .part folder left behind
         self.about = AboutPage(
             self.APP_VERSION, self.AUTHOR, self.AUTHOR_URL, self.REPO_URL, self.history_store.path.parent
         )
@@ -345,6 +361,10 @@ class PromptaWindow(QMainWindow):
         return dialog
 
     def open_settings(self) -> None:
+        self.settings_dialog.open()
+
+    def open_dictation_settings(self) -> None:
+        self.settings_dialog.tabs.setCurrentWidget(self.dictation)
         self.settings_dialog.open()
 
     def load_techniques(self) -> None:
@@ -656,10 +676,17 @@ def make_app(argv: list[str]) -> QApplication:
     hint_filter = HintFilter(app)  # our own hover hints instead of the black-framed system ones
     app.hint_filter = hint_filter  # type: ignore[attr-defined]  # widgets look it up by this name
     app.installEventFilter(hint_filter)
+    paint_all_title_bars(app)  # dark graphite title bar on every window; app.qss only styles the content
     return app
 
 
 def main() -> int:
+    if "--voice-worker" in sys.argv:
+        # The standalone app runs its Whisper worker as itself; first, before a QApplication or the
+        # single-instance check, which would add a Dock icon or hand off to the running copy.
+        import voice_input
+
+        return voice_input.run()
     qt_log.install()  # silences only the known macOS accessibility-bridge noise; PROMPTA_QT_DEBUG=1 shows everything
     app = make_app(sys.argv)
     screenshot = "--screenshot" in sys.argv
@@ -669,7 +696,6 @@ def main() -> int:
     window = PromptaWindow()
     instance.activated.connect(lambda: bring_forward(window))
     window.show()
-    paint_title_bar(window)  # dark graphite title bar; app.qss only styles the content
 
     if screenshot:
         # Layout self-check: render a demo result and save the window as PNG.

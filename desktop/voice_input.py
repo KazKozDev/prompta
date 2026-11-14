@@ -5,11 +5,16 @@ Partial text is a quick pass over what was recorded so far; the final pass after
 """
 
 import json
+import os
 from pathlib import Path
 import sys
+import traceback
 from threading import Event, Lock, Thread
 
-MODEL = Path(__file__).resolve().parents[1] / '.whisper-models' / 'small'
+# The app passes the downloaded model's folder (dictation.py); the repository copy is the old setup step.
+MODEL = Path(
+    os.environ.get('PROMPTA_WHISPER_MODEL') or Path(__file__).resolve().parents[1] / '.whisper-models' / 'small'
+)
 RATE = 16000
 PARTIAL_EVERY = 1.2  # seconds between live passes
 COMMIT_AFTER = 20.0  # older speech is settled, so live passes stay short on long dictation
@@ -41,7 +46,7 @@ def main():
     import sounddevice as sd
 
     if not (MODEL / 'model.bin').is_file():
-        raise RuntimeError('Whisper model is missing. Run the voice-input setup described in desktop/README.md.')
+        raise RuntimeError('Whisper model is missing. Download it in Settings → Dictation.')
     stopped = Event()
     Thread(target=lambda: (sys.stdin.readline(), stopped.set()), daemon=True).start()
     chunks = []
@@ -107,9 +112,16 @@ def main():
     emit('done', text=(committed_text + ' ' + joined(rest)).strip())
 
 
-if __name__ == '__main__':
+def run():
+    """The worker's entry point: from this file, or as `Prompta --voice-worker` in the standalone app."""
     try:
         main()
     except Exception as exc:
+        traceback.print_exc()  # the whole story for voice.log; the app shows the short message
         emit('error', message=str(exc)[:400])
-        sys.exit(1)
+        return 1
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(run())

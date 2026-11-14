@@ -142,6 +142,7 @@ QTabWidget#settingsTabs QTabBar::tab:selected { background: #f4ca38; color: #2f2
 QTabWidget#settingsTabs::pane { border: none; top: 6px; }
 QDialog QLabel#goal { font-size: 17px; letter-spacing: -0.3px; }
 QLabel#title { font-family: 'Avenir Next'; font-size: 17px; letter-spacing: -0.2px; color: #2b2412; }
+QDialog#settingsDialog QLabel#title { letter-spacing: 6px; }
 QDialog QPushButton#primary, QDialog QPushButton#ghost { min-height: 28px; max-height: 28px; padding: 0 14px; }
 QDialog QPushButton#primary[compact="true"], QDialog QPushButton#ghost[compact="true"] {
   min-height: 22px; max-height: 22px; padding: 0 12px; font-size: 12px; border-radius: 7px; }

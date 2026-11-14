@@ -118,7 +118,7 @@ Read from the environment or `.env.local` in the repository root.
 - macOS for the desktop app (documented as macOS 12+), Python 3.12 with PyQt6
 - Pipeline, CLI and MCP server: macOS or Linux (offline tests run on Ubuntu in CI)
 - A model: Ollama (local or `:cloud`, no key), or an API key for Gemini, OpenAI or a compatible API, Anthropic, xAI
-- Optional dictation: faster-whisper in `.venv-whisper` ([setup](desktop/README.md#local-whisper-dictation))
+- Optional dictation: local Whisper, model downloaded from Settings → Dictation; from source also `.venv-whisper` ([setup](desktop/README.md#local-whisper-dictation))
 
 ## Limitations
 

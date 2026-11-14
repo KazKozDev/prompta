@@ -22,14 +22,17 @@ python3 desktop/app.py
 ```
 
 Builds `release/standalone/Prompta.app` and `Prompta.dmg` with their own Python, PyQt6 and Node: the
-Mac it runs on needs nothing installed. Build needs `python3 -m pip install -r desktop/requirements-dev.txt` and an
+Mac it runs on needs nothing installed. Build needs `python3 -m pip install -r desktop/requirements-dev.txt -r
+desktop/requirements-voice.txt` and an
 official Node build (nodejs.org; a Homebrew node links Homebrew libraries and is refused). CI builds the
 same dmg as the `Prompta-dmg` artifact.
 
 - Apple Silicon only; the minimum macOS is read from the bundled binaries (13.5 now).
 - Signed ad hoc, not notarized (that needs an Apple Developer account). On another Mac the first launch
   is blocked: System Settings → Privacy & Security → **Open Anyway**.
-- No dictation: Whisper and its model are ~500 MB. The microphone says so.
+- Dictation: the Whisper runtime is bundled, the model (~490 MB) is not. **Settings → Dictation** downloads it
+  once into `~/Library/Application Support/Prompta/models`. `DICTATION=0 ./desktop/build_standalone.sh` builds
+  without the runtime.
 - MCP installs point into the app bundle: keep it in /Applications, reinstall after moving it.
 
 ## Releasing
@@ -88,6 +91,7 @@ for the UI (offscreen Qt), `npm test` for the bridge.
 | `keychain.py` | API keys in the macOS login Keychain via `security` (stdin, never argv) |
 | `library.py` · `mcp_settings.py` | Settings → Library and Settings → MCP server |
 | `voice_input.py` · `mic_helper.c` | Whisper dictation worker and the `prompta-mic` microphone helper |
+| `dictation.py` | Settings → Dictation: model download (pinned, size-checked), where the worker runs from |
 | `qt_log.py` | Filters two known Qt accessibility messages |
 | `bridge.ts` | JSON on stdin → JSON on stdout, a wrapper over `pipeline/` |
 | `build_app.sh` · `make_icon.py` | Builds `release/Prompta.app` (a launcher over the sources) and its icon |
@@ -107,13 +111,20 @@ Click the microphone in Thoughts to record, click again to stop and transcribe. 
 five minutes. Whisper detects the language and appends text to the thoughts. Audio stays in memory and
 nothing is uploaded by the dictation worker.
 
-Setup (Python 3.12):
+The model is downloaded on demand: the first click on the microphone opens **Settings → Dictation**, which
+fetches `Systran/faster-whisper-small` (one pinned revision, ~490 MB) into
+`~/Library/Application Support/Prompta/models/whisper-small`. A download counts only when every file has its
+exact size; **Remove model** deletes it. The standalone app carries the Whisper runtime and runs the worker
+as itself (`Prompta --voice-worker`).
+
+From source the runtime is a setup step (Python 3.12):
 
 ```sh
 python3.12 -m venv --system-site-packages .venv-whisper
 .venv-whisper/bin/python -m pip install -r desktop/requirements-voice.txt
-.venv-whisper/bin/python -c "from huggingface_hub import snapshot_download; snapshot_download('Systran/faster-whisper-small', local_dir='.whisper-models/small', allow_patterns=['config.json','model.bin','tokenizer.json','vocabulary.txt'])"
 ```
+
+A model already in `.whisper-models/small` (the earlier setup) is used as is.
 
 Build the bundle once (`./desktop/build_app.sh`): it compiles `prompta-mic`, which carries the
 microphone usage text the system Python lacks. Without it macOS records silence and never asks for

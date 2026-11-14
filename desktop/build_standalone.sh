@@ -4,20 +4,35 @@
 #
 #   ./desktop/build_standalone.sh        → release/standalone/Prompta.app and release/standalone/Prompta.dmg
 #
-# Needs on the build Mac: python3 with PyQt6 and PyInstaller, and node ≥ 22.18 (an official build: it
-# links only system libraries, so the binary is copied as is). Apple Silicon (arm64) only.
+# Needs on the build Mac: python3 with PyQt6, PyInstaller and the dictation runtime (faster-whisper,
+# sounddevice: desktop/requirements-voice.txt), and node ≥ 22.18 (an official build: it links only system
+# libraries, so the binary is copied as is). Apple Silicon (arm64) only.
 # Signed ad hoc, not notarized: on another Mac the first launch needs System Settings → Privacy & Security
-# → Open Anyway. Dictation is left out (Whisper and its model are ~500 MB); the app says so.
+# → Open Anyway. The Whisper model (~490 MB) is not bundled: Settings → Dictation downloads it on demand.
+# DICTATION=0 builds without the runtime (the microphone then says dictation is not included).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/release/standalone"
 PYTHON="${PYTHON:-$(command -v python3)}"
+DICTATION="${DICTATION:-1}"
 NODE="$(command -v node || true)"
 [ -n "$NODE" ] || { echo "node is not on PATH" >&2; exit 1; }
 NODE="$("$PYTHON" -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$NODE")"  # the binary, not a shim
 "$PYTHON" -c 'import PyQt6, PyInstaller' 2>/dev/null \
   || { echo "Needs PyQt6 and PyInstaller: $PYTHON -m pip install -r desktop/requirements-dev.txt" >&2; exit 1; }
+VOICE_ARGS=()
+if [ "$DICTATION" = 1 ]; then
+  "$PYTHON" -c 'import faster_whisper, sounddevice' 2>/dev/null || {
+    echo "Needs the dictation runtime: $PYTHON -m pip install -r desktop/requirements-voice.txt" >&2
+    echo "(or DICTATION=0 to build without dictation)" >&2
+    exit 1
+  }
+  # The worker runs as the app itself (app.py --voice-worker). faster-whisper's VAD model, PortAudio and
+  # numpy 2's private modules are files PyInstaller 6.11 does not find through imports.
+  VOICE_ARGS=(--hidden-import voice_input --collect-all faster_whisper --collect-all _sounddevice_data
+    --collect-binaries ctranslate2 --collect-submodules numpy)
+fi
 if otool -L "$NODE" | tail -n +2 | grep -vqE '^\s*/(System|usr/lib)/'; then
   echo "$NODE links libraries outside the system (a Homebrew build?); use an official build from nodejs.org" >&2
   exit 1
@@ -51,7 +66,7 @@ rm -rf "$OUT"
   --paths "$ROOT/desktop" --add-data "$STAGE:prompta" --add-binary "$NODE:." \
   --exclude-module PyQt6.QtQml --exclude-module PyQt6.QtQuick --exclude-module PyQt6.QtMultimedia \
   --exclude-module PyQt6.QtPdf --exclude-module PyQt6.QtWebEngineCore --exclude-module tkinter \
-  --distpath "$OUT" --workpath "$WORK/build" --specpath "$WORK" \
+  --distpath "$OUT" --workpath "$WORK/build" --specpath "$WORK" ${VOICE_ARGS[@]+"${VOICE_ARGS[@]}"} \
   "$ROOT/desktop/app.py"
 APP="$OUT/Prompta.app"
 rm -rf "$OUT/Prompta"  # PyInstaller's loose copy next to the .app
@@ -61,6 +76,8 @@ plutil -replace CFBundleShortVersionString -string "$VERSION" "$PLIST"
 plutil -replace CFBundleVersion -string "$VERSION" "$PLIST"
 plutil -replace NSRequiresAquaSystemAppearance -bool true "$PLIST"  # app.qss is light only
 plutil -replace NSHighResolutionCapable -bool true "$PLIST"
+plutil -replace NSMicrophoneUsageDescription -string \
+  "Prompta uses the microphone for local Whisper dictation. Audio is not uploaded." "$PLIST"
 # The oldest macOS every bundled binary supports (node and Qt each declare one).
 MINOS="$(for binary in "$APP/Contents/Frameworks/node" "$APP/Contents/Frameworks/PyQt6/Qt6/lib/QtCore.framework/QtCore"; do
   otool -l "$binary" | awk '/LC_BUILD_VERSION/{found=1} found && /minos/{print $2; exit}'

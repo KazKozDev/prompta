@@ -14,6 +14,7 @@ _QSettings.setPath(
 import os as _os
 
 _os.environ['PROMPTA_LOG_DIR'] = _tempfile.mkdtemp()  # nor the real dictation log
+_os.environ['PROMPTA_MODELS_DIR'] = _tempfile.mkdtemp()  # nor the downloaded Whisper model
 import gc
 import subprocess
 import tempfile

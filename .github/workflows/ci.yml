@@ -41,7 +41,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Python dependencies
-        run: python3 -m pip install --quiet -r desktop/requirements-dev.txt
+        run: python3 -m pip install --quiet -r desktop/requirements-dev.txt -r desktop/requirements-voice.txt
       - name: Types
         run: cd desktop && python3 -m mypy
       - name: Desktop tests
