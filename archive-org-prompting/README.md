@@ -1,67 +1,67 @@
-# Статьи по техникам промптинга с archive.org
+# Papers on prompting techniques from archive.org
 
-Подборка документов про **техники** промптинга (а не сборники готовых промптов), скачанных с
-[archive.org](https://archive.org) 2026-11-03. В репозитории — markdown-версии с извлечённым текстом; оригинальные PDF
-по ссылкам в таблице.
+A collection of documents about prompting **techniques** (not collections of ready-made prompts), downloaded from
+[archive.org](https://archive.org) on 2026-11-03. The repository holds markdown versions with the extracted text; the original PDFs
+are linked in the table.
 
-Все PDF свободно скачиваются (не borrow-only), лицензии указаны в front matter каждого `.md`.
+All PDFs download freely (not borrow-only); licences are given in the front matter of each `.md`.
 
-Одно исключение: [The Prompt Report](https://arxiv.org/abs/2406.06608) взят с arXiv (CC BY 4.0) —
-полного каталога техник на archive.org нет, а без него карта упиралась в 17 техник.
+One exception: [The Prompt Report](https://arxiv.org/abs/2406.06608) was taken from arXiv (CC BY 4.0) —
+archive.org has no full catalog of techniques, and without it the map was stuck at 17 techniques.
 
 ```
 archive-org-prompting/
-├── pdf/               8 PDF-оригиналов, 27 MB — только локально, в git не хранятся (ссылки в таблице)
-├── md/                8 markdown-файлов, 760 KB — текст с разметкой страниц <!-- page N -->
-├── techniques-map.md  сводная карта техник: где описана → для чего подходит → пример промпта
+├── pdf/               8 original PDFs, 27 MB — local only, not stored in git (links in the table)
+├── md/                8 markdown files, 760 KB — text with <!-- page N --> page markers
+├── techniques-map.md  summary map of techniques: where described → what it suits → prompt example
 └── README.md
 ```
 
-## Что внутри
+## What's inside
 
-| Документ | Автор, год | Стр. | О чём |
+| Document | Author, year | Pages | About |
 |---|---|---|---|
-| [Prompt Engineering (Google whitepaper v7)](md/google-prompt-engineering-whitepaper-v7.md) · [PDF](https://archive.org/download/22365-3-prompt-engineering-v-7/22365_3_Prompt%20Engineering_v7%20%281%29.pdf) | Lee Boonstra, Google, 2025 | 68 | Самый системный текст в подборке: temperature / top-K / top-P, zero-shot и few-shot, system / role / contextual prompting, step-back, chain-of-thought, self-consistency, tree-of-thoughts, ReAct, automatic prompt engineering, best practices |
-| [Review of Prompt Engineering Techniques in Finance: CoT, ToT, GoT](md/review-prompt-techniques-cot-tot-got.md) · [PDF](https://archive.org/download/review-of-prompt-engineering-techniques-in-finance-a-evaluation-of-chain-of-thou/Review_of_Prompt_Engineering_Techniques_in_Finance_A_Evaluation_of_Chain_of_Thought_Tree_of_Thought_and_Graph_of_Thought_Approaches.pdf) | Satyadhar Joshi, 2025 | 17 | Рецензируемая статья (IJIRCST 13(4), стр. 51–67): сравнение chain-of-thought, tree-of-thought и graph-of-thought, метрики оценки, применения в финансах, 100+ источников |
-| [Prompt Engineering for Students of Medicine and Their Teachers](md/heston-prompt-engineering-medicine-2023.md) · [PDF](https://archive.org/download/prompt-engineering-for-students-of-medicine-and-their-teachers/Prompt%20Engineering%20for%20Students%20of%20Medicine%20and%20Their%20Teachers.pdf) | Thomas F. Heston, 2023 | 95 | Книга: анатомия хорошего промпта, типы промптов, стратегии проектирования, оценка эффективности, внедрение в преподавание |
-| [Prompt Engineering in Medical Education](md/prompt-engineering-in-medical-education.md) · [PDF](https://archive.org/download/prompt-engineering-medical-education/ime-02-00019.pdf) | Heston & Khun, 2023 | 8 | Короткий обзор-таксономия техник (журнал IME) — удобно как быстрый конспект |
-| [Prompt Engineering](md/antor-shah-prompt-engineering.md) · [PDF](https://archive.org/download/prompt-engineering/prompt%20engineering.pdf) | Antor Shah, 2025 | 12 | Введение: базовые техники, prompt chaining, RAG, роли. CC BY |
-| [Prompt Engineering Guide: A Practical Beginner's Handbook](md/practical-beginners-handbook-ai.md) · [PDF](https://archive.org/download/a-practical-beginners-handbook-for-working-with-ai/A%20Practical%20Beginner%27s%20Handbook%20for%20Working%20with%20AI%20.pdf) | Sakhaoat, 2026 | 16 | Практическое пособие: структура промпта, zero-/few-shot, роли, примеры. CC0 |
-| [The Art of Prompt Engineering with ChatGPT](md/nathan-hunter-art-of-prompt-engineering.md) · [PDF](https://archive.org/download/the-art-of-prompt-engineering-with-chat-gpt-a-hands-on-guide-nathan-hunter-dr-furqan-library/The%20Art%20of%20Prompt%20Engineering%20with%20chatGPT%20A%20Hands-On%20Guide%20%28Nathan%20Hunter%29%20%28Dr%20Furqan-Library%29.pdf) | Nathan Hunter, 2023 | 91 | Hands-on по ChatGPT: итерации, сценарии, персонажи, обход ограничений модели |
-| [The Prompt Report: A Systematic Survey](md/the-prompt-report-arxiv-2406.06608.md) · [PDF](https://arxiv.org/pdf/2406.06608v6) | Schulhoff et al., 2025, arXiv (CC BY 4.0) | 80 | Каталог: 58 текстовых техник + 40 для других модальностей, словарь из 33 терминов, мета-анализ. Источник раздела 6 карты |
+| [Prompt Engineering (Google whitepaper v7)](md/google-prompt-engineering-whitepaper-v7.md) · [PDF](https://archive.org/download/22365-3-prompt-engineering-v-7/22365_3_Prompt%20Engineering_v7%20%281%29.pdf) | Lee Boonstra, Google, 2025 | 68 | The most systematic text in the collection: temperature / top-K / top-P, zero-shot and few-shot, system / role / contextual prompting, step-back, chain-of-thought, self-consistency, tree-of-thoughts, ReAct, automatic prompt engineering, best practices |
+| [Review of Prompt Engineering Techniques in Finance: CoT, ToT, GoT](md/review-prompt-techniques-cot-tot-got.md) · [PDF](https://archive.org/download/review-of-prompt-engineering-techniques-in-finance-a-evaluation-of-chain-of-thou/Review_of_Prompt_Engineering_Techniques_in_Finance_A_Evaluation_of_Chain_of_Thought_Tree_of_Thought_and_Graph_of_Thought_Approaches.pdf) | Satyadhar Joshi, 2025 | 17 | Peer-reviewed article (IJIRCST 13(4), pp. 51–67): a comparison of chain-of-thought, tree-of-thought and graph-of-thought, evaluation metrics, applications in finance, 100+ references |
+| [Prompt Engineering for Students of Medicine and Their Teachers](md/heston-prompt-engineering-medicine-2023.md) · [PDF](https://archive.org/download/prompt-engineering-for-students-of-medicine-and-their-teachers/Prompt%20Engineering%20for%20Students%20of%20Medicine%20and%20Their%20Teachers.pdf) | Thomas F. Heston, 2023 | 95 | A book: the anatomy of a good prompt, prompt types, design strategies, evaluating effectiveness, bringing it into teaching |
+| [Prompt Engineering in Medical Education](md/prompt-engineering-in-medical-education.md) · [PDF](https://archive.org/download/prompt-engineering-medical-education/ime-02-00019.pdf) | Heston & Khun, 2023 | 8 | A short review and taxonomy of techniques (IME journal) — handy as a quick summary |
+| [Prompt Engineering](md/antor-shah-prompt-engineering.md) · [PDF](https://archive.org/download/prompt-engineering/prompt%20engineering.pdf) | Antor Shah, 2025 | 12 | An introduction: basic techniques, prompt chaining, RAG, roles. CC BY |
+| [Prompt Engineering Guide: A Practical Beginner's Handbook](md/practical-beginners-handbook-ai.md) · [PDF](https://archive.org/download/a-practical-beginners-handbook-for-working-with-ai/A%20Practical%20Beginner%27s%20Handbook%20for%20Working%20with%20AI%20.pdf) | Sakhaoat, 2026 | 16 | A practical handbook: prompt structure, zero-/few-shot, roles, examples. CC0 |
+| [The Art of Prompt Engineering with ChatGPT](md/nathan-hunter-art-of-prompt-engineering.md) · [PDF](https://archive.org/download/the-art-of-prompt-engineering-with-chat-gpt-a-hands-on-guide-nathan-hunter-dr-furqan-library/The%20Art%20of%20Prompt%20Engineering%20with%20chatGPT%20A%20Hands-On%20Guide%20%28Nathan%20Hunter%29%20%28Dr%20Furqan-Library%29.pdf) | Nathan Hunter, 2023 | 91 | Hands-on with ChatGPT: iterations, scenarios, personas, working around the model's restrictions |
+| [The Prompt Report: A Systematic Survey](md/the-prompt-report-arxiv-2406.06608.md) · [PDF](https://arxiv.org/pdf/2406.06608v6) | Schulhoff et al., 2025, arXiv (CC BY 4.0) | 80 | A catalog: 58 text techniques + 40 for other modalities, a glossary of 33 terms, a meta-analysis. The source of section 6 of the map |
 
-Сводка по техникам из этих документов — [techniques-map.md](techniques-map.md): 96 строк, ~85 техник
-в таблицах «техника → где описана (страница или §) → для чего подходит → пример промпта»,
-10 развёрнутых примеров, сравнение CoT / ToT / GoT и правило выбора техники под задачу.
+The technique summary from these documents is [techniques-map.md](techniques-map.md): 96 rows, ~85 techniques
+in "technique → where described (page or §) → what it suits → prompt example" tables,
+10 expanded examples, a CoT / ToT / GoT comparison and a rule for choosing a technique for a task.
 
-Быстрый маршрут: начать с Google whitepaper (разделы про zero/few-shot и CoT), затем статья
-про CoT/ToT/GoT для сравнения подходов, остальное — по мере надобности.
+Quick route: start with the Google whitepaper (the zero/few-shot and CoT sections), then the article
+on CoT/ToT/GoT to compare approaches, and the rest as needed.
 
-## Как это собиралось
+## How it was assembled
 
-1. Поиск через Advanced Search API archive.org по запросам `"prompt engineering"`,
+1. Search through the archive.org Advanced Search API for `"prompt engineering"`,
    `"prompting techniques"`, `"few-shot prompting"`, `"chain of thought prompting"`,
-   `title:("prompt engineering")` с фильтром `mediatype:texts`.
-2. Отбор вручную: только тексты про техники, без «1000 промптов», маркетинговых PDF и
-   image-prompt-библиотек. Дубликаты и переводы отброшены.
-3. Скачивание файлов формата `Text PDF` через `https://archive.org/download/<id>/<file>`.
-4. Текст извлечён `pdftotext` (poppler) без `-layout` — так сохраняется порядок чтения колонок
-   в двухколоночных статьях. Страницы помечены `<!-- page N -->`.
+   `title:("prompt engineering")` with the `mediatype:texts` filter.
+2. Manual selection: only texts about techniques, no "1000 prompts", marketing PDFs or
+   image-prompt libraries. Duplicates and translations were dropped.
+3. Downloading the `Text PDF` files via `https://archive.org/download/<id>/<file>`.
+4. Text extracted with `pdftotext` (poppler) without `-layout`, which keeps the reading order of columns
+   in two-column articles. Pages are marked `<!-- page N -->`.
 
-## Ограничения
+## Limitations
 
-- Markdown — автоматическое извлечение: **таблицы, диаграммы и отступы в код-блоках искажены**.
-  Для точных формулировок промптов сверяйтесь с PDF (поле `pdf_local` во front matter).
-- Нумерация страниц, колонтитулы и номера страниц остались в тексте как есть — специально не
-  вычищались, чтобы не потерять содержимое.
-- `ultimate-guide-prompt-engineering-genai` (слайдовый PDF 8 стр.) исключён: колоночная вёрстка
-  слайдов не восстанавливается в читаемый текст.
+- The markdown is an automatic extraction: **tables, diagrams and indentation in code blocks are garbled**.
+  For exact prompt wording check the PDF (the `pdf_local` field in the front matter).
+- Page numbering, running headers and page numbers stay in the text as is — deliberately not
+  cleaned up, so no content is lost.
+- `ultimate-guide-prompt-engineering-genai` (an 8-page slide PDF) is excluded: the slides' column layout
+  cannot be recovered into readable text.
 
-## Что ещё есть на archive.org по теме (не взято)
+## What else archive.org has on the topic (not taken)
 
-- `whitepaper-prompt-engineering-v-4` — та же книга Google, версия v4 (v7 новее, взят он).
-- `promptengineering_202401`, `the-power-of-prompt`, `unlock-gpt-potential` — наборы готовых
-  промптов и компиляции, не техники.
-- `ai-image-prompt-bible-2026` — промпты для генерации изображений, другая тема.
-- `ERIC_ED*`, `micro_IA*` — офлайн-микрофиши 1970–80-х про «prompting» в педагогике
-  (подсказки ученикам), к LLM отношения не имеют.
+- `whitepaper-prompt-engineering-v-4` — the same Google book, version v4 (v7 is newer and was taken).
+- `promptengineering_202401`, `the-power-of-prompt`, `unlock-gpt-potential` — sets of ready-made
+  prompts and compilations, not techniques.
+- `ai-image-prompt-bible-2026` — prompts for image generation, a different topic.
+- `ERIC_ED*`, `micro_IA*` — offline microfiche from the 1970s–80s about "prompting" in pedagogy
+  (cues for students), unrelated to LLMs.

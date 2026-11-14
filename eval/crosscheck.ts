@@ -2,7 +2,7 @@ import { CRITERIA } from './judge.ts';
 import type { Criterion, Judgement } from './judge.ts';
 
 export interface JudgeDelta {
-  /** b.total − a.total: положительное значит второй судья добрее. */
+  /** b.total − a.total: positive means the second judge is kinder. */
   totalDelta: number;
   absDelta: number;
   verdictAgreement: boolean;
@@ -14,13 +14,13 @@ export interface CrossCheck {
   meanAbsDelta: number;
   maxAbsDelta: number;
   verdictAgreement: number;
-  /** Средний перекос по критерию (второй минус первый): где судьи расходятся системно. */
+  /** Mean bias per criterion (second minus first): where the judges disagree systematically. */
   biasPerCriterion: Record<Criterion, number>;
-  /** Корреляция итоговых баллов: близко к 1 — судьи ранжируют одинаково. */
+  /** Correlation of total scores: close to 1 — the judges rank alike. */
   pearson: number;
-  /** Доверять ли цифрам одного судьи. */
-  verdict: 'доверять' | 'перепроверить' | 'не доверять';
-  /** Критерии, где расхождение больше 0.5 балла — самое вероятное место предвзятости. */
+  /** Whether to trust a single judge's numbers. */
+  verdict: 'trust' | 'recheck' | 'do not trust';
+  /** Criteria where the gap exceeds 0.5 points — the most likely place for bias. */
   contestedCriteria: Criterion[];
 }
 
@@ -52,7 +52,7 @@ function pearson(xs: number[], ys: number[]): number {
     dx += a * a;
     dy += b * b;
   }
-  // Обе серии постоянны — судьи не различаются, это идеальное согласие, а не ноль.
+  // Both series are constant: the judges do not differ, which is perfect agreement, not zero.
   if (dx === 0 && dy === 0) return 1;
   if (dx === 0 || dy === 0) return 0;
   return round2(num / Math.sqrt(dx * dy));
@@ -77,14 +77,14 @@ export function crossCheck(pairs: { primary: Judgement; secondary: Judgement }[]
 
   const contestedCriteria = CRITERIA.filter((c) => Math.abs(biasPerCriterion[c]) > 0.5);
 
-  // Систематический перекос по критерию — красный флаг даже при совпавших вердиктах:
-  // судьи могут одинаково ставить «revise», но расходиться в том, что именно плохо.
+  // A systematic bias on a criterion is a red flag even when the verdicts agree:
+  // the judges may both say "revise" but disagree on what exactly is wrong.
   const verdict: CrossCheck['verdict'] =
     verdictAgreement < 0.6 || meanAbsDelta > 1
-      ? 'не доверять'
+      ? 'do not trust'
       : contestedCriteria.length > 0 || verdictAgreement < 0.8 || meanAbsDelta > 0.5
-        ? 'перепроверить'
-        : 'доверять';
+        ? 'recheck'
+        : 'trust';
 
   return {
     runs: pairs.length,
@@ -105,13 +105,13 @@ export function formatCrossCheck(cc: CrossCheck): string {
   const pct = (x: number) => `${Math.round(x * 100)}%`;
   const lines = [
     '',
-    `Сверка двух судей (${cc.runs} прогонов): ${cc.verdict.toUpperCase()}`,
-    `  расхождение баллов: среднее ${cc.meanAbsDelta}, максимум ${cc.maxAbsDelta}`,
-    `  совпадение вердиктов: ${pct(cc.verdictAgreement)} | корреляция итогов: ${cc.pearson}`,
-    `  перекос по критериям (второй минус первый): ${CRITERIA.map((c) => `${c} ${cc.biasPerCriterion[c] > 0 ? '+' : ''}${cc.biasPerCriterion[c]}`).join(', ')}`,
+    `Two-judge crosscheck (${cc.runs} runs): ${cc.verdict.toUpperCase()}`,
+    `  score gap: mean ${cc.meanAbsDelta}, max ${cc.maxAbsDelta}`,
+    `  verdict agreement: ${pct(cc.verdictAgreement)} | total correlation: ${cc.pearson}`,
+    `  bias per criterion (second minus first): ${CRITERIA.map((c) => `${c} ${cc.biasPerCriterion[c] > 0 ? '+' : ''}${cc.biasPerCriterion[c]}`).join(', ')}`,
   ];
   if (cc.contestedCriteria.length) {
-    lines.push(`  спорные критерии: ${cc.contestedCriteria.join(', ')} — здесь судьи расходятся системно`);
+    lines.push(`  contested criteria: ${cc.contestedCriteria.join(', ')} — the judges disagree systematically here`);
   }
   return lines.join('\n');
 }

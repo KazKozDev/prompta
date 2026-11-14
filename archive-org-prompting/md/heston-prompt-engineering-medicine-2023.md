@@ -9,7 +9,7 @@ archive_title: "2023 Prompt Engineering For Students Of Medicine And Their Teach
 pdf_url: https://archive.org/download/prompt-engineering-for-students-of-medicine-and-their-teachers/Prompt%20Engineering%20for%20Students%20of%20Medicine%20and%20Their%20Teachers.pdf
 pdf_local: "../pdf/heston-prompt-engineering-medicine-2023.pdf"
 license: "https://creativecommons.org/licenses/by-nc-nd/4.0/"
-extraction: "pdftotext (poppler), без -layout; таблицы и код могут быть искажены"
+extraction: "pdftotext (poppler), without -layout; tables and code may be garbled"
 ---
 # Prompt Engineering for Students of Medicine and Their Teachers
 

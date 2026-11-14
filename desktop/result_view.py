@@ -1,4 +1,4 @@
-"""Вёрстка результата Prompta: раскрывающиеся блоки, поток чипов, подписи и константы целей."""
+"""Prompta result layout: collapsible blocks, chip flow, labels and target constants."""
 
 from __future__ import annotations
 
@@ -67,7 +67,7 @@ from PyQt6.QtWidgets import (
 
 try:
     from .theme import CHAT_URLS, DARK_SCROLL_QSS, PROMPT_TARGETS, QSS, ROOT
-    from .widgets import *  # noqa: F401,F403 — базовые виджеты, вынесенные из этого файла
+    from .widgets import *  # noqa: F401,F403 — base widgets moved out of this file
 except ImportError:
     from theme import CHAT_URLS, DARK_SCROLL_QSS, PROMPT_TARGETS, QSS, ROOT
     from widgets import *  # noqa: F401,F403

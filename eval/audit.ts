@@ -7,12 +7,12 @@ import { buildManualPrompt } from '../pipeline/manual.ts';
 import { createLLMFromEnv } from '../pipeline/llm.ts';
 import type { Provider } from '../pipeline/llm.ts';
 
-/** Проверка, что промпт реально построен по методике техники, а не переписан шаблоном.
+/** Checks that a prompt is really built with the technique's method, not just a rewritten template.
  *
- *  Для каждой техники ищем обязательные структурные признаки и присутствие контекста задачи.
- *  Это эвристика: она ловит «техника не отражена», но не измеряет глубину применения.
+ *  For each technique, look for the mandatory structural signs and for the task context.
+ *  It is a heuristic: it catches "the technique is not reflected" but does not measure how deeply it is applied.
  *
- *  Запуск: node eval/audit.ts --provider ollama --model minimax-m3.1-flash:cloud
+ *  Run: node eval/audit.ts --provider ollama --model minimax-m3.1-flash:cloud
  */
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -20,12 +20,12 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const THOUGHTS = 'надо разобрать заметки со встречи: вытащить задачи, ответственных и сроки, собрать в таблицу, ошибаться нельзя';
 
 const CHECKS: Record<string, { label: string; must: RegExp[] }> = {
-  chain_of_thought: { label: 'шаги рассуждения', must: [/шаг|пошагов|step/i, /рассужд|reason|scratchpad|цепоч/i] },
-  few_shot: { label: 'примеры вход→выход', must: [/input:/i, /output:/i] },
-  tree_of_thoughts: { label: 'ветвление, оценка, откат', must: [/вариант|candidate|ветк/i, /оцен|score|балл/i] },
-  tabular_cot: { label: 'таблица', must: [/\|.*\|/s] },
-  contextual_prompting: { label: 'только по материалу + ссылки', must: [/только|only/i, /источник|cite|\[\d\]|материал/i] },
-  self_consistency: { label: 'несколько прогонов, голосование', must: [/независим|несколько|multiple|разн/i, /большинств|majority|соглас/i] },
+  chain_of_thought: { label: 'reasoning steps', must: [/шаг|пошагов|step/i, /рассужд|reason|scratchpad|цепоч/i] },
+  few_shot: { label: 'input→output examples', must: [/input:/i, /output:/i] },
+  tree_of_thoughts: { label: 'branching, evaluation, backtracking', must: [/вариант|candidate|ветк/i, /оцен|score|балл/i] },
+  tabular_cot: { label: 'table', must: [/\|.*\|/s] },
+  contextual_prompting: { label: 'material only + references', must: [/только|only/i, /источник|cite|\[\d\]|материал/i] },
+  self_consistency: { label: 'several runs, voting', must: [/независим|несколько|multiple|разн/i, /большинств|majority|соглас/i] },
 };
 
 async function main() {
@@ -45,7 +45,7 @@ async function main() {
   for (const [key, check] of Object.entries(CHECKS)) {
     const technique = catalog.techniques.find((t) => t.key === key);
     if (!technique) {
-      console.log(`${key.padEnd(22)} — нет в каталоге`);
+      console.log(`${key.padEnd(22)} — not in the catalog`);
       failed += 1;
       continue;
     }
@@ -57,16 +57,16 @@ async function main() {
     if (!ok) failed += 1;
 
     console.log(
-      `${key.padEnd(22)} ${ok ? 'OK  ' : 'FAIL'} признаки ${marks.map((m) => (m ? '✓' : '✗')).join('')}` +
-        ` | контекст ${context ? '✓' : '✗'} | длина ${String(prompt.length).padStart(5)} | ${check.label}`,
+      `${key.padEnd(22)} ${ok ? 'OK  ' : 'FAIL'} signs ${marks.map((m) => (m ? '✓' : '✗')).join('')}` +
+        ` | context ${context ? '✓' : '✗'} | length ${String(prompt.length).padStart(5)} | ${check.label}`,
     );
   }
 
-  console.log(failed ? `\nпровалов: ${failed}` : '\nвсе проверки пройдены');
+  console.log(failed ? `\nfailures: ${failed}` : '\nall checks passed');
   if (failed) process.exitCode = 1;
 }
 
 main().catch((e) => {
-  console.error('ошибка:', e instanceof Error ? e.message : e);
+  console.error('error:', e instanceof Error ? e.message : e);
   process.exit(1);
 });

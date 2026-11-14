@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
-"""Prompta — нативное приложение для macOS.
+"""Prompta — a native macOS app.
 
-UI на PyQt6, логика — существующий TS-пайплайн через мост desktop/bridge.ts.
-История хранится локально; ключи API на диск не записываются.
+PyQt6 UI; the logic is the existing TS pipeline, reached through the desktop/bridge.ts bridge.
+History is stored locally; API keys are never written to disk.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import platform
 import re
 from html import escape
 from urllib.parse import urlencode
@@ -25,13 +26,15 @@ from pathlib import Path
 try:
     from . import keychain
     from .history import HistoryStore, history_topic
-    from .library import LibraryWidget
-    from .mcp_settings import McpSettingsWidget
+    from .library import LibraryWidget, data_versions
+    from .settings_ui import LINK_STYLE, CARD_QSS, LABEL_GAP, SECTION_GAP, add_section, card, field_label, muted, settings_page, text_link
+    from .mcp_settings import TEXT_LINK_QSS, McpSettingsWidget, generator_state, prefs, write_generator_state
 except ImportError:
     import keychain
     from history import HistoryStore, history_topic
-    from library import LibraryWidget
-    from mcp_settings import McpSettingsWidget
+    from library import LibraryWidget, data_versions
+    from settings_ui import LINK_STYLE, CARD_QSS, LABEL_GAP, SECTION_GAP, add_section, card, field_label, muted, settings_page, text_link
+    from mcp_settings import TEXT_LINK_QSS, McpSettingsWidget, generator_state, prefs, write_generator_state
 
 from PyQt6.QtCore import QModelIndex, QEvent, QObject, QPoint, QRect, QRectF, QSize, Qt, QUrl, QProcess, QThread, QTimer, QPropertyAnimation, QEasingCurve, pyqtSignal
 from PyQt6.QtGui import QStandardItem, QStandardItemModel, QColor, QCursor, QFontMetrics, QTextCursor, QPainter, QPalette, QPen, QFont, QGuiApplication, QIcon, QPixmap, QKeySequence, QShortcut, QDesktopServices, QTextDocument
@@ -74,15 +77,15 @@ from PyQt6.QtWidgets import (
 
 try:
     from .theme import CHAT_URLS, DARK_SCROLL_QSS, PROMPT_TARGETS, QSS, ROOT, is_official_source
-    from .widgets import *  # noqa: F401,F403 — базовые виджеты, вынесенные из этого файла
+    from .widgets import *  # noqa: F401,F403 — base widgets moved out of this file
 except ImportError:
     from theme import CHAT_URLS, DARK_SCROLL_QSS, PROMPT_TARGETS, QSS, ROOT, is_official_source
     from widgets import *  # noqa: F401,F403
 
 try:
-    from .workers import *  # noqa: F401,F403 — потоки и мост к пайплайну
-    from .controls import *  # noqa: F401,F403 — элементы управления
-    from .result_view import *  # noqa: F401,F403 — вёрстка результата
+    from .workers import *  # noqa: F401,F403 — threads and the bridge to the pipeline
+    from .controls import *  # noqa: F401,F403 — controls
+    from .result_view import *  # noqa: F401,F403 — result layout
     from .history_view import HistoryMixin
     from . import qt_log
 except ImportError:
@@ -91,6 +94,31 @@ except ImportError:
     from result_view import *  # noqa: F401,F403
     from history_view import HistoryMixin
     import qt_log
+
+COMPATIBLE = "openai_compatible"  # a second OpenAI-API provider: its own server URL and Keychain key
+LOCAL_PROVIDERS_FILE = Path(__file__).with_name("providers.local.json")  # personal, gitignored
+
+
+def load_local_providers(path: Path = LOCAL_PROVIDERS_FILE) -> dict[str, dict]:
+    """Personal OpenAI-compatible providers from a gitignored file, e.g. Meta's Muse Spark:
+    {"providers": [{"key": "meta", "label": "Meta (Muse Spark)", "base_url": "https://api.meta.ai/v1",
+    "models": ["muse-spark-1.3"], "key_env": "META_API_KEY", "api_key": ""}]}.
+    The key comes from Keychain first, then key_env, then api_key. A missing or broken file adds nothing."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    found = {}
+    builtin = {"ollama", "gemini", "openai", "anthropic", "xai", COMPATIBLE}
+    for item in data.get("providers", []) if isinstance(data, dict) else []:
+        if not isinstance(item, dict):
+            continue
+        key, base = str(item.get("key", "")).strip(), str(item.get("base_url", "")).strip()
+        if key and key not in builtin and base.startswith(("http://", "https://")):
+            found[key] = {**item, "key": key, "base_url": base,
+                          "label": str(item.get("label") or key),
+                          "models": [m for m in item.get("models", []) if isinstance(m, str) and m]}
+    return found
 
 class Wordmark(QLabel):
     """The app name, very large and faint, centred in the empty result area; its size follows the width."""
@@ -205,6 +233,7 @@ QDialog QPushButton#primary, QDialog QPushButton#ghost { min-height: 28px; max-h
 QDialog QPushButton#primary[compact="true"], QDialog QPushButton#ghost[compact="true"] {
   min-height: 22px; max-height: 22px; padding: 0 12px; font-size: 12px; border-radius: 7px; }
 """
+QSS += CARD_QSS  # settings lists and cards (settings_ui.py)
 
 
 class PromptaWindow(HistoryMixin, QMainWindow):
@@ -303,9 +332,15 @@ class PromptaWindow(HistoryMixin, QMainWindow):
         self.provider.changed.connect(self._on_provider_changed)
         self.provider.changed.connect(lambda *_: self._sync_model_line())
         self.model.changed.connect(lambda *_: self._sync_model_line())
+        self.model_name.textChanged.connect(lambda *_: self._sync_model_line())
+        self.api_key.editingFinished.connect(self._reload_models_for_key)  # a new key can unlock the provider's list
         self.model_base_url.textChanged.connect(lambda *_: self._sync_model_line())
+        self._restore_generator()  # last provider, model and URLs; loads that provider's models
+        for signal in (self.provider.changed, self.model.changed, self.model_name.editingFinished,
+                       self.model_base_url.editingFinished):
+            signal.connect(lambda *_: self._save_generator())
         self._sync_model_line()
-        self.load_models()
+        self._publish_generator()  # the MCP server sees the restored choice even before anything changes
         self.load_techniques()
 
         shortcut = QShortcut(QKeySequence("Ctrl+Return"), self)
@@ -329,7 +364,7 @@ class PromptaWindow(HistoryMixin, QMainWindow):
         self._restyle_settings()
 
 
-    # ── левая колонка ─────────────────────────────────────────────
+    # ── left column ───────────────────────────────────────────────
     def _build_input(self) -> QWidget:
         card = Card()
         card.setObjectName("mainColumn")
@@ -363,38 +398,48 @@ class PromptaWindow(HistoryMixin, QMainWindow):
                                   search_placeholder="Filter techniques")
         box.addWidget(self.technique)
 
-        left = QVBoxLayout()
-        left.setSpacing(4)
-        left.addWidget(self._mini_label("Provider"))
+        self.local_providers = load_local_providers()
         self.provider = Dropdown("Ollama", popup_width=300)
         self.provider.set_items(
             [
                 {"key": "ollama", "label": "Ollama (local/cloud)"},
                 {"key": "gemini", "label": "Gemini"},
                 {"key": "openai", "label": "OpenAI"},
+                {"key": COMPATIBLE, "label": "OpenAI-compatible"},
                 {"key": "anthropic", "label": "Anthropic (Claude)"},
                 {"key": "xai", "label": "xAI (Grok)"},
             ]
+            + [{"key": key, "label": item["label"]} for key, item in self.local_providers.items()]
         )
         self.provider.set_current("ollama")
-        left.addWidget(self.provider)
+        self._url_owner = "ollama"
 
-        mid = QVBoxLayout()
-        mid.setSpacing(4)
-        mid.addWidget(self._mini_label("Model"))
         model_row = QHBoxLayout()
         model_row.setSpacing(6)
         self.model = Dropdown("Choose a model", searchable=True, popup_width=460, search_placeholder="Filter models")
         self.model.set_items([{"key": name, "label": name} for name in FALLBACK_MODELS])
         self.model.set_current("minimax-m3.1-flash:cloud")
         model_row.addWidget(self.model, 1)
+        # Other providers have no list to pick from: their model name is typed by hand, kept per provider.
+        self.model_name = QLineEdit()
+        self.model_name.setPlaceholderText("Model name, e.g. gpt-5.1 or mlx-community/Qwen3-8B")
+        self.model_name.setAccessibleName("Model name")
+        self.model_name.setMinimumHeight(34)
+        self.model_name.hide()
+        self._model_lists: dict[str, list[str]] = {}  # each provider shows only its own models
+        self._list_sources: dict[str, str] = {}  # "catalog" when a list came from models.dev, not the provider
+        for key, item in self.local_providers.items():  # a personal provider starts with the models it names
+            if item["models"]:
+                self._model_lists[key] = item["models"]
+                self._list_sources[key] = "local"
+        self._model_choices: dict[str, str] = {}
+        model_row.addWidget(self.model_name, 1)
         self.refresh_button = QPushButton("↻")
         self.refresh_button.setObjectName("ghost")
         self.refresh_button.setFixedSize(34, 34)
-        self.refresh_button.setToolTip("Refresh models from Ollama")
+        self.refresh_button.setToolTip("Refresh the provider's model list")
         self.refresh_button.clicked.connect(self.load_models)
         model_row.addWidget(self.refresh_button)
-        mid.addLayout(model_row)
         self.models_hint = QLabel("Loading Ollama models")
         self.models_hint.setObjectName("muted")
         self.models_hint.setWordWrap(True)
@@ -404,6 +449,11 @@ class PromptaWindow(HistoryMixin, QMainWindow):
         self.settings_dialog.setModal(True)
         self.settings_dialog.setMinimumWidth(420)
         self.settings_dialog.resize(860, 640)
+        # About shows the window's photo over the whole dialog, clearly visible: the veil thins out to the right.
+        self.settings_backdrop = BackgroundWidget(veil=(236, 120))
+        self.settings_backdrop.setParent(self.settings_dialog)
+        self.settings_backdrop.hide()
+        self.settings_dialog.installEventFilter(self)
         settings_outer = QVBoxLayout(self.settings_dialog)
         settings_outer.setContentsMargins(24, 24, 24, 24)
         settings_outer.setSpacing(14)
@@ -413,46 +463,38 @@ class PromptaWindow(HistoryMixin, QMainWindow):
         settings_outer.addWidget(settings_title)
         self.settings_tabs = QTabWidget()
         self.settings_tabs.setAccessibleName("Settings sections")
-        model_page = QWidget()
-        settings_layout = QVBoxLayout(model_page)
-        settings_layout.setContentsMargins(0, 18, 0, 0)
-        settings_layout.setSpacing(14)
-        settings_layout.addLayout(left)
-        settings_layout.addLayout(mid)
-        settings_layout.addWidget(self.models_hint)
-        settings_layout.addWidget(self._mini_label("API key"))
+        model_page, settings_layout = settings_page(
+            "The model that writes your prompts. Each provider keeps its own model, key and URL.")
         self.api_key = QLineEdit()
         self.api_key.setEchoMode(QLineEdit.EchoMode.Password)
-        self.api_key.setPlaceholderText("Enter your API key")
+        self.api_key.setPlaceholderText("Not needed for Ollama and local servers")
         self.api_key.setAccessibleName("API key")
-        settings_layout.addWidget(self.api_key)
         self.remember_key = QCheckBox("Remember in Keychain")
         self.remember_key.setToolTip("Save this provider's key in your macOS login Keychain and fill it in next time. "
-                                     "Unchecking removes the saved key.")
+                                     "Unchecking removes the saved key; without it the key stays in memory until you quit.")
         self.remember_key.toggled.connect(self._on_remember_key_toggled)
-        settings_layout.addWidget(self.remember_key)
-        key_hint = QLabel("Use a key for cloud providers. Local Ollama and local OpenAI-compatible servers can run without one.\n"
-                          "Without Remember, the key stays in memory only.")
-        key_hint.setObjectName("muted")
-        key_hint.setWordWrap(True)
-        settings_layout.addWidget(key_hint)
-        self._load_saved_key(self.provider.current_key())
-        settings_layout.addWidget(self._mini_label("Model base URL"))
+        self.remember_key.setObjectName("settingsCheck")
         self.model_base_url = QLineEdit()
+        self._base_urls: dict[str, str] = {}  # each provider keeps its own URL while you switch between them
         self.model_base_url.setPlaceholderText("Optional · http://127.0.0.1:8080/v1")
         self.model_base_url.setAccessibleName("Model base URL")
-        self.model_base_url.setToolTip("Requests and any API key you enter go to this endpoint. "
-                                       "For local MLX, choose OpenAI and enter the model name manually.")
-        settings_layout.addWidget(self.model_base_url)
-        url_hint = QLabel("For local MLX, choose OpenAI and enter your model name and server URL.")
-        url_hint.setObjectName("muted")
-        url_hint.setWordWrap(True)
-        settings_layout.addWidget(url_hint)
+        self.model_base_url.setToolTip("Requests and any API key you enter go to this endpoint. Empty uses the provider's "
+                                       "default; OpenAI-compatible servers (MLX, LM Studio, vLLM, OpenRouter) need theirs.")
+        # The app's own form: a caps label over each full-width field, shared gaps, one grey line where it helps.
+        add_section(settings_layout, "Provider", self.provider)
+        add_section(settings_layout, "Model", model_row, hint=self.models_hint)
+        add_section(settings_layout, "API key", self.api_key)
+        settings_layout.addSpacing(10)
+        settings_layout.addWidget(self.remember_key)  # under the key, flush with the fields
+        add_section(settings_layout, "Base URL", self.model_base_url,
+                    hint="Empty uses the provider's default. OpenAI-compatible servers need their own.")
+        self._load_saved_key(self.provider.current_key())
         settings_layout.addStretch(1)
         self.settings_tabs.addTab(model_page, "Model && API")
         self.library = LibraryWidget(ROOT)
         self.settings_tabs.addTab(self.library, "Library")
-        self.mcp_settings = McpSettingsWidget(ROOT, node_binary, self._mini_label, HistoryComboBox)
+        self.mcp_settings = McpSettingsWidget(ROOT, node_binary, self._mini_label, self._generator_for_mcp,
+                                              self._mcp_key_missing)
         mcp_scroll = QScrollArea()  # the apps list is taller than the dialog: scroll, don't squeeze rows
         mcp_scroll.setWidgetResizable(True)
         mcp_scroll.setFrameShape(QFrame.Shape.NoFrame)
@@ -461,9 +503,17 @@ class PromptaWindow(HistoryMixin, QMainWindow):
         use_step_scroll(mcp_scroll)
         self.settings_tabs.addTab(mcp_scroll, "MCP server")
         self.settings_tabs.addTab(self._build_history_settings(), "History")
+        self.settings_tabs.addTab(self._build_about_settings(), "About")
         self.settings_tabs.currentChanged.connect(self._settings_tab_changed)
         settings_outer.addWidget(self.settings_tabs, 1)
+        settings_outer.addSpacing(SECTION_GAP - settings_outer.spacing())  # the Done row stands apart like a section
         settings_actions = QHBoxLayout()
+        # The Library's summary line sits on the Done row, shown only while Library is open.
+        settings_actions.addWidget(self.library.summary, 0, Qt.AlignmentFlag.AlignVCenter)
+        settings_actions.addWidget(self.delete_all_history_button, 0, Qt.AlignmentFlag.AlignVCenter)
+        settings_actions.addWidget(self.mcp_settings.copy_button, 0, Qt.AlignmentFlag.AlignVCenter)
+        settings_actions.addWidget(self.about_footer, 0, Qt.AlignmentFlag.AlignVCenter)
+        self._sync_settings_footer(self.settings_tabs.currentIndex())
         settings_actions.addStretch(1)
         done_button = QPushButton("Done")
         done_button.setObjectName("primary")
@@ -579,20 +629,120 @@ class PromptaWindow(HistoryMixin, QMainWindow):
             self.api_key.setFocus()
         elif self.settings_tabs.currentIndex() == 2:  # MCP server (wrapped in a scroll area)
             self.mcp_settings.refresh()
-        else:
+        elif self.settings_tabs.currentIndex() == 1:
             self.library.reload()
             self.library.search.setFocus()
 
+    def _sync_settings_footer(self, index: int) -> None:
+        """The Done row carries the open tab's footer: Library's summary, MCP's copy link,
+        History's delete link, About's links and credits."""
+        self.library.summary.setVisible(index == 1)
+        self.mcp_settings.copy_button.setVisible(index == 2)
+        self.delete_all_history_button.setVisible(index == 3)
+        self.about_footer.setVisible(index == 4)
+        self.settings_backdrop.setVisible(index == 4)
+        self.settings_backdrop.setGeometry(self.settings_dialog.rect())
+        self.settings_backdrop.lower()
+
+    def eventFilter(self, watched, event) -> bool:  # noqa: N802 - Qt naming
+        if watched is getattr(self, "settings_dialog", None) and event.type() == QEvent.Type.Resize:
+            self.settings_backdrop.setGeometry(self.settings_dialog.rect())  # the About photo covers the whole dialog
+        return super().eventFilter(watched, event)
+
     def _settings_tab_changed(self, index: int) -> None:
+        self._sync_settings_footer(index)
         if index == 1:
             self.library.reload()
         elif index == 2:  # MCP server
             self.mcp_settings.refresh()
 
+    APP_VERSION = "0.1.0"
+    AUTHOR = "KazKozDev"
+    AUTHOR_URL = "https://github.com/KazKozDev"
+    REPO_URL = "https://github.com/KazKozDev/prompta"
+
+    @staticmethod
+    def about_versions() -> list[tuple[str, str]]:
+        return data_versions(ROOT)
+
+    def _about_version_text(self) -> str:
+        lines = [f"Prompta {self.APP_VERSION}"] + [f"{name}: {value}" for name, value in self.about_versions()]
+        return "\n".join(lines + [f"macOS {platform.mac_ver()[0] or 'unknown'}"])
+
+    def _how_it_works(self) -> str:
+        versions = dict(self.about_versions())
+        count = (re.search(r"(\d+) entries", versions.get("Technique catalog", "")) or [None, "90"])[1]
+        return ("A model reads your request and writes a brief \u2014 the goal, the input, "
+                f"the format, and what it had to guess. Then it picks one of {count} prompting techniques, each traced to "
+                "a paper or an official doc, and writes the prompt with it.")
+
+    def _build_about_settings(self) -> QWidget:
+        link = LINK_STYLE
+        page, layout = settings_page(right_margin=330)  # text keeps to the left; the photo (whole dialog) has the right
+        title = QLabel(f"Prompta {self.APP_VERSION}")
+        title.setStyleSheet("font-size: 13px; font-weight: 600; color: #332e24;")  # below the dialog's 17px "Settings" title
+        layout.addWidget(title)
+        layout.addSpacing(LABEL_GAP)
+        layout.addWidget(muted("Turns a rough request into a structured prompt, "
+                               "built from a catalog of sourced prompting techniques and official model guidance."))
+        self.about_how = muted(self._how_it_works())  # same grey text as the line above it
+        layout.addSpacing(12)  # the description goes on: a paragraph break, not a new section
+        layout.addWidget(self.about_how)
+        finder = text_link("Show in Finder")
+        finder.clicked.connect(self._show_data_folder)
+        self.show_data_button = finder
+        add_section(layout, "Your data", muted(
+            "Everything stays on this Mac: history, its limits and the model list cache in "
+            "~/Library/Application Support/Prompta, other settings in ~/.config/Prompta, API keys in the "
+            "macOS Keychain. Your requests and prompts go only to the provider chosen in Model & API."), finder)
+        self.about_links = QLabel()
+        self.about_links.setOpenExternalLinks(False)  # web links open below; "copy:" stays in the app
+        self.about_links.linkActivated.connect(self._about_link)
+        self._set_about_links()
+        add_section(layout, "Project", muted(
+            "Techniques come from The Prompt Report (Schulhoff et al.) and the arXiv papers it cites; "
+            "guidance comes from the official docs of Anthropic, OpenAI, Google, xAI and Nous Research."))
+        layout.addStretch(1)
+        # Links and credits go on the dialog's Done row (see _sync_settings_footer).
+        self.about_author = QLabel(f'MIT License \u00b7 \u00a9 2025 <a href="{self.AUTHOR_URL}" {link}>{self.AUTHOR}</a>')
+        self.about_author.setObjectName("muted")
+        self.about_author.setOpenExternalLinks(True)
+        self.about_author.setAccessibleName(f"Made by {self.AUTHOR}")
+        self.about_footer = QWidget()
+        footer = QHBoxLayout(self.about_footer)
+        footer.setContentsMargins(0, 0, 0, 0)
+        footer.setSpacing(24)
+        footer.addWidget(self.about_links)
+        footer.addWidget(self.about_author)
+        return page  # it fits the dialog: no scroll area, nothing to bounce
+
+    def _set_about_links(self, copied: bool = False) -> None:
+        link = LINK_STYLE
+        copy = "\u2713 Copied" if copied else f'<a href="copy:version" {link}>Copy version info</a>'
+        self.about_links.setText(f'<a href="{self.REPO_URL}" {link}>Source on GitHub</a> \u00b7 '
+                                 f'<a href="{self.REPO_URL}/issues" {link}>Report an issue</a> \u00b7 {copy}')
+
+    def _about_link(self, href: str) -> None:
+        if href == "copy:version":
+            self.copy_version_info()
+        elif href == "finder:data":
+            self._show_data_folder()
+        else:
+            QDesktopServices.openUrl(QUrl(href))
+
+    def copy_version_info(self) -> None:
+        """Versions for a bug report, pasted next to "Report an issue"."""
+        QGuiApplication.clipboard().setText(self._about_version_text())
+        self._set_about_links(copied=True)
+        QTimer.singleShot(1600, self._set_about_links)
+
+    def _show_data_folder(self) -> None:
+        folder = self.history_store.path.parent
+        folder.mkdir(parents=True, exist_ok=True, mode=0o700)
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(folder)))
+
     def _mini_label(self, text: str) -> QLabel:
-        label = QLabel(text.upper())
-        label.setObjectName("fieldLabel")
-        return label
+        return field_label(text)
 
     def load_techniques(self) -> None:
         self.techniques_loader = TechniquesLoader()
@@ -617,31 +767,142 @@ class PromptaWindow(HistoryMixin, QMainWindow):
         self._update_advanced_title()
 
     def load_models(self) -> None:
-        self.models_hint.setText("Fetching Ollama models")
+        """Fetch the chosen provider's models: Ollama's local list, or the cloud provider's own list with the key."""
+        provider = self.provider.current_key()
+        if provider == COMPATIBLE:
+            return
+        api_key = self.api_key.text().strip()
+        self.models_hint.setText("Fetching Ollama models" if provider == "ollama" else "Fetching models")
         self.refresh_button.setEnabled(False)
-        self.models_loader = ModelsLoader()
-        self.models_loader.loaded.connect(self._on_models_loaded)
-        self.models_loader.start()
+        if provider != "ollama":
+            self._listed_key = api_key
+        loader = ModelsLoader(provider, api_key, self.model_base_url.text().strip() or self._local_url(provider))
+        loader.loaded.connect(lambda names, p=provider, l=loader: self._on_models_loaded(names, p, l.source))
+        # A provider switch starts a new fetch while the old one may still run: keep each alive until it ends.
+        running = self.__dict__.setdefault("_models_loaders", set())
+        running.add(loader)
+        loader.finished.connect(lambda l=loader: running.discard(l))
+        self.models_loader = loader
+        loader.start()
 
-    def _on_models_loaded(self, names: list) -> None:
+    def _on_models_loaded(self, names: list, provider: str = "ollama", source: str = "") -> None:
         QTimer.singleShot(0, self._sync_model_line)  # the list may change the current model without a signal
         self.refresh_button.setEnabled(True)
+        if provider != self.provider.current_key():
+            if names:
+                self._model_lists[provider] = names  # ready for when the user switches back
+            return
+        if not names and self.local_providers.get(provider, {}).get("models"):
+            names, source = self.local_providers[provider]["models"], "local"
         if not names:
-            self.models_hint.setText(
-                "Ollama is unavailable at localhost:11434. Using the previous model list."
-            )
+            self.models_hint.setText("Ollama is unavailable at localhost:11434. Using the previous model list."
+                                     if provider == "ollama" else "Could not load models. Check the API key and connection, then refresh.")
             return
 
+        self._model_lists[provider] = names
         current = self.model.current_key().strip()
         self.model.set_items([{"key": name, "label": name} for name in names], keep=current)
-        self.mcp_settings.set_models(names)
-        if not self.model.current_key():
+        if not self.model.current_key() or current not in names:
             self.model.set_current(names[0])
-        self.models_hint.setText(f"{len(names)} models loaded")
+        self._list_sources[provider] = source
+        self._show_models_hint(provider, len(names))
+
+    def _show_models_hint(self, provider: str, count: int) -> None:
+        if self._list_sources.get(provider) == "local":
+            self.models_hint.setText(f"{count} models from providers.local.json · ↻ asks the provider for its full list")
+            return
+        self.models_hint.setText(
+            f"{count} models from the public models.dev catalog · add the API key for your account's own list"
+            if self._list_sources.get(provider) == "catalog" else f"{count} models loaded")
+
+    GENERATOR_PREFS = "generator/state"  # provider, model per provider, URL per provider; keys stay in Keychain
+
+    def _save_generator(self) -> None:
+        provider = self.provider.current_key()
+        models = {**self._model_choices}
+        if provider == COMPATIBLE:
+            models[provider] = self.model_name.text().strip()
+        else:
+            models[provider] = self.model.current_key()
+        urls = {**self._base_urls, provider: self.model_base_url.text().strip()}
+        state = {"provider": provider, "models": {k: v for k, v in models.items() if v},
+                 "urls": {k: v for k, v in urls.items() if v}}
+        prefs().setValue(self.GENERATOR_PREFS, json.dumps(state))
+        self._publish_generator()
+
+    def _publish_generator(self) -> None:
+        """The MCP server follows this file: provider, model, URL and the Keychain item with the key."""
+        provider = self.provider.current_key()
+        api_provider, model, _, base_url, _ = self._generator_for_mcp()
+        write_generator_state(generator_state(api_provider, provider, model, base_url))
+
+    def _mcp_key_missing(self) -> str:
+        """The provider whose key the MCP server cannot read from Keychain, or "" when nothing is missing."""
+        provider = self.provider.current_key()
+        if provider == "ollama" or (provider == COMPATIBLE and not self.api_key.text().strip()):
+            return ""
+        local = self.local_providers.get(provider)
+        if local and local.get("api_key"):  # the server reads providers.local.json too; an env var it may not see
+            return ""
+        return "" if keychain.load(provider) else self.provider.text()
+
+    def _restore_generator(self) -> None:
+        """Bring back the generator settings of the last session, then load that provider's models."""
+        try:
+            state = json.loads(prefs().value(self.GENERATOR_PREFS, "", str) or "{}")
+        except ValueError:
+            state = {}
+        known = {item["key"] for item in self.provider._items}
+        models = {k: v for k, v in (state.get("models") or {}).items() if k in known and isinstance(v, str)}
+        urls = {k: v for k, v in (state.get("urls") or {}).items() if k in known and isinstance(v, str)}
+        provider = state.get("provider") if state.get("provider") in known else "ollama"
+        self._model_choices.update(models)
+        self._base_urls.update(urls)
+        self.model_name.setText(models.get(COMPATIBLE, ""))
+        if models.get("ollama"):
+            self.model.set_current(models["ollama"])
+        self.model_base_url.setText(urls.get("ollama", ""))
+        if provider == "ollama":
+            self.load_models()
+        else:
+            self.provider.set_current(provider, emit=True)  # shows its key, URL and model, and loads its list
+
+    def _generator_for_mcp(self) -> tuple[str, str, str, str, str]:
+        """The MCP server writes with the same provider, model, key and URL as the app."""
+        provider = self.provider.current_key()
+        return (self._api_provider(provider), self._current_model(), self.api_key.text().strip(),
+                self.model_base_url.text().strip() or self._local_url(provider), self.provider.text())
+
+    def _local_url(self, provider: str) -> str:
+        return self.local_providers.get(provider, {}).get("base_url", "")
+
+    def _api_provider(self, provider: str) -> str:
+        """The pipeline's adapter: OpenAI-compatible servers, built-in or personal, speak the OpenAI API."""
+        return "openai" if provider == COMPATIBLE or provider in self.local_providers else provider
+
+    def _reload_models_for_key(self) -> None:
+        key = self.api_key.text().strip()
+        if self.provider.current_key() not in ("ollama", COMPATIBLE) and key and key != getattr(self, "_listed_key", ""):
+            self._listed_key = key
+            self.load_models()
+
+    def _current_model(self) -> str:
+        """The choice from the provider's list, or the name typed for an OpenAI-compatible server."""
+        if self.provider.current_key() == COMPATIBLE:
+            return self.model_name.text().strip()
+        return self.model.current_key().strip()
 
     def _load_saved_key(self, provider: str) -> None:
         """Each provider has its own key: show the saved one, or an empty field."""
         saved = keychain.load(provider) if provider != "ollama" else ""
+        local = self.local_providers.get(provider)
+        if local and not saved:  # a personal provider may keep its key in its env var or the gitignored file
+            saved = os.environ.get(str(local.get("key_env") or ""), "") or str(local.get("api_key") or "")
+            self.api_key.setText(saved)
+            previous = self.remember_key.blockSignals(True)
+            self.remember_key.setChecked(False)
+            self.remember_key.blockSignals(previous)
+            return
         self.api_key.setText(saved)
         previous = self.remember_key.blockSignals(True)
         self.remember_key.setChecked(bool(saved))
@@ -657,14 +918,33 @@ class PromptaWindow(HistoryMixin, QMainWindow):
             keychain.forget(provider)
 
     def _on_provider_changed(self, provider: str) -> None:
-        self.model_base_url.clear()
+        if self._url_owner:
+            self._base_urls[self._url_owner] = self.model_base_url.text().strip()
+        self._model_choices[self._url_owner] = (self.model_name.text().strip() if self._url_owner == COMPATIBLE
+                                                else self.model.current_key())
+        self._model_lists.setdefault(self._url_owner, [i["key"] for i in self.model._items])
+        self._url_owner = provider
+        typed = provider == COMPATIBLE  # a custom server: its model name is typed, not picked
+        self.model.setVisible(not typed)
+        self.refresh_button.setVisible(not typed)
+        self.model_name.setVisible(typed)
+        if typed:
+            self.model_name.setText(self._model_choices.get(COMPATIBLE, ""))
+        names = self._model_lists.get(provider, [])
+        self.model.set_items([{"key": name, "label": name} for name in names])
+        self.model.set_current(self._model_choices.get(provider, "") or (names[0] if names else ""))
+        self.model_base_url.setText(self._base_urls.get(provider, ""))
+        self.model_base_url.setPlaceholderText(self._local_url(provider) or (("Required" if provider == COMPATIBLE else "Optional")
+                                               + " · http://127.0.0.1:8080/v1"))
         self._load_saved_key(provider)
-        if provider == "ollama":
-            self.load_models()
+        if typed:
+            self.models_hint.setText("Type the model name exactly as your server lists it")
+        elif names:
+            self._show_models_hint(provider, len(names))
         else:
-            self.models_hint.setText("Enter the model name used by your provider")
+            self.load_models()
 
-    # ── правая колонка ────────────────────────────────────────────
+    # ── right column ──────────────────────────────────────────────
     def _build_output(self) -> QWidget:
         card = Card()
         card.setObjectName("mainColumn")
@@ -703,7 +983,7 @@ class PromptaWindow(HistoryMixin, QMainWindow):
         self.output_layout = QVBoxLayout(self.output_holder)
         self.output_layout.setContentsMargins(0, 0, 0, 0)
         self.output_layout.setSpacing(10)
-        # Скролл должен расти под содержимое, иначе виджеты наезжают друг на друга.
+        # The scroll area must grow with its content, or the widgets overlap.
         self.output_layout.setSizeConstraint(QLayout.SizeConstraint.SetMinimumSize)
         self.output_scroll.setWidget(self.output_holder)
         self.output_holder.setAutoFillBackground(False)
@@ -727,7 +1007,7 @@ class PromptaWindow(HistoryMixin, QMainWindow):
         self._set_assumptions_card(None)  # the questions belong to the result being replaced
         self._sync_build_label()
 
-    # ── запуск ────────────────────────────────────────────────────
+    # ── run ───────────────────────────────────────────────────────
     def clear_workspace(self) -> None:
         self._shown_entry = None
         self._discard_result = True
@@ -750,7 +1030,7 @@ class PromptaWindow(HistoryMixin, QMainWindow):
         self.thoughts.setFocus()
 
     def _sync_model_line(self) -> None:
-        model = self.model.current_key().strip()
+        model = self._current_model()
         where = self.provider.text()
         if self.model_base_url.text().strip():
             where += " · custom URL"
@@ -821,7 +1101,7 @@ class PromptaWindow(HistoryMixin, QMainWindow):
             return
 
         provider = self.provider.current_key()
-        model = self.model.current_key().strip()
+        model = self._current_model()
         api_key = self.api_key.text().strip()
         if self.remember_key.isChecked() and api_key and api_key != keychain.load(provider):
             keychain.save(provider, api_key)  # the key that works is the one to remember
@@ -829,15 +1109,18 @@ class PromptaWindow(HistoryMixin, QMainWindow):
         if not model:
             self.status.setText("Choose a model")
             return
-        base_url = self.model_base_url.text().strip()
-        if provider != "ollama" and not api_key and not (provider == "openai" and base_url):
+        base_url = self.model_base_url.text().strip() or self._local_url(provider)
+        if provider == COMPATIBLE and not base_url:
+            self.status.setText("Add the server URL in Settings")
+            return
+        if provider not in ("ollama", COMPATIBLE) and not api_key and not (provider == "openai" and base_url):
             self.status.setText("Add an API key in Settings")
             return
 
         technique_keys = self.technique.current_keys()
         payload = {
             "thoughts": thoughts,
-            "provider": provider,
+            "provider": self._api_provider(provider),  # same API, its own key and URL
             "model": model,
             "apiKey": api_key,
             "baseUrl": base_url,
@@ -952,14 +1235,18 @@ class PromptaWindow(HistoryMixin, QMainWindow):
             task = brief.get("goal") or self.thoughts.toPlainText().strip()
             if not task:
                 return
-            text = f"Задача:\n{task}"
+            text = f"Task:\n{task}"
             if brief.get("input"):
-                text += f"\n\nВходные данные:\n{brief['input']}"
+                text += f"\n\nInput:\n{brief['input']}"
             if brief.get("output_format"):
-                text += f"\n\nФормат ответа:\n{brief['output_format']}"
+                text += f"\n\nAnswer format:\n{brief['output_format']}"
+            if brief.get("audience"):
+                text += f"\n\nAudience:\n{brief['audience']}"
+            if brief.get("tone"):
+                text += f"\n\nTone:\n{brief['tone']}"
             if brief.get("constraints"):
-                text += "\n\nОграничения:\n" + "\n".join(brief["constraints"])
-            text += "\n\nВыполни задачу напрямую. Не выдумывай отсутствующие факты; явно укажи, каких исходных данных не хватает."
+                text += "\n\nConstraints:\n" + "\n".join(brief["constraints"])
+            text += "\n\nDo the task directly. Do not invent missing facts; say explicitly which input is missing."
         card = QFrame()
         card.setObjectName("tech")
         details = QVBoxLayout(card)
@@ -1020,7 +1307,7 @@ class PromptaWindow(HistoryMixin, QMainWindow):
 
         self.output_layout.addStretch(1)
 
-    # ── рендер результата ─────────────────────────────────────────
+    # ── result rendering ──────────────────────────────────────────
 
 
     # ── settings: same controls and rhythm as the main window ─────
@@ -1045,7 +1332,7 @@ class PromptaWindow(HistoryMixin, QMainWindow):
         self.refresh_button.setIcon(QIcon(str(ROOT / "desktop" / "refresh.svg")))
         self.refresh_button.setIconSize(QSize(14, 14))
         self.refresh_button.setFixedSize(CONTROL_HEIGHT, CONTROL_HEIGHT)
-        self.refresh_button.setToolTip("Refresh models from Ollama")
+        self.refresh_button.setToolTip("Refresh the provider's model list")
 
     # ── empty result area: the app name, large and faint; results replace it ──
     def _show_placeholder(self) -> None:
@@ -1086,6 +1373,7 @@ class PromptaWindow(HistoryMixin, QMainWindow):
         picker.set_current(str(shown) if isinstance(shown, int) and 0 <= shown < len(self._history_items) else "")
         picker.blockSignals(previous)
         picker.setVisible(bool(self._history_items))
+        self._fill_history_settings_list()  # Settings → History shows the same entries
 
     def _on_history_delete(self, key: str) -> None:
         if not key.isdigit():
@@ -1146,11 +1434,27 @@ class PromptaWindow(HistoryMixin, QMainWindow):
             self.segments.addButton(button)
             row_layout.addWidget(button, 1)
         self.segments.buttonClicked.connect(self._on_segment_clicked)
-        grid.addWidget(self._mini_label("Written for"), 0, 0, 1, 2)  # pairs with "Runs in" below
-        grid.addWidget(row, 1, 0, 1, 2)
+        # One dropdown like "Runs in" and "Technique": any model, the official targets, every open-weight model.
+        # The segment buttons stay as hidden state that history and the run already use.
+        row.setParent(card_layout.parentWidget())
+        row.hide()
+        self.target_picker = Dropdown("— any LLM —", searchable=True, popup_width=380,
+                                      search_placeholder="Filter models")
+        self.target_picker.setAccessibleName("Written for: LLM model")
+        self.target_picker.setToolTip("The model the prompt is written for. Your generator model stays the same.")
+        self.target_picker.set_items(self._target_items(segments[1:-1]), keep=GENERAL_TARGET)
+        self.target_picker.changed.connect(self._on_target_picked)
+        # Its own label + field column, built like "Runs in" below so the rows space alike.
+        written_for = QVBoxLayout()
+        written_for.setContentsMargins(0, 0, 0, 0)
+        written_for.setSpacing(8)
+        written_for.addWidget(self._mini_label("Written for"))
+        written_for.addWidget(self.target_picker)
+        grid_at = next(i for i in range(card_layout.count()) if card_layout.itemAt(i).layout() is grid)
+        card_layout.insertLayout(grid_at, written_for)
         self.prompt_model.setItemText(0, "— choose an open-weight model —")
         # One control for open-weight models: the Open segment opens this picker under the switch and shows the choice.
-        self.prompt_model.popup_anchor = row
+        self.prompt_model.popup_anchor = self.target_picker
         self.open_segment = next(b for b in self.segments.buttons() if b.property("target") == "openModel")
         # The same chevron icon as every picker: this segment opens the list of open-weight models.
         self.open_segment.setProperty("chevron", True)
@@ -1170,7 +1474,7 @@ class PromptaWindow(HistoryMixin, QMainWindow):
         self.open_caption.clicked.connect(self.prompt_model.showPopup)
         self.open_caption.hide()
         grid.addWidget(self.open_caption, 2, 0, 1, 2, Qt.AlignmentFlag.AlignLeft)
-        self.prompt_model.currentIndexChanged.connect(lambda *_: self._sync_open_segment())
+        self.prompt_model.currentIndexChanged.connect(lambda *_: (self._sync_open_segment(), self._sync_target_picker()))
         for key in PROMPT_TARGETS:
             getattr(self, f"{key}_only").toggled.connect(self._sync_segments)
 
@@ -1178,7 +1482,12 @@ class PromptaWindow(HistoryMixin, QMainWindow):
         variants_label = next(variants_row.itemAt(i).widget() for i in range(variants_row.count())
                               if isinstance(variants_row.itemAt(i).widget(), QLabel))
         self.advanced = Disclosure("Technique", field_label=True, collapsible=False)
-        self.advanced.body_layout.setContentsMargins(0, 4, 0, 8)
+        self.advanced.body_layout.setContentsMargins(0, 0, 0, 8)
+        # It never folds: a plain field label like "Written for" and "Runs in", not the padded toggle button.
+        self.advanced.button.hide()
+        self.technique_heading = self._mini_label("Technique")
+        self.technique_heading.setContentsMargins(0, 0, 0, 2)  # 8px to its field, as in the rows above
+        self.advanced.body_layout.addWidget(self.technique_heading)
         self.advanced.body_layout.setSpacing(6)
         self.technique.set_multi(True)
         self.technique._placeholder = "— automatic —"
@@ -1231,7 +1540,7 @@ class PromptaWindow(HistoryMixin, QMainWindow):
         runs_in.addWidget(self.execution_profile)
         # Where the prompt goes and where it runs belong together: right under the target switch.
         grid_index = next(i for i in range(card_layout.count()) if card_layout.itemAt(i).layout() is grid)
-        runs_in.setContentsMargins(0, 6, 0, 4)
+        runs_in.setContentsMargins(0, 6, 0, 2)  # 16px rows: Written for → Runs in → Technique
         card_layout.insertLayout(grid_index + 1, runs_in)
         self.technique.changed.connect(self._update_advanced_title)
         self.variants.buttons.idClicked.connect(self._update_advanced_title)
@@ -1239,13 +1548,54 @@ class PromptaWindow(HistoryMixin, QMainWindow):
         self.technique_label.hide()  # its count moves into the Advanced title
         # One control height for fields and segmented tracks so rows line up.
         for widget in (self.history, self.prompt_model, self.technique, self.target_track, self.variants,
-                       self.execution_profile):
+                       self.execution_profile, self.target_picker):
             widget.ensurePolished()  # its own stylesheet would reset the minimum height when polished later
             widget.setFixedHeight(CONTROL_HEIGHT)
         for button in [*self.segments.buttons(), *self.variants.buttons.buttons()]:
             button.setFixedHeight(CONTROL_HEIGHT - 4)
         self.run_button.setFixedHeight(ACTION_HEIGHT)
         self._sync_segments()
+
+    def _target_items(self, official: list[tuple[str, str]]) -> list[dict]:
+        items = [{"key": GENERAL_TARGET, "label": "— any LLM —", "category": "General"}]
+        items += [{"key": key, "label": label, "category": "Official guidance"}
+                  for key, label in official]
+        family = "Open-weight"
+        for index in range(self.prompt_model.count()):
+            if self.prompt_model.itemData(index, GROUP_HEADER_ROLE):
+                family = self.prompt_model.itemText(index)
+            elif self.prompt_model.itemData(index):
+                items.append({"key": f"open:{self.prompt_model.itemData(index)}", "label": self.prompt_model.itemText(index),
+                              "category": f"{family} · open-weight"})
+        return items
+
+    def _on_target_picked(self, key: str) -> None:
+        if key.startswith("open:"):
+            index = self.prompt_model.findData(key.removeprefix("open:"))
+            if index > 0:
+                self._open_mode = True
+                for target in PROMPT_TARGETS:
+                    if target != "openModel":
+                        getattr(self, f"{target}_only").setChecked(False)
+                self.prompt_model.setCurrentIndex(index)
+                self._sync_segments()
+            return
+        button = next((b for b in self.segments.buttons() if b.property("target") == key), None)
+        if button is not None:
+            self._on_segment_clicked(button)
+
+    def _sync_target_picker(self) -> None:
+        picker = getattr(self, "target_picker", None)
+        if picker is None:
+            return
+        selected = self._selected_target()
+        if selected == "openModel" and self.prompt_model.currentData():
+            key = f"open:{self.prompt_model.currentData()}"
+        else:
+            key = selected if selected and selected != "openModel" else GENERAL_TARGET
+        previous = picker.blockSignals(True)
+        picker.set_current(key)
+        picker.blockSignals(previous)
 
     def _sync_open_segment(self) -> None:
         button = getattr(self, "open_segment", None)
@@ -1258,7 +1608,7 @@ class PromptaWindow(HistoryMixin, QMainWindow):
         caption = getattr(self, "open_caption", None)
         if caption is not None:
             caption.setText(f"{name} · open-weight model" if name else "")
-            caption.setVisible(bool(name) and self._selected_target() == "openModel")
+            caption.setVisible(False)  # the Written for dropdown names the chosen model itself
 
     def _on_segment_clicked(self, button: QPushButton) -> None:
         key = button.property("target")
@@ -1294,6 +1644,7 @@ class PromptaWindow(HistoryMixin, QMainWindow):
         self.segments.setExclusive(True)
         self.prompt_model.hide()  # opened from the Open segment; the segment shows the chosen model
         self._sync_open_segment()
+        self._sync_target_picker()
         if hasattr(self, "advanced"):
             self._update_advanced_title()
 
@@ -1321,6 +1672,7 @@ class PromptaWindow(HistoryMixin, QMainWindow):
         self.advanced.setVisible(target is None)
         self.advanced.set_title("Technique")
         self.advanced.button.setToolTip(self.catalog_summary or "")
+        self.technique_heading.setToolTip(self.catalog_summary or "")
 
     # ── result ────────────────────────────────────────────────────
     @staticmethod
@@ -1360,7 +1712,7 @@ class PromptaWindow(HistoryMixin, QMainWindow):
         by_name = named_tabs or (all(names) and len(set(names)) == len(names))
         zero = editor(zero_shot)
         zero.setAccessibleName("Zero-shot baseline prompt")
-        tabs.addTab(zero, "No technique" if by_name else "Variant 0")
+        tabs.addTab(zero, "Zero-shot" if by_name else "Variant 0")
         tabs.setTabToolTip(0, "Zero-shot: the task stated directly, without a prompting technique")
         self.prompt_edit = editor(prompts[0][1])
         tabs.addTab(self.prompt_edit, names[0] if by_name else "Variant 1")
@@ -1490,6 +1842,9 @@ class PromptaWindow(HistoryMixin, QMainWindow):
         if brief.get("topic"):  # without a topic the goal is already the heading
             box.addWidget(muted_label(brief["goal"], "briefGoal"))
         box.addWidget(keyed_label("Format", brief["output_format"]))
+        for key, title in (("audience", "Audience"), ("tone", "Tone")):  # only what the user stated; guesses are assumptions
+            if brief.get(key):
+                box.addWidget(keyed_label(title, brief[key]))
         row = FlowLayout()
         meta = muted_label(f"{brief['task_type']} · {brief['stakes']} stakes · {brief['language']}", "briefMeta")
         meta.setWordWrap(False)  # one chip-like run in the flow, not a wrapped column
@@ -1814,6 +2169,7 @@ QPlainTextEdit#prompt { background: #3f3f3f; border: none; border-radius: 12px; 
 QPlainTextEdit#prompt:focus { background: #444444; border: none; }
 QLineEdit, QComboBox, QPushButton#picker { background: rgba(255, 255, 255, 120); border: 1px solid transparent; border-radius: 8px; padding: 3px 10px; min-height: 0; }
 QPushButton#picker { padding-right: 28px; }  /* room for the chevron every picker shows */
+QDialog QLineEdit { min-height: 20px; }  /* 20 + padding + border = 28, the height of every Settings control; min-height: 0 above would squash it */
 QLineEdit:hover, QComboBox:hover, QPushButton#picker:hover { background: rgba(255, 255, 255, 160); border-color: transparent; }
 QLineEdit:focus, QComboBox:focus, QPushButton#picker:focus { background: rgba(255, 255, 255, 185); border: 1px solid #e1b72c; }
 QPushButton#picker:pressed { background: rgba(255, 255, 255, 200); }
@@ -1898,20 +2254,31 @@ QLabel#promptSpec { color: rgba(255, 255, 255, 125); font-size: 11px; background
 QLabel#rowLabel { color: #8a7d5c; font-size: 10px; font-weight: 500; letter-spacing: 1px; padding-top: 2px; min-width: 84px; }
 /* Variant tabs look like the Target model switch: one track, the chosen one in our yellow. */
 /* Tabs and prompt are one grey card: the tab row is the card's header, the chosen tab is a yellow pill. */
-QTabWidget#variantTabs { background: #3f3f3f; border-radius: 12px; }
+QTabWidget#variantTabs { background: #343434; border-radius: 12px; }
 QTabWidget#variantTabs::pane { top: 0; border: none; background: transparent; }
 QTabWidget#variantTabs::tab-bar { left: 10px; }
 QTabWidget#variantTabs QTabBar { background: transparent; }
-QTabWidget#variantTabs QTabBar::tab { background: transparent; border: none; border-radius: 7px; margin: 10px 4px 2px 0;
+QTabWidget#variantTabs QTabBar::tab { background: transparent; border: none; border-radius: 7px; margin: 6px 4px 6px 0;
   padding: 5px 16px; color: rgba(255, 255, 255, 150); font-size: 12px; min-width: 56px; }
 QTabWidget#variantTabs QTabBar::tab:hover { background: rgba(255, 255, 255, 22); color: #f5f5f5; }
 QTabWidget#variantTabs QTabBar::tab:selected { background: #f4ca38; color: #2f260c; font-weight: 600; }
 QTabWidget#variantTabs QPlainTextEdit#prompt { border-top-left-radius: 0; border-top-right-radius: 0; }
-"""
+/* Scroll arrows: plain chevrons on the card colour, both at the right end (the native buttons drew light bracket frames); no tear lines. */
+QTabWidget#variantTabs QTabBar::tear { width: 0; border: none; image: none; }
+QTabWidget#variantTabs QTabBar::scroller { width: 48px; }  /* ‹ › side by side at the right end */
+QTabWidget#variantTabs QTabBar QToolButton { background: #343434; border: none; }
+QTabWidget#variantTabs QTabBar QToolButton:hover { background: #3d3d3d; }
+QTabWidget#variantTabs QTabBar QToolButton:disabled { background: #343434; }
+QTabWidget#variantTabs QTabBar QToolButton::left-arrow { image: url(LEFT_ICON); width: 6px; height: 10px; }
+QTabWidget#variantTabs QTabBar QToolButton::right-arrow { image: url(RIGHT_ICON); width: 6px; height: 10px; }
+QTabWidget#variantTabs QTabBar QToolButton::left-arrow:disabled { image: url(LEFT_OFF); }
+QTabWidget#variantTabs QTabBar QToolButton::right-arrow:disabled { image: url(RIGHT_OFF); }
+""".replace("LEFT_ICON", (ROOT / "desktop" / "chevron-left.svg").as_posix()).replace("RIGHT_ICON", (ROOT / "desktop" / "chevron-right.svg").as_posix()).replace(
+    "LEFT_OFF", (ROOT / "desktop" / "chevron-left-off.svg").as_posix()).replace("RIGHT_OFF", (ROOT / "desktop" / "chevron-right-off.svg").as_posix())
 
 
 def main() -> int:
-    qt_log.install()  # глушит только известный шум моста доступности macOS; PROMPTA_QT_DEBUG=1 — всё
+    qt_log.install()  # silences only the known macOS accessibility-bridge noise; PROMPTA_QT_DEBUG=1 shows everything
     app = QApplication(sys.argv)
     app.setApplicationName("Prompta")
     app.setWindowIcon(QIcon(str(ROOT / "desktop" / "icon.png")))
@@ -1928,7 +2295,7 @@ def main() -> int:
     window.show()
 
     if "--screenshot" in sys.argv:
-        # Самопроверка вёрстки: рендерим демо-результат и сохраняем окно в PNG.
+        # Layout self-check: render a demo result and save the window as PNG.
         index = sys.argv.index("--screenshot")
         path = sys.argv[index + 1] if len(sys.argv) > index + 1 else "/tmp/app.png"
         window.thoughts.setPlainText(
@@ -1936,7 +2303,7 @@ def main() -> int:
             "and extract decisions, tasks, and owners into a table"
         )
         window._on_models_loaded(fetch_ollama_models())
-        # техники тоже нужны в скриншоте: тянем синхронно через мост
+        # the screenshot needs the techniques too: fetch them synchronously through the bridge
         try:
             proc = subprocess.run(
                 [node_binary(), str(BRIDGE)],
@@ -2015,8 +2382,8 @@ def main() -> int:
                 if widget._popup is not None:
                     widget._popup.grab().save(f"{base}-{name}.png")
                     widget._popup.close()
-            print(f"попапы: {base}-*.png")
-        print(f"скриншот: {path}")
+            print(f"popups: {base}-*.png")
+        print(f"screenshot: {path}")
         return 0
 
     return app.exec()

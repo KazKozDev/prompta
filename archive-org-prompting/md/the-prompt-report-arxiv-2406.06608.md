@@ -8,8 +8,8 @@ source: https://arxiv.org/abs/2406.06608
 pdf_url: https://arxiv.org/pdf/2406.06608v6
 pdf_local: "../pdf/the-prompt-report-arxiv-2406.06608.pdf"
 license: "CC BY 4.0"
-extraction: "pdftotext (poppler), без -layout; таблицы и формулы могут быть искажены"
-note: "Не archive.org — добавлен как источник таксономии на 58 техник."
+extraction: "pdftotext (poppler), without -layout; tables and formulas may be garbled"
+note: "Not from archive.org — added as the source of the 58-technique taxonomy."
 ---
 
 # The Prompt Report: A Systematic Survey of Prompt Engineering Techniques

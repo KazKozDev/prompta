@@ -1,4 +1,4 @@
-"""Константы оформления и целей Prompta: стили Qt, адреса чатов, цели промптов."""
+"""Prompta look and target constants: Qt styles, chat URLs, prompt targets."""
 
 from __future__ import annotations
 

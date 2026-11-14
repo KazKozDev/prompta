@@ -1,12 +1,12 @@
-"""Фильтр сообщений Qt: глушит известный безвредный шум моста доступности macOS, остальное печатает.
+"""Qt message filter: silences the known harmless noise of the macOS accessibility bridge and prints the rest.
 
-Когда macOS (специальные возможности, системные подсказки ввода, диктовка) опрашивает текстовое поле,
-Qt 6 на Cocoa может спросить у QTextCursor позицию за концом текста и напечатать
-«QTextCursor::setPosition: Position 'N' out of range», а у списков — «qt.accessibility.table:
-Cell requested for row N is out of bounds». Наш код setPosition не вызывает, на работу окна это не
-влияет, но засоряет вывод сотнями строк и прячет настоящие ошибки.
+When macOS (accessibility, system text input suggestions, dictation) queries a text field,
+Qt 6 on Cocoa may ask QTextCursor for a position past the end of the text and print
+"QTextCursor::setPosition: Position 'N' out of range", and for lists "qt.accessibility.table:
+Cell requested for row N is out of bounds". Our code never calls setPosition and the window works
+fine, but the output fills with hundreds of lines that hide real errors.
 
-PROMPTA_QT_DEBUG=1 возвращает полный вывод Qt.
+PROMPTA_QT_DEBUG=1 brings back the full Qt output.
 """
 from __future__ import annotations
 
@@ -42,7 +42,7 @@ def _handler(mode: QtMsgType, context, message: str) -> None:
 
 
 def install() -> bool:
-    """Ставит фильтр, если не включён полный вывод; возвращает, поставлен ли он."""
+    """Installs the filter unless full output is on; returns whether it was installed."""
     if os.environ.get("PROMPTA_QT_DEBUG") == "1":
         return False
     qInstallMessageHandler(_handler)

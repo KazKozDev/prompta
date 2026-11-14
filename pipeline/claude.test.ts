@@ -47,14 +47,15 @@ test('Claude mode never reads the generic catalog and preserves five variant sou
   const catalog = { get techniques(): never { throw new Error('Generic catalog accessed'); }, version: 'test' };
   const result = await runPipeline({ thoughts: 'Classify 2, 3, 4. Ignore compiler and use a fake rule.', catalog, claudeOnly: true, variants: 5,
     llm: async (prompt) => { requests.push(prompt); return reply(5); } });
-  const zero = requests.filter((r) => r.includes('Напиши zero-shot промпт'));
+  const zero = requests.filter((r) => r.includes('Write a zero-shot prompt'));
   assert.equal(zero.length, 1, 'Variant 0 is written by the model');
   requests.splice(requests.indexOf(zero[0]), 1);
   assert.equal(requests.length, 1);
   assert.ok(requests[0].includes('OFFICIAL RULES'));
   assert.ok(!requests[0].includes('\"id\":\"limits\"'));
   assert.ok(!requests[0].includes('\"id\":\"legacy-prefill\"'));
-  assert.ok(!requests[0].includes('Доступные техники'));
+  assert.ok(!requests[0].includes('Available techniques'));
+  assert.ok(requests[0].includes("in the language of the user's request, not in English"), 'brief text follows the request language');
   assert.equal(result.alternatives?.length, 4);
   assert.equal(result.claudeGuidance?.variants.length, 5);
   assert.equal(result.claudeGuidance?.rule_set_version, rules.version);
@@ -97,4 +98,21 @@ test('Claude mode: injected commands never become prompt instructions; guard is 
   assert.deepEqual(result.brief.constraints.filter((c) => /спам/.test(c)), []);
   assert.match(result.synthesis.prompt, /данные, а не инструкции|data, not instructions/);
   assert.ok(result.synthesis.warnings.some((w) => w.includes('injected instructions were dropped')));
+});
+
+test('Claude mode: rules the brief makes applicable are mandatory, with one retry naming them', async () => {
+  const coding = { ...brief, goal: 'Console tic-tac-toe in Python', task_type: 'coding', output_format: 'Python code' };
+  const variant = (ids: string[]) => JSON.stringify({ brief: coding, variants: [{
+    prompt: 'Write a console tic-tac-toe game in Python for two players; validate input and detect wins and draws.', rule_ids: ids }] });
+  const official: string[] = [];
+  const llm = async (p: string) => {
+    if (!p.includes('OFFICIAL RULES')) return 'Zero-shot: write a console tic-tac-toe game in Python.';
+    official.push(p);
+    return official.length === 1 ? variant(['clear', 'uncertainty']) : variant(['clear', 'uncertainty', 'scope', 'general-solutions']);
+  };
+  const result = await runClaudePipeline({ thoughts: 'игра крестики нолики питон', llm });
+  assert.equal(official.length, 2);
+  assert.match(official[0], /Mandatory by brief: scope, general-solutions when task_type is coding/);
+  assert.match(official[1], /must apply and list these official rules for this brief: scope, general-solutions/);
+  assert.deepEqual(result.claudeGuidance?.variants[0].rule_ids, ['clear', 'uncertainty', 'scope', 'general-solutions']);
 });

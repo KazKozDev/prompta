@@ -9,14 +9,16 @@ import { CAPABILITIES } from '../pipeline/types.ts';
  *  LLM settings come from the environment (or .env.local in the repo root):
  *  PROMPTA_PROVIDER=ollama|openai|gemini, PROMPTA_MODEL, PROMPTA_API_KEY, PROMPTA_BASE_URL.
  */
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { loadCatalog } from '../pipeline/catalog.ts';
 import { composeThoughts } from '../pipeline/context.ts';
 import { runPipeline } from '../pipeline/index.ts';
-import { apiKeyEnv, createLLM, PROVIDERS } from '../pipeline/llm.ts';
+import { apiKeyEnv, createLLM, isLocalHost, PROVIDERS } from '../pipeline/llm.ts';
 import type { Provider } from '../pipeline/llm.ts';
 import { suggestNextPrompts } from '../pipeline/suggest.ts';
 import type { Catalog, LLM, PipelineResult } from '../pipeline/types.ts';
@@ -232,6 +234,73 @@ function readEnvLocal(): Record<string, string> {
   );
 }
 
+/** The desktop app's current generator (Settings → Model & API), written to generator.json; never holds the key. */
+export interface AppGenerator { provider: string; keychain_account: string; model: string; base_url: string }
+
+export function appStatePath(env: Record<string, string | undefined>): string {
+  return env.PROMPTA_STATE_FILE || join(homedir(), 'Library', 'Application Support', 'Prompta', 'generator.json');
+}
+
+/** The app's choice and the file's modification time (to notice changes), or undefined when there is no valid file. */
+export function readAppGenerator(path: string): { state: AppGenerator; mtime: number } | undefined {
+  try {
+    const mtime = statSync(path).mtimeMs;
+    const state = JSON.parse(readFileSync(path, 'utf8')) as AppGenerator;
+    return state && typeof state.provider === 'string' ? { state, mtime } : undefined;
+  } catch { return undefined; }
+}
+
+/** The key the app saved with "Remember in Keychain"; "" without one. No shell: the account is an argument. */
+export function keychainKey(account: string): string {
+  if (process.platform !== 'darwin' || !account) return '';
+  try {
+    return execFileSync('security', ['find-generic-password', '-s', 'Prompta', '-a', account, '-w'],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 10_000 }).trim();
+  } catch { return ''; }
+}
+
+/** A personal provider's key from desktop/providers.local.json (its key_env, then api_key), as the app reads it. */
+function localProviderKey(account: string, env: Record<string, string | undefined>): string {
+  try {
+    const data = JSON.parse(readFileSync(join(root, 'desktop', 'providers.local.json'), 'utf8')) as { providers?: { key?: string; key_env?: string; api_key?: string }[] };
+    const item = data.providers?.find((p) => p.key === account);
+    return (item?.key_env && env[item.key_env]) || item?.api_key || '';
+  } catch { return ''; }
+}
+
+/** The LLM the app is set to: its provider, model and URL; the key from env, Keychain or providers.local.json. */
+export async function llmFromApp(state: AppGenerator, env: Record<string, string | undefined>,
+  deps: { keychain?: (account: string) => string; fetchImpl?: typeof fetch } = {}): Promise<LLM> {
+  const provider = state.provider as Provider;
+  if (!PROVIDERS.includes(provider)) throw new Error(`Prompta's Model & API names an unknown provider "${state.provider}".`);
+  const apiKey = env.PROMPTA_API_KEY || (provider === 'ollama' ? ''
+    : (deps.keychain ?? keychainKey)(state.keychain_account) || localProviderKey(state.keychain_account, env));
+  if (!state.model) {
+    // The app's own choice wins; only an empty model falls back to the first local Ollama model.
+    return llmFromEnv({ PROMPTA_PROVIDER: provider, PROMPTA_BASE_URL: state.base_url || undefined, PROMPTA_API_KEY: apiKey || undefined }, deps.fetchImpl);
+  }
+  const localServer = provider === 'openai' && !!state.base_url && isLocalHost(state.base_url);
+  if (provider !== 'ollama' && !apiKey && !localServer) {
+    throw new Error(`No API key for ${state.keychain_account}: in Prompta → Settings → Model & API, turn on "Remember in Keychain".`);
+  }
+  return createLLM({ provider, model: state.model, apiKey: apiKey || undefined, baseUrl: state.base_url || undefined });
+}
+
+/** The server's LLM, built once and reused. Installed by the app (PROMPTA_FOLLOW_APP), it follows the app's
+ *  Model & API choice and is rebuilt whenever generator.json changes; without that file, or without the flag,
+ *  the environment decides as before. */
+export function llmSource(env: Record<string, string | undefined>, deps: Parameters<typeof llmFromApp>[2] = {}): () => Promise<LLM> {
+  let llm: Promise<LLM> | undefined;
+  let seen = -1;
+  const follow = !!env.PROMPTA_FOLLOW_APP;
+  return () => {
+    const app = follow ? readAppGenerator(appStatePath(env)) : undefined;
+    if (app && app.mtime !== seen) { seen = app.mtime; llm = undefined; }
+    llm ??= (app ? llmFromApp(app.state, env, deps) : llmFromEnv(env, deps.fetchImpl)).catch((e) => { llm = undefined; throw e; });
+    return llm;
+  };
+}
+
 /** Builds the LLM from the environment; with Ollama and no model set, picks the first local model. */
 export async function llmFromEnv(env: Record<string, string | undefined>, fetchImpl: typeof fetch = fetch): Promise<LLM> {
   const provider = (env.PROMPTA_PROVIDER || 'ollama') as Provider;
@@ -259,13 +328,10 @@ function main() {
   // stdout carries protocol messages only; any stray log would corrupt the stream.
   console.log = console.info = console.debug = (...args: unknown[]) => console.error(...args);
   const env = { ...readEnvLocal(), ...process.env };
-  let llm: Promise<LLM> | undefined;
+  const getLLM = llmSource(env);
   let catalog: Catalog | undefined;
   const server = createServer({
-    getLLM: () => {
-      llm ??= llmFromEnv(env).catch((e) => { llm = undefined; throw e; });
-      return llm;
-    },
+    getLLM,
     getCatalog: () => (catalog ??= loadCatalog(JSON.parse(readFileSync(join(root, 'catalog', 'catalog.json'), 'utf8')))),
   });
   const send: Send = (message) => { process.stdout.write(`${JSON.stringify(message)}\n`); };

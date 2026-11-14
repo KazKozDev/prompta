@@ -11,7 +11,7 @@ import { createServer, llmFromEnv } from './server.ts';
 const brief = { topic: 'Fix failing test', goal: 'Fix the failing parser test', task_type: 'coding', input: 'parser.ts', output_format: 'patch', constraints: [], language: 'en', modality: 'text', stakes: 'medium', assumptions: [], budget_calls: null };
 const claudeReply = (count = 1) => JSON.stringify({ brief, variants: Array.from({ length: count }, (_, i) => ({
   prompt: `Explain why parser.test.ts fails with the TypeError, then fix parser.ts minimally and rerun the tests. If unsure, say so. Variant ${i + 1}.`,
-  rule_ids: ['clear', 'uncertainty'],
+  rule_ids: ['clear', 'uncertainty', 'scope', 'general-solutions'],
 })) });
 const suggestionsReply = (n: number) => JSON.stringify({ suggestions: Array.from({ length: n }, (_, i) => ({
   title: `Step ${i + 1}`, why: 'The parser test still fails.', prompt: `Run the parser tests again and explain the TypeError before changing code (${i + 1}).`,
@@ -142,4 +142,44 @@ test('stdio server answers a real handshake with clean newline-delimited JSON on
   assert.equal(lines.find((m) => m.id === 1).result.serverInfo.name, 'prompta');
   assert.equal(lines.find((m) => m.id === null).error.code, -32700);
   assert.equal(lines.find((m) => m.id === 2).result.tools.length, 2);
+});
+
+test('installed by the app, the server follows Model & API and notices a change without a restart', async () => {
+  const { mkdtempSync, writeFileSync, utimesSync } = await import('node:fs');
+  const { join } = await import('node:path');
+  const { tmpdir } = await import('node:os');
+  const { llmSource } = await import('./server.ts');
+  const file = join(mkdtempSync(join(tmpdir(), 'prompta-state-')), 'generator.json');
+  const save = (model: string, when: number) => {
+    writeFileSync(file, JSON.stringify({ provider: 'openai', keychain_account: 'compatible', model, base_url: 'http://127.0.0.1:9/v1' }));
+    utimesSync(file, when, when);
+  };
+  const asked: string[] = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async (_url: string, init: { body: string }) => {
+    asked.push(JSON.parse(init.body).model);
+    return new Response(JSON.stringify({ choices: [{ message: { content: 'ok' } }] }), { status: 200 });
+  }) as typeof fetch;
+  try {
+    // A model pinned in the env by an old install loses to the app's current choice.
+    const getLLM = llmSource({ PROMPTA_FOLLOW_APP: '1', PROMPTA_STATE_FILE: file, PROMPTA_MODEL: 'flint:40b' }, { keychain: () => '' });
+    save('first-model', 1_000);
+    await (await getLLM())('hi');
+    save('second-model', 2_000);
+    await (await getLLM())('hi');
+    assert.deepEqual(asked, ['first-model', 'second-model']);
+    // Without the flag, the environment decides as before.
+    asked.length = 0;
+    await (await llmSource({ PROMPTA_STATE_FILE: file, PROMPTA_PROVIDER: 'openai', PROMPTA_MODEL: 'env-model', PROMPTA_API_KEY: 'k', PROMPTA_BASE_URL: 'http://127.0.0.1:9/v1' })())('hi');
+    assert.deepEqual(asked, ['env-model']);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test('following the app, a cloud provider without a remembered key says how to fix it', async () => {
+  const { llmFromApp } = await import('./server.ts');
+  const state = { provider: 'anthropic', keychain_account: 'anthropic', model: 'claude-opus-5-5', base_url: '' };
+  await assert.rejects(llmFromApp(state, {}, { keychain: () => '' }), /Remember in Keychain/);
+  await assert.doesNotReject(llmFromApp(state, {}, { keychain: (account) => (account === 'anthropic' ? 'k' : '') }));
 });

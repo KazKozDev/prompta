@@ -9,7 +9,7 @@ archive_title: "Prompt Engineering Guide: A Practical Beginner's Handbook for Wo
 pdf_url: https://archive.org/download/a-practical-beginners-handbook-for-working-with-ai/A%20Practical%20Beginner%27s%20Handbook%20for%20Working%20with%20AI%20.pdf
 pdf_local: "../pdf/practical-beginners-handbook-ai.pdf"
 license: "https://creativecommons.org/publicdomain/mark/1.0/"
-extraction: "pdftotext (poppler), без -layout; таблицы и код могут быть искажены"
+extraction: "pdftotext (poppler), without -layout; tables and code may be garbled"
 ---
 # Prompt Engineering Guide: A Practical Beginner's Handbook for Working with AI, ChatGPT, Claude & Gemini
 

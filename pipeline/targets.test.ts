@@ -132,7 +132,7 @@ test('Hermes Agent routes through saved guidance and preserves the revised brief
     executionCapabilities: { web: 'available' },
     llm: async (prompt) => {
       prompts.push(prompt);
-      if (prompt.includes('Напиши zero-shot')) return 'Classify the supplied integers and return the results as JSON.';
+      if (prompt.includes('Write a zero-shot')) return 'Classify the supplied integers and return the results as JSON.';
       return JSON.stringify({ variants: [{
         prompt: 'Classify each supplied integer by parity and return the labels as JSON.',
         rule_ids: ['tips'],

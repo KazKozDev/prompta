@@ -2,6 +2,7 @@
 import os
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 import tempfile as _tempfile
+os.environ['PROMPTA_STATE_FILE'] = os.path.join(_tempfile.mkdtemp(), 'generator.json')  # never the real app state
 from PyQt6.QtCore import QSettings as _QSettings
 _QSettings.setPath(_QSettings.Format.IniFormat, _QSettings.Scope.UserScope, _tempfile.mkdtemp())  # never touch real prefs
 import os as _os
@@ -10,6 +11,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 from history import HistoryStore, history_topic
+import json
+import re
 import unittest
 from unittest.mock import Mock, patch
 
@@ -33,14 +36,105 @@ class DesktopSmokeTest(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
 
     def setUp(self):
+        from mcp_settings import prefs
+        prefs().remove(PromptaWindow.GENERATOR_PREFS)  # each test starts from a first launch
         self.temp = tempfile.TemporaryDirectory()
         self.store = HistoryStore(Path(self.temp.name) / 'history.sqlite3')
         self.store_patch = patch('app.HistoryStore', return_value=self.store)
         self.store_patch.start()
+        self.local_patch = patch('app.load_local_providers', return_value={})  # the real personal file stays out of tests
+        self.local_patch.start()
 
     def tearDown(self):
+        self.local_patch.stop()
         self.store_patch.stop()
         self.temp.cleanup()
+
+    def test_personal_provider_from_gitignored_file(self):
+        self.local_patch.stop()  # the real loader, reading a temp file
+        from app import load_local_providers
+        path = Path(self.temp.name) / 'providers.local.json'
+        path.write_text(json.dumps({'providers': [
+            {'key': 'meta', 'label': 'Meta (Muse Spark)', 'base_url': 'https://api.meta.ai/v1',
+             'models': ['muse-spark-1.3'], 'key_env': 'PROMPTA_TEST_NO_SUCH_ENV', 'api_key': 'file-key'},
+            {'key': 'openai', 'base_url': 'https://x.test/v1'},  # cannot replace a built-in provider
+            {'key': 'broken'}]}))
+        local = load_local_providers(path)
+        self.assertEqual(list(local), ['meta'])
+        self.assertEqual(load_local_providers(Path(self.temp.name) / 'missing.json'), {})
+        with patch('app.load_local_providers', return_value=local), patch('app.keychain.load', return_value=''), \
+                patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+            window = PromptaWindow()
+            window.provider.set_current('meta', emit=True)
+        self.local_patch.start()
+        self.assertEqual(window.model.current_key(), 'muse-spark-1.3')
+        self.assertEqual(window.api_key.text(), 'file-key')
+        provider, model, key, url, label = window._generator_for_mcp()
+        self.assertEqual((provider, model, url, label), ('openai', 'muse-spark-1.3', 'https://api.meta.ai/v1', 'Meta (Muse Spark)'))
+        window.thoughts.setPlainText('Напиши письмо')
+        with patch('app.Worker') as worker:
+            window.run_pipeline()
+        payload = worker.call_args.args[0] if worker.call_args.args else worker.call_args.kwargs
+        self.assertIn('"provider": "openai"', json.dumps(payload))
+        self.assertIn('https://api.meta.ai/v1', json.dumps(payload))
+        window.close()
+
+    def test_settings_history_lists_opens_and_deletes_requests(self):
+        def window():
+            with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+                return PromptaWindow()
+        first = window()
+        for query, prompt in [('Чётные числа', 'Первый промпт'), ('Письмо коллеге', 'Второй промпт')]:
+            first.thoughts.setPlainText(query)
+            first.on_finished({'ok': True, 'manual': {
+                'technique': {'key': 'test', 'name': 'Same technique', 'category': 'test'},
+                'prompt': prompt, 'config': {'temperature': 0.2, 'top_p': 0.95, 'rationale': 'test'}, 'source_ref': 'test'}})
+        first.close()
+        second = window()
+        listing = second.history_settings_list
+        def rows():  # request rows, without the day headers
+            return [r for r in range(listing.count()) if isinstance(listing.item(r).data(app_module.Qt.ItemDataRole.UserRole), int)]
+        self.assertEqual(listing.item(0).text(), 'Today')  # a day header, not a request
+        self.assertEqual(len(rows()), 2)
+        self.assertEqual(second.history_settings_title.text(), 'REQUESTS · 2')
+        self.assertIn('Письмо', listing.item(rows()[0]).text())  # newest first
+        second.history_settings_search.setText('Чётные')
+        self.assertEqual(len(rows()), 1)
+        second.history_settings_search.setText('')
+        second._open_from_settings_list(listing.item(rows()[1]))
+        self.assertEqual(second.thoughts.toPlainText(), 'Чётные числа')
+        second._delete_from_settings_list(rows()[0])
+        self.assertEqual(len(rows()), 1)
+        self.assertEqual(len(self.store.load()), 1)
+        second.close()
+
+    def test_about_tab_credits_the_author(self):
+        with patch.object(PromptaWindow, 'load_models'), patch.object(PromptaWindow, 'load_techniques'):
+            window = PromptaWindow()
+        tabs = window.settings_tabs
+        self.assertEqual(tabs.tabText(tabs.count() - 1), 'About')
+        self.assertIn('KazKozDev', window.about_author.text())
+        self.assertIn('https://github.com/KazKozDev', window.about_author.text())
+        self.assertRegex(window.about_how.text(), r'^A model reads your request .* one of \d+ prompting techniques, .*prompt with it\.$')
+        versions = dict(window.about_versions())
+        self.assertRegex(versions['Technique catalog'], r' · 90 entries$')
+        self.assertRegex(versions['Claude guidance'], r'^\d+ rules · checked \d{4}-\d{2}-\d{2}$')
+        self.assertNotIn('unavailable', versions.values())
+        window.library.reload()
+        self.assertRegex(window.library.summary.text(), r'^\d+ materials · catalog \S+ · prompts \d{4}-\d{2}-\d{2}$')
+        tree = window.library.tree
+        rules = next(tree.topLevelItem(i) for i in range(tree.topLevelItemCount()) if tree.topLevelItem(i).text(0) == 'OFFICIAL RULES')
+        claude = next(rules.child(j) for j in range(rules.childCount()) if rules.child(j).text(0).startswith('Claude'))
+        date = re.search(r'\d{4}-\d{2}-\d{2}$', claude.text(0)).group(0)
+        tree.setCurrentItem(claude)
+        self.assertIn(f'checked {date}', window.library.integrity.text())
+        self.assertIn('Copy version info', window.about_links.text())
+        window.copy_version_info()
+        self.assertIn('Copied', window.about_links.text())
+        copied = QApplication.clipboard().text()
+        self.assertIn('Prompta 0.1.0', copied)
+        self.assertIn('Pipeline prompts: ', copied)
+        window.close()
 
     def test_history_survives_restart_and_search_restores_correct_query(self):
         def window():
@@ -82,8 +176,8 @@ class DesktopSmokeTest(unittest.TestCase):
             os_env.pop('PROMPTA_HISTORY_MAX', None)
             os_env.pop('PROMPTA_HISTORY_DAYS', None)
             window = PromptaWindow()
-            window.history_limit.addItem('Keep the newest 2', 2)
-            window.history_limit.setCurrentIndex(window.history_limit.count() - 1)
+            window.history_limit.set_items(window.history_limit._items + [{'key': '2', 'label': 'Keep the newest 2'}])
+            window.history_limit.set_current('2', emit=True)
         self.assertEqual([e['label'] for e in self.store.load()], ['q3', 'q4'])
         self.assertEqual(len(window._history_items), 2)
         saved = __import__('json').loads(self.store.path.with_name('settings.json').read_text())
@@ -457,9 +551,11 @@ class DesktopSmokeTest(unittest.TestCase):
         window.settings_dialog.accept()
         self.assertFalse(window.settings_dialog.isVisible())
         window.thoughts.setPlainText('Synthetic test')
-        window.provider.set_current('openai')
-        window.model.set_current('synthetic-model')
-        with patch('app.Worker') as worker_type:
+        no_keychain = Mock(load=lambda provider: '', save=Mock(return_value=True), forget=Mock())
+        with patch.object(app_module, 'keychain', no_keychain), patch('app.Worker') as worker_type:
+            window.provider.set_current('openai', emit=True)  # loads this provider's own (empty) key
+            window.api_key.setText('synthetic-test-key')
+            window.model.set_current('synthetic-model')
             window.run_pipeline()
             payload = worker_type.call_args.args[0]
             self.assertEqual(payload['apiKey'], 'synthetic-test-key')
@@ -1155,9 +1251,12 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
         try:
             window.thoughts.setPlainText('Build a snake game')
             window.model.set_current('test-model')
-            buttons = {b.property('target'): b for b in window.segments.buttons()}
-            self.assertEqual([b.text() for b in window.segments.buttons()], ['Any', 'Claude', 'ChatGPT', 'Gemini', 'Grok', 'Hermes', 'Open'])
-            self.assertTrue(buttons['general'].isChecked())
+            picker = window.target_picker
+            keys = [i['key'] for i in picker._items]
+            self.assertEqual(keys[:6], ['general', 'claude', 'chatgpt', 'gemini', 'grok', 'hermes'])
+            self.assertIn('open:glm-5-3', keys, 'every open-weight model is in the same list')
+            self.assertEqual(picker.text(), '— any LLM —')
+            self.assertFalse(window.target_track.isVisibleTo(window), 'one dropdown, no button row')
 
             def payload():
                 with patch('app.Worker') as worker:
@@ -1171,34 +1270,33 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
             window.execution_profile.set_current('agent')
             self.assertEqual(payload()['agentCapabilities'], ['code', 'files', 'integrations', 'web'], 'an agent has every tool')
             window.execution_profile.set_current('universal')
-            buttons['claude'].click()
+            picker._choose('claude')
             self.assertTrue(payload()['claudeOnly'])
             self.assertFalse(window.technique.isEnabled())
-            buttons['grok'].click()
+            picker._choose('grok')
             request = payload()
             self.assertTrue(request['grokOnly'])
             self.assertFalse(request['claudeOnly'])
-            buttons['hermes'].click()
+            picker._choose('hermes')
             request = payload()
             self.assertTrue(request['hermesOnly'])
             self.assertFalse(request['grokOnly'])
             self.assertFalse(window.technique.isEnabled())
-            window.prompt_model.setCurrentIndex(window.prompt_model.findData('glm-5-3'))
+            picker._choose('open:glm-5-3')
             request = payload()
             self.assertFalse(request['hermesOnly'])
             self.assertEqual(request['openModel'], window.prompt_model.currentData())
             self.assertEqual([b.property('target') for b in window.segments.buttons() if b.isChecked()], ['openModel'])
             self.assertFalse(window.prompt_model.isVisibleTo(window), 'one control: no second open-model field')
-            self.assertIn(window.prompt_model.currentText(), window.open_caption.text(), 'the chosen model is named under the switch')
-            self.assertTrue(window.open_caption.isVisibleTo(window))
-            buttons['general'].click()
+            self.assertEqual(picker.text(), window.prompt_model.currentText(), 'the dropdown names the chosen model')
+            picker._choose('general')
             request = payload()
             self.assertFalse(any(request[k] for k in ('claudeOnly', 'chatgptOnly', 'geminiOnly', 'grokOnly')))
             self.assertNotIn('openModel', request)
             self.assertTrue(window.technique.isEnabled())
             # History restore sets the hidden toggles directly; the switch must follow.
             window.chatgpt_only.setChecked(True)
-            self.assertTrue(buttons['chatgpt'].isChecked())
+            self.assertEqual(picker.text(), 'ChatGPT')
         finally:
             window.close()
 
@@ -1221,7 +1319,7 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
             tabs = next(w for w in widgets if isinstance(w, QTabWidget))
             details = next(w for w in widgets if isinstance(w, Disclosure))
             self.assertLess(widgets.index(tabs), widgets.index(details))
-            self.assertEqual([tabs.tabText(i) for i in range(tabs.count())], ['No technique', 'Code prompting', 'Few-shot'])
+            self.assertEqual([tabs.tabText(i) for i in range(tabs.count())], ['Zero-shot', 'Code prompting', 'Few-shot'])
             self.assertEqual(tabs.currentIndex(), 1, 'the built prompt is shown first')
             self.assertEqual(tabs.widget(0).toPlainText(), 'Task: snake')
             self.assertIn('FIRST PROMPT', window.prompt_edit.toPlainText())
@@ -1270,6 +1368,163 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
                 self.assertTrue(window.remember_key.isChecked())
                 window.remember_key.setChecked(False)
                 self.assertEqual(saved, {}, 'unchecking removes the saved key')
+            finally:
+                window.close()
+
+    def test_openai_compatible_provider_keeps_its_own_url_and_key(self):
+        saved = {'openai_compatible': 'compat-key'}
+        fake = Mock(load=lambda provider: saved.get(provider, ''),
+                    save=lambda provider, key: saved.__setitem__(provider, key) or True,
+                    forget=lambda provider: saved.pop(provider, None))
+        with patch.object(app_module, 'keychain', fake), patch.object(PromptaWindow, 'load_models'):
+            window = self._prompta_window()
+            try:
+                window.provider.set_current('openai_compatible', emit=True)
+                self.assertEqual(window.api_key.text(), 'compat-key')
+                window.thoughts.setPlainText('Synthetic test')
+                window.model_name.setText('local-model')
+                window.api_key.setText('')
+                with patch('app.Worker') as worker_type:
+                    window.run_pipeline()
+                    worker_type.assert_not_called()
+                self.assertEqual(window.status.text(), 'Add the server URL in Settings')
+                window.model_base_url.setText('http://127.0.0.1:8080/v1')
+                window.provider.set_current('openai', emit=True)
+                self.assertEqual(window.model_base_url.text(), '', 'OpenAI has its own URL')
+                window.provider.set_current('openai_compatible', emit=True)
+                self.assertEqual(window.model_base_url.text(), 'http://127.0.0.1:8080/v1')
+                window.api_key.setText('')
+                with patch('app.Worker') as worker_type:
+                    window.run_pipeline()
+                    payload = worker_type.call_args.args[0]
+                self.assertEqual(payload['provider'], 'openai', 'the pipeline speaks the same OpenAI API')
+                self.assertEqual(payload['baseUrl'], 'http://127.0.0.1:8080/v1')
+                self.assertEqual(payload['apiKey'], '')
+            finally:
+                window.close()
+
+    def test_each_provider_lists_its_own_models_and_compatible_types_one(self):
+        no_keychain = Mock(load=lambda provider: '', save=Mock(return_value=True), forget=Mock())
+        with patch.object(PromptaWindow, 'load_models'), patch.object(app_module, 'keychain', no_keychain):
+            window = self._prompta_window()
+            try:
+                window._on_models_loaded(['qwen3:30b', 'glm-5.3:cloud'], 'ollama')
+                window.model.set_current('qwen3:30b')
+                window.provider.set_current('gemini', emit=True)
+                self.assertEqual(window.model._items, [], 'no Ollama models under Gemini')
+                window._on_models_loaded(['gemini-3-pro', 'gemini-3-flash'], 'gemini')
+                self.assertEqual(window._current_model(), 'gemini-3-pro')
+                window._on_models_loaded(['late-ollama-model'], 'ollama')  # a fetch that ends after a switch
+                self.assertEqual([i['key'] for i in window.model._items], ['gemini-3-pro', 'gemini-3-flash'])
+
+                window.provider.set_current('openai_compatible', emit=True)
+                self.assertTrue(window.model.isHidden(), 'a custom server has no list: the name is typed')
+                self.assertTrue(window.refresh_button.isHidden())
+                self.assertFalse(window.model_name.isHidden())
+                window.model_name.setText('mlx-community/Qwen3-8B')
+                self.assertEqual(window._current_model(), 'mlx-community/Qwen3-8B')
+
+                window.provider.set_current('ollama', emit=True)
+                self.assertTrue(window.model_name.isHidden())
+                self.assertEqual([i['key'] for i in window.model._items], ['late-ollama-model'])
+                window.provider.set_current('gemini', emit=True)
+                self.assertEqual(window._current_model(), 'gemini-3-pro', 'each provider keeps its choice')
+            finally:
+                window.close()
+
+    def test_cloud_model_lists_come_from_each_providers_api(self):
+        import json
+        from workers import fetch_cloud_models
+        bodies = {
+            'https://api.openai.com/v1/models': {'data': [{'id': 'gpt-b'}, {'id': 'gpt-a'}]},
+            'https://api.anthropic.com/v1/models?limit=1000': {'data': [{'id': 'claude-x'}]},
+            'https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000': {'models': [
+                {'name': 'models/gemini-pro', 'supportedGenerationMethods': ['generateContent']},
+                {'name': 'models/embedding', 'supportedGenerationMethods': ['embedContent']}]},
+        }
+        seen = []
+        class Response:
+            def __init__(self, body): self.body = body
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+            def read(self): return json.dumps(self.body).encode()
+        def fake_open(request, timeout=0):
+            seen.append((request.full_url, dict(request.header_items())))
+            return Response(bodies[request.full_url])
+        with patch('urllib.request.urlopen', fake_open):
+            self.assertEqual(fetch_cloud_models('openai', 'k1'), ['gpt-a', 'gpt-b'])
+            self.assertEqual(fetch_cloud_models('anthropic', 'k2'), ['claude-x'])
+            self.assertEqual(fetch_cloud_models('gemini', 'k3'), ['gemini-pro'], 'only text models, without the prefix')
+            self.assertEqual(fetch_cloud_models('openai', ''), [], 'no key, no request')
+        self.assertEqual(seen[0][1].get('Authorization'), 'Bearer k1')
+        self.assertEqual(seen[1][1].get('X-api-key'), 'k2')
+        self.assertEqual(seen[2][1].get('X-goog-api-key'), 'k3')
+        self.assertNotIn('k3', seen[2][0], 'the key never goes into the URL')
+
+    def test_generator_settings_survive_a_restart(self):
+        no_keychain = Mock(load=lambda provider: '', save=Mock(return_value=True), forget=Mock())
+        with patch.object(app_module, 'keychain', no_keychain):
+            window = self._prompta_window()
+            window.provider.set_current('openai_compatible', emit=True)
+            window.model_base_url.setText('http://127.0.0.1:8080/v1')
+            window.model_name.setText('mlx-community/Qwen3-8B')
+            window.model_name.editingFinished.emit()
+            window.provider.set_current('gemini', emit=True)
+            window.model.set_current('gemini-3-pro', emit=True)
+            window.close()
+
+            again = self._prompta_window()
+            try:
+                self.assertEqual(again.provider.current_key(), 'gemini', 'the last provider comes back')
+                self.assertEqual(again._current_model(), 'gemini-3-pro')
+                again.provider.set_current('openai_compatible', emit=True)
+                self.assertEqual(again.model_base_url.text(), 'http://127.0.0.1:8080/v1')
+                self.assertEqual(again._current_model(), 'mlx-community/Qwen3-8B')
+            finally:
+                again.close()
+
+    def test_keyless_lists_come_from_a_daily_cached_catalog(self):
+        import json, time
+        from workers import catalog_models, reduce_catalog
+        data = {'openai': {'models': {
+                    'gpt-old': {'id': 'gpt-old', 'release_date': '2024-01-01', 'modalities': {'output': ['text']}},
+                    'gpt-new': {'id': 'gpt-new', 'release_date': '2026-05-01', 'modalities': {'output': ['text']}},
+                    'gpt-image': {'id': 'gpt-image', 'release_date': '2026-06-01', 'modalities': {'output': ['image']}},
+                    'gpt-gone': {'id': 'gpt-gone', 'status': 'deprecated', 'modalities': {'output': ['text']}}}},
+                'google': {'models': {'gemini-x': {'id': 'gemini-x', 'modalities': {'output': ['text']}}}}}
+        self.assertEqual(reduce_catalog(data)['openai'], ['gpt-new', 'gpt-old'], 'text models only, newest first')
+        self.assertEqual(reduce_catalog(data)['gemini'], ['gemini-x'], 'our gemini is their google')
+        calls = []
+        class Response:
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+            def read(self): return json.dumps(data).encode()
+        def fake_open(request, timeout=0):
+            calls.append(request.full_url)
+            return Response()
+        cache = Path(self.temp.name) / 'catalog.json'
+        with patch('urllib.request.urlopen', fake_open):
+            self.assertEqual(catalog_models('openai', cache), ['gpt-new', 'gpt-old'])
+            self.assertEqual(catalog_models('gemini', cache), ['gemini-x'])
+        self.assertEqual(calls, ['https://models.dev/api.json'], 'fetched once, then read from the copy')
+        self.assertLess(cache.stat().st_size, 1000, 'only the ids are kept, not the 6 MB file')
+        saved = json.loads(cache.read_text())
+        saved['fetched'] = time.time() - 2 * 24 * 3600
+        cache.write_text(json.dumps(saved))
+        with patch('urllib.request.urlopen', side_effect=OSError('offline')):
+            self.assertEqual(catalog_models('openai', cache), ['gpt-new', 'gpt-old'], 'a stale copy beats nothing')
+
+    def test_catalog_list_says_where_it_came_from(self):
+        no_keychain = Mock(load=lambda provider: '', save=Mock(return_value=True), forget=Mock())
+        with patch.object(PromptaWindow, 'load_models'), patch.object(app_module, 'keychain', no_keychain):
+            window = self._prompta_window()
+            try:
+                window.provider.set_current('anthropic', emit=True)
+                window._on_models_loaded(['claude-a', 'claude-b'], 'anthropic', 'catalog')
+                self.assertIn('models.dev', window.models_hint.text())
+                window.provider.set_current('ollama', emit=True)
+                window.provider.set_current('anthropic', emit=True)
+                self.assertIn('models.dev', window.models_hint.text(), 'the hint survives a switch back')
             finally:
                 window.close()
 
@@ -1419,7 +1674,7 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
             window.on_finished({'ok': True, 'manual': {**variants[0], 'topic': 'Recursion', 'zeroShotPrompt': 'Task',
                                                        'variants': variants, 'failed': [{'key': 'x', 'name': 'ToT', 'error': 'timeout'}]}})
             tabs = window.output_holder.findChild(QTabWidget, 'variantTabs')
-            self.assertEqual([tabs.tabText(i) for i in range(tabs.count())], ['No technique', 'Few-shot', 'Chain of thought'])
+            self.assertEqual([tabs.tabText(i) for i in range(tabs.count())], ['Zero-shot', 'Few-shot', 'Chain of thought'])
             self.assertIn('Chain of thought prompt', tabs.widget(2).toPlainText())
             self.assertEqual(tabs.widget(0).toPlainText(), 'Task')
             self.assertEqual(window.status.text(), '2 techniques built · 1 failed, see below the prompt')
@@ -1572,3 +1827,4 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
 
 if __name__ == '__main__':
     unittest.main()
+

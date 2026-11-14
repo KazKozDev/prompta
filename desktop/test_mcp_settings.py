@@ -2,6 +2,7 @@
 import os
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 import tempfile as _tempfile
+os.environ['PROMPTA_STATE_FILE'] = os.path.join(_tempfile.mkdtemp(), 'generator.json')  # never the real app state
 from PyQt6.QtCore import QSettings as _QSettings
 _QSettings.setPath(_QSettings.Format.IniFormat, _QSettings.Scope.UserScope, _tempfile.mkdtemp())  # never touch real prefs
 import json
@@ -53,15 +54,19 @@ class McpSettingsTest(unittest.TestCase):
         config = json.loads(client_config('/bin/node', Path('/repo/mcp/server.ts'), {'PROMPTA_MODEL': 'm'}))
         self.assertEqual(config['mcpServers']['prompta'], {'command': '/bin/node', 'args': ['/repo/mcp/server.ts'], 'env': {'PROMPTA_MODEL': 'm'}})
 
-    def test_widget_shows_status_and_hides_key_for_ollama(self):
-        widget = McpSettingsWidget(Path('/repo'), lambda: '/bin/node', QLabel)
-        self.assertFalse(widget.api_key.isVisibleTo(widget))
-        widget.provider.setCurrentIndex(widget.provider.findData('gemini'))
-        self.assertTrue(widget.api_key.isVisibleTo(widget))
-        widget._show_status(0, GET_OUTPUT)
-        self.assertIn('connected · all projects · Prompta writes with kimi-k3:cloud', widget.claude_state.text())
-        self.assertEqual(widget.provider.currentData(), 'ollama')
-        self.assertEqual(widget.model.currentText(), 'kimi-k3:cloud')
+    def test_widget_uses_the_apps_generator_and_shows_status(self):
+        chosen = ['gemini', 'gemini-3-pro', 'g-key', '', 'Gemini']
+        widget = McpSettingsWidget(Path('/repo'), lambda: '/bin/node', QLabel, lambda: tuple(chosen))
+        self.assertEqual(widget.model_summary.text(), 'gemini-3-pro · Gemini — change it in Model & API')
+        # Installs carry no model and no key: the server follows Model & API through generator.json.
+        self.assertEqual(widget._env(), {'PROMPTA_FOLLOW_APP': '1'})
+        chosen[:] = ['openai', 'mlx-model', '', 'http://127.0.0.1:8080/v1', 'OpenAI-compatible']
+        widget.sync_generator()
+        self.assertIn('custom URL', widget.model_summary.text())
+        widget._show_status(0, GET_OUTPUT)  # an old install with a pinned model
+        self.assertIn('connected · all projects · pinned to kimi-k3:cloud · Update to follow Model &amp; API', widget.claude_state.text())
+        widget._show_status(0, GET_OUTPUT.replace('PROMPTA_MODEL=kimi-k3:cloud', 'PROMPTA_FOLLOW_APP=1'))
+        self.assertIn('connected · all projects · follows Model &amp; API', widget.claude_state.text())
         self.assertEqual(widget.install_button.text(), 'Update')
         widget._show_status(1, 'No MCP server found with name: prompta')
         self.assertIn('not installed', widget.claude_state.text())
@@ -70,6 +75,14 @@ class McpSettingsTest(unittest.TestCase):
         self.assertIn('TypeError: boom', widget.status.text())
         self.assertFalse(widget.remove_button.isEnabled())
 
+    def test_install_waits_for_a_model(self):
+        widget = McpSettingsWidget(Path('/repo'), lambda: '/bin/node', QLabel, lambda: ('ollama', '', '', '', 'Ollama'))
+        self.assertIn('No model chosen', widget.model_summary.text())
+        with patch.object(mcp_settings, 'find_claude_cli', return_value='/bin/claude'), patch.object(widget, '_run') as run:
+            widget.install()
+        run.assert_not_called()
+        self.assertEqual(widget.status.text(), 'Choose a model in Model & API first')
+
     def test_prefers_native_claude_over_stale_homebrew_copy(self):
         native = Path.home() / '.local/bin/claude'
         with patch.object(mcp_settings.shutil, 'which', return_value='/opt/homebrew/bin/claude'), \
@@ -77,23 +90,42 @@ class McpSettingsTest(unittest.TestCase):
             self.assertEqual(mcp_settings.find_claude_cli(), str(native))
 
     def test_install_runs_remove_then_add_with_env(self):
-        widget = McpSettingsWidget(Path('/repo'), lambda: '/bin/node', QLabel)
-        widget.model.setEditText('qwen3:30b')
+        widget = McpSettingsWidget(Path('/repo'), lambda: '/bin/node', QLabel, lambda: ('ollama', 'qwen3:30b', '', '', 'Ollama'))
         with patch.object(mcp_settings, 'find_claude_cli', return_value='/bin/claude'), patch.object(widget, '_run') as run:
             widget.install()
         commands = run.call_args.args[0]
         self.assertEqual(commands[0][:3], ['/bin/claude', 'mcp', 'remove'])
-        self.assertIn('PROMPTA_MODEL=qwen3:30b', commands[1])
+        self.assertIn('PROMPTA_FOLLOW_APP=1', commands[1])
+        self.assertFalse(any('PROMPTA_MODEL' in part or 'PROMPTA_API_KEY' in part for part in commands[1]))
         self.assertTrue(run.call_args.kwargs['tolerate_first_failure'])
         widget.copy_config()
-        self.assertIn('"PROMPTA_MODEL": "qwen3:30b"', QApplication.clipboard().text())
+        self.assertIn('"PROMPTA_FOLLOW_APP": "1"', QApplication.clipboard().text())
+
+    def test_generator_state_file_is_private_and_holds_no_key(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / 'Prompta' / 'generator.json'
+            state = mcp_settings.generator_state('openai', 'meta', ' muse-spark-1.3 ', 'https://api.meta.ai/v1')
+            self.assertTrue(mcp_settings.write_generator_state(state, path))
+            self.assertFalse(mcp_settings.write_generator_state(state, path), 'unchanged state is not rewritten')
+            self.assertEqual(json.loads(path.read_text()), {'provider': 'openai', 'keychain_account': 'meta',
+                                                            'model': 'muse-spark-1.3', 'base_url': 'https://api.meta.ai/v1'})
+            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+
+    def test_key_warning_shows_when_the_server_cannot_read_the_key(self):
+        missing = ['Anthropic (Claude)']
+        widget = McpSettingsWidget(Path('/repo'), lambda: '/bin/node', QLabel,
+                                   lambda: ('anthropic', 'claude-opus-5-5', 'k', '', 'Anthropic (Claude)'), lambda: missing[0])
+        self.assertFalse(widget.key_warning.isHidden())
+        missing[0] = ''
+        widget.sync_generator()
+        self.assertTrue(widget.key_warning.isHidden())
 
     def test_claude_status_survives_restart_and_dot_is_green(self):
         widget = McpSettingsWidget(Path('/repo'), lambda: '/bin/node', QLabel)
         widget._show_status(0, GET_OUTPUT)
         self.assertIn('#3fa34d', widget.claude_state.text())
         reopened = McpSettingsWidget(Path('/repo'), lambda: '/bin/node', QLabel)
-        self.assertIn('connected · all projects · Prompta writes with kimi-k3:cloud', reopened.claude_state.text())
+        self.assertIn('connected · all projects · pinned to kimi-k3:cloud', reopened.claude_state.text())
         self.assertEqual(reopened.install_button.text(), 'Update')
         self.assertTrue(reopened.remove_button.isEnabled())
         reopened._show_status(1, 'No MCP server found with name: prompta')
@@ -170,32 +202,18 @@ class McpSettingsTest(unittest.TestCase):
             write_entry(hermes, server_entry(hermes, '/bin/node', Path('/s.ts'), {}))
             self.assertEqual(read_entry(hermes)['command'], '/bin/node')
 
-    def test_openclaw_goes_through_its_cli(self):
-        entry = {'command': '/bin/node', 'args': ['/s.ts']}
-        self.assertEqual(mcp_settings.openclaw_commands('/bin/openclaw', entry),
-                         [['/bin/openclaw', 'mcp', 'set', 'prompta', json.dumps(entry)]])
-        self.assertEqual(mcp_settings.openclaw_commands('/bin/openclaw', None), [['/bin/openclaw', 'mcp', 'unset', 'prompta']])
-        with tempfile.TemporaryDirectory() as home:
-            openclaw = self._clients(home)['openclaw']
-            openclaw.path.parent.mkdir(parents=True)
-            openclaw.path.write_text(json.dumps({'mcp': {'servers': {'prompta': entry}}}))
-            self.assertEqual(read_entry(openclaw), entry)
-            with self.assertRaises(ValueError):
-                write_entry(openclaw, entry)
-
     def test_widget_rows_install_into_present_clients_only(self):
         with tempfile.TemporaryDirectory() as home, \
              patch.object(mcp_settings, 'file_clients', lambda: file_clients(Path(home))), \
              patch.object(mcp_settings, 'client_present', lambda c: c.key == 'cursor'):
-            widget = McpSettingsWidget(Path('/repo'), lambda: '/bin/node', QLabel)
+            widget = McpSettingsWidget(Path('/repo'), lambda: '/bin/node', QLabel, lambda: ('ollama', 'qwen3:30b', '', '', 'Ollama'))
             widget.refresh_files()
             install, remove, state = widget.client_rows['cursor']
             self.assertTrue(install.isEnabled() and not remove.isEnabled())
             self.assertFalse(widget.client_rows['gemini'][0].isEnabled())
-            widget.model.setEditText('qwen3:30b')
             install.click()
-            self.assertEqual(read_entry(widget.clients[1])['env'], {'PROMPTA_MODEL': 'qwen3:30b'})
-            self.assertIn('installed · Prompta writes with qwen3:30b', state.text())
+            self.assertEqual(read_entry(widget.clients[1])['env'], {'PROMPTA_FOLLOW_APP': '1'})
+            self.assertIn('installed · follows Model &amp; API', state.text())
             self.assertEqual(install.text(), 'Update')
             remove.click()
             self.assertIn('not installed', state.text())

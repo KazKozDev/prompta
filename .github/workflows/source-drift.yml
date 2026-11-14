@@ -1,9 +1,9 @@
 name: source-drift
 
-# Раз в неделю скачивает официальные гайды заново (теми же refresh_sources.py) и сравнивает снимки
-# с сохранёнными. Изменился источник — прогон падает: правила, построенные на старом тексте,
-# нужно перепроверить и обновить вручную. Сам прогон ничего не коммитит.
-# Grok проверяется отдельным скриптом только на чтение (grok_prompt_rules/check_sources.py): снимки скачаны вручную.
+# Once a week, downloads the official guides again (with the same refresh_sources.py) and compares the snapshots
+# with the saved ones. If a source changed, the run fails: rules built on the old text
+# must be rechecked and updated by hand. The run itself commits nothing.
+# Grok is checked by a separate read-only script (grok_prompt_rules/check_sources.py): its snapshots were downloaded by hand.
 
 on:
   schedule:
@@ -26,16 +26,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Скачать гайды заново
+      - name: Download the guides again
         run: python3 ${{ matrix.provider }}_prompt_rules/refresh_sources.py
-      - name: Сравнить снимки
+      - name: Compare snapshots
         run: |
           if git diff --quiet -- '${{ matrix.provider }}_prompt_rules/snapshots'; then
-            echo "Источники ${{ matrix.provider }} не изменились."
+            echo "${{ matrix.provider }} sources have not changed."
           else
             git diff --stat -- '${{ matrix.provider }}_prompt_rules/snapshots'
             git diff -- '${{ matrix.provider }}_prompt_rules/snapshots' > drift-${{ matrix.provider }}.diff
-            echo "::error::Официальные гайды ${{ matrix.provider }} изменились: перепроверьте rules.json и обновите снимки через refresh_sources.py"
+            echo "::error::The official ${{ matrix.provider }} guides changed: recheck rules.json and update the snapshots with refresh_sources.py"
             exit 1
           fi
       - uses: actions/upload-artifact@v4
@@ -53,5 +53,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Сверить снимки Grok с docs.x.ai
+      - name: Check Grok snapshots against docs.x.ai
         run: python3 grok_prompt_rules/check_sources.py

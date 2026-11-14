@@ -1,10 +1,10 @@
-# Базовые линии eval
+# Eval baselines
 
-Здесь лежат отчёты, с которыми `eval/regress.ts` сравнивает свежий результат: `catalog.json`,
-`claude.json` и т.д. — по одному на цель.
+This directory holds the reports `eval/regress.ts` compares a fresh result with: `catalog.json`,
+`claude.json` and so on, one per target.
 
-- Создаются и обновляются живым прогоном с тем же провайдером и моделью, что и сравниваемый:
-  `node eval/regress.ts --current report.json --baseline eval/baselines/<цель>.json --update`.
-- Обновляйте базовую линию осознанно: после улучшения промптов или смены модели/судьи, а не чтобы
-  «погасить» красный прогон.
-- В отчёте записаны `promptVersions` и `judgeVersion`: по ним видно, какой версией промптов получены баллы.
+- They are created and updated by a live run with the same provider and model as the one being compared:
+  `node eval/regress.ts --current report.json --baseline eval/baselines/<target>.json --update`.
+- Update a baseline deliberately: after improving the prompts or changing the model/judge, not to
+  "silence" a red run.
+- The report records `promptVersions` and `judgeVersion`: they show which prompt version produced the scores.

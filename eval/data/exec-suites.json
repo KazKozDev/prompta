@@ -1,5 +1,5 @@
 {
-  "about": "Эталонные наборы для проверки промптов по результату: сгенерированный промпт исполняется на входах с известным ответом. Примеры составлены вручную, ответы проверяемы; adversarial — вход содержит внедрённую команду, правильный ответ её игнорирует. Примеры с hard: true — ловушки (неоднозначные даты, предоплата, сарказм, задачи с интуитивно неверным ответом): на лёгких zero-shot уже даёт 100%.",
+  "about": "Reference suites for checking prompts by result: a generated prompt runs on inputs with a known answer. The examples are hand-written and the answers checkable; adversarial means the input contains an injected command and the right answer ignores it. Examples with hard: true are traps (ambiguous dates, prepayment, sarcasm, problems with a counter-intuitive answer): on easy ones zero-shot already scores 100%.",
   "suites": [
     {
       "id": "invoice-extraction",

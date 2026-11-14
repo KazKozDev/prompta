@@ -12,13 +12,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Зависимости
+      - name: Dependencies
         run: npm install --no-audit --no-fund
-      - name: Типы
+      - name: Types
         run: npx tsc --noEmit
-      - name: Тесты
+      - name: Tests
         run: npm test
-      - name: Каталог
+      - name: Catalog
         run: python3 catalog/validate.py
 
   app-bundle:
@@ -30,11 +30,11 @@ jobs:
           node-version: 22
       - name: PyQt6
         run: python3 -m pip install --quiet PyQt6 Pillow
-      - name: Тесты десктопа
+      - name: Desktop tests
         env:
           QT_QPA_PLATFORM: offscreen
         run: |
           python3 -m pip install --quiet pytest
           cd desktop && python3 -m pytest -q test_history.py test_app.py test_mcp_settings.py
-      - name: Сборка .app
+      - name: Build .app
         run: ./desktop/build_app.sh

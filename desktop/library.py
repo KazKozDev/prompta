@@ -102,7 +102,8 @@ def library_entries(root: Path) -> list[dict]:
         technique = {**technique, 'name': names.get(technique['key'], technique['name'])}
         hint = hints.get(technique['key'], '')
         add('Techniques · ' + CATEGORY_TITLES.get(technique.get('category'), 'Other'), technique['name'], 'catalog/catalog.json',
-            hint or 'Prompting technique from the catalog.', content=_technique_page(technique, hint, excerpts.get(technique['key'], {})))
+            hint or 'Prompting technique from the catalog.', content=_technique_page(technique, hint, excerpts.get(technique['key'], {})),
+            catalog_version=catalog.get('version', ''))
 
     for folder, label, organization in OFFICIAL_TARGETS:
         try:
@@ -110,7 +111,8 @@ def library_entries(root: Path) -> list[dict]:
         except (OSError, ValueError):
             continue
         add('Official rules', label, f'{folder}/rules.json',
-            f'The rules used when the prompt is written for {label}.', content=_rules_page(label, organization, data))
+            f'The rules used when the prompt is written for {label}.', content=_rules_page(label, organization, data),
+            checked=data.get('verified_at', ''))
 
     try:
         manifest = json.loads((root / 'open_model_prompt_guides/manifest.json').read_text(encoding='utf-8'))
@@ -127,7 +129,12 @@ def library_entries(root: Path) -> list[dict]:
 
 def read_material(root: Path, entry: dict) -> tuple[str, str]:
     if entry.get('content') is not None:  # a readable page built from the data the pipeline uses
-        return f"Built from {entry['path']}", entry['content']
+        details = [f"Built from {entry['path']}"]
+        if entry.get('catalog_version'):
+            details.append(f"catalog {entry['catalog_version']}")
+        if entry.get('checked'):
+            details.append(f"checked {entry['checked']}")
+        return ' · '.join(details), entry['content']
     path = safe_path(root, entry['path'])
     try:
         data = path.read_bytes()
@@ -152,6 +159,37 @@ from PyQt6.QtGui import QColor, QDesktopServices, QFont, QIcon
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
                             QSplitter, QTreeWidget, QTreeWidgetItem, QPlainTextEdit, QPushButton)
 
+try:
+    from .settings_ui import LABEL_GAP, LIST_GAP, PAGE_TOP, SECTION_GAP, muted
+except ImportError:
+    from settings_ui import LABEL_GAP, LIST_GAP, PAGE_TOP, SECTION_GAP, muted
+
+RULE_SETS = (("Claude", "claude_prompt_rules"), ("ChatGPT", "chatgpt_prompt_rules"),
+             ("Gemini", "gemini_prompt_rules"), ("Grok", "grok_prompt_rules"),
+             ("Hermes", "hermes_agent_prompt_guides"))
+
+
+def data_versions(root: Path) -> list[tuple[str, str]]:
+    """What results are built from, read from the bundled files; a missing file reads 'unavailable'."""
+    rows = []
+    try:
+        catalog = json.loads((root / "catalog/catalog.json").read_text(encoding="utf-8"))
+        rows.append(("Technique catalog", f"{catalog['version']} · {len(catalog['techniques'])} entries"))
+    except (OSError, ValueError, KeyError, TypeError):
+        rows.append(("Technique catalog", "unavailable"))
+    for label, folder in RULE_SETS:
+        try:
+            bundle = json.loads((root / folder / "rules.json").read_text(encoding="utf-8"))
+            rows.append((f"{label} guidance", f"{len(bundle['rules'])} rules · checked {bundle['verified_at']}"))
+        except (OSError, ValueError, KeyError, TypeError):
+            rows.append((f"{label} guidance", "unavailable"))
+    try:
+        match = re.search(r"PROMPT_SET = '([^']+)'", (root / "pipeline/prompt-version.ts").read_text(encoding="utf-8"))
+        rows.append(("Pipeline prompts", match.group(1) if match else "unavailable"))
+    except OSError:
+        rows.append(("Pipeline prompts", "unavailable"))
+    return rows
+
 
 class LibraryWidget(QWidget):
     def __init__(self, root: Path, parent=None):
@@ -160,30 +198,33 @@ class LibraryWidget(QWidget):
         self.entries: list[dict] = []
         self.current: dict | None = None
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(0, 18, 0, 0)  # air under the tab bar, same on every Settings tab
-        outer.setSpacing(10)
-        intro = QLabel('What Prompta builds prompts from: the prompting techniques, the official rules for each model and the open-weight model cards.')
-        intro.setWordWrap(True)
-        intro.setObjectName('muted')
-        outer.addWidget(intro)
-        outer.addSpacing(6)
+        outer.setContentsMargins(0, PAGE_TOP, 0, 0)  # the shared Settings look (settings_ui.py)
+        outer.setSpacing(0)
+        outer.addWidget(muted('What Prompta builds prompts from: the prompting techniques, the official rules for each '
+                              'model and the open-weight model cards.'))
+        outer.addSpacing(SECTION_GAP)
         search_row = QHBoxLayout()
+        search_row.setSpacing(6)  # same gap as the model field and its refresh button
         self.search = QLineEdit()
         self.search.setPlaceholderText('Find a technique, rule or model')
         self.search.setClearButtonEnabled(True)
         self.search.setAccessibleName('Search library')
+        # Lay out by the visible box, not the macOS focus-ring margins, so it lines up with the refresh square.
+        self.search.setAttribute(Qt.WidgetAttribute.WA_LayoutUsesWidgetRect)
         self.search.textChanged.connect(self._filter)
-        search_row.addWidget(self.search, 1)
+        search_row.addWidget(self.search, 1, Qt.AlignmentFlag.AlignVCenter)
         refresh = QPushButton()
         refresh.setObjectName('ghost')
         refresh.setIcon(QIcon(str(Path(__file__).with_name('refresh.svg'))))
         refresh.setIconSize(QSize(15, 15))
-        refresh.setFixedSize(34, 34)  # same square as the model refresh button
+        refresh.setFixedSize(28, 28)  # same square as the model refresh button and as tall as the search field
         refresh.setToolTip('Refresh library')
         refresh.setAccessibleName('Refresh library')
+        refresh.setAttribute(Qt.WidgetAttribute.WA_LayoutUsesWidgetRect)  # a macOS push button pads its layout box too
         refresh.clicked.connect(self.reload)
-        search_row.addWidget(refresh)
+        search_row.addWidget(refresh, 0, Qt.AlignmentFlag.AlignVCenter)
         outer.addLayout(search_row)
+        outer.addSpacing(LIST_GAP)
         split = QSplitter(Qt.Orientation.Horizontal)
         self.tree = QTreeWidget()
         self.tree.setHeaderHidden(True)
@@ -219,9 +260,8 @@ class LibraryWidget(QWidget):
         split.addWidget(detail)
         split.setSizes([250, 450])
         outer.addWidget(split, 1)
-        self.summary = QLabel()
-        self.summary.setObjectName('muted')
-        outer.addWidget(self.summary)
+        self.summary = muted()  # the Settings dialog places it on its bottom row, next to Done
+        self.summary.setWordWrap(False)
 
     def reload(self) -> None:
         # Rebuilding is cheap, but keep the reader's place: re-select the material that was open.
@@ -243,10 +283,14 @@ class LibraryWidget(QWidget):
                 group.setFont(0, font)
                 group.setForeground(0, QColor('#74694f'))
                 groups[entry['category']] = group
-            item = QTreeWidgetItem(groups[entry['category']], [entry['title']])
+            # Official rules carry the date they were last checked; a second column would squeeze the technique names.
+            title = f"{entry['title']}  ·  {entry['checked']}" if entry.get('checked') else entry['title']
+            item = QTreeWidgetItem(groups[entry['category']], [title])
             item.setData(0, Qt.ItemDataRole.UserRole, index)
             item.setToolTip(0, entry['path'])
-        self.summary.setText(f'{len(self.entries)} materials · local, read-only library')
+        versions = dict(data_versions(self.root))
+        catalog = versions.get('Technique catalog', '').split(' · ')[0]
+        self.summary.setText(f"{len(self.entries)} materials · catalog {catalog} · prompts {versions.get('Pipeline prompts', 'unavailable')}")
         if keep_path:
             for i in range(self.tree.topLevelItemCount()):
                 group = self.tree.topLevelItem(i)

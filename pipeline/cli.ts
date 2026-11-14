@@ -46,7 +46,7 @@ function parseArgs(argv: string[]) {
 async function main() {
   const { flags, executionProfile, agentCapabilities, thoughts } = parseArgs(process.argv.slice(2));
   if (!thoughts) {
-    console.error('использование: node pipeline/cli.ts "поток мыслей" [--budget 3] [--deterministic] [--json] [--provider gemini|openai|ollama|anthropic|xai] [--model ...] [--execution-profile universal|web|local|agent] [--agent-capabilities web,files,code,integrations]');
+    console.error('usage: node pipeline/cli.ts "stream of thoughts" [--budget 3] [--deterministic] [--json] [--provider gemini|openai|ollama|anthropic|xai] [--model ...] [--execution-profile universal|web|local|agent] [--agent-capabilities web,files,code,integrations]');
     process.exit(2);
   }
 
@@ -54,7 +54,7 @@ async function main() {
   const catalog = loadCatalog(JSON.parse(readFileSync(join(root, 'catalog', 'catalog.json'), 'utf8')));
   const env = { ...readEnvLocal(), ...process.env } as Record<string, string>;
   if (!PROVIDERS.includes(flags.provider)) {
-    console.error(`неизвестный провайдер ${flags.provider}: ${PROVIDERS.join(', ')}`);
+    console.error(`unknown provider ${flags.provider}: ${PROVIDERS.join(', ')}`);
     process.exit(2);
   }
 
@@ -82,7 +82,7 @@ const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv
 
 if (isMain) {
   main().catch((e) => {
-    console.error('ошибка:', e instanceof Error ? e.message : e);
+    console.error('error:', e instanceof Error ? e.message : e);
     process.exit(1);
   });
 }

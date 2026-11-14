@@ -28,24 +28,24 @@ npm run pipeline -- "sort support emails into billing/shipping/returns, strict J
 ```
 
 ```
-Задача: Classify support emails into billing, shipping, or returns and return strict JSON.
-Тип: classification | язык: en | цена ошибки: medium
+Task: Classify support emails into billing, shipping, or returns and return strict JSON.
+Type: classification | language: en | stakes: medium
 ...
-Техника: Few-shot (one-shot) (few_shot), уверенность 86%
-Почему не дешевле: zero_shot is cheaper but cannot reliably enforce the strict JSON schema and category boundaries, so it is not suitable here.
+Technique: Few-shot (one-shot) (few_shot), confidence 86%
+Why not cheaper: zero_shot is cheaper but cannot reliably enforce the strict JSON schema and category boundaries, so it is not suitable here.
 ...
-Расход: 4 вызовов, токены 5212 → 10632
-Предупреждения: Prompt-injection guard added: input material is treated as data
-Отсеяно до выбора: 80 техник
+Usage: 4 calls, tokens 5212 → 10632
+Warnings: Prompt-injection guard added: input material is treated as data
+Filtered out before selection: 80 techniques
 ```
 
-The run took 43 s. CLI labels are in Russian; the prompt follows the language of the request.
+The run took 43 s. The prompt follows the language of the request.
 
 ## Turn a rough request into a structured prompt
 
 Write what you want the way you would say it. Prompta parses it into a brief (goal, format,
 constraints, assumptions), asks up to 3 questions about missing facts, picks the cheapest of
-89 catalogued techniques that fits, and builds 1–5 prompt variants plus a zero-shot baseline.
+90 catalogued techniques that fits, and builds 1–5 prompt variants plus a zero-shot baseline.
 
 ```bash
 npm run pipeline -- "summarise meeting notes into action items with owners" --provider ollama --model deepseek-v4.1-flash:cloud --budget 1

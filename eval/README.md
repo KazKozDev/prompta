@@ -1,9 +1,9 @@
-# eval — измерение качества промптов и стабильности выбора
+# eval — measuring prompt quality and selection stability
 
-Без этого набора «хороший промпт» — вопрос вкуса. Здесь 28 задач (из них 10 состязательных — с внедрёнными
-командами), рубрика на 5 критериев, судья, эталонные наборы для проверки по результату и регрессионный гейт.
+Without this suite, "a good prompt" is a matter of taste. It has 28 tasks (10 of them adversarial, with injected
+commands), a 5-criterion rubric, a judge, reference suites for checking by result, and a regression gate.
 
-## Новое (ноябрь 2026)
+## New (November 2026)
 
 ```bash
 node eval/run.ts --target claude --ids invoice-fields,inj-doc-qa --repeat 3 --provider anthropic --model claude-opus-5-5 --out report.json
@@ -11,202 +11,203 @@ node eval/execute.ts --suite all --target catalog --provider ollama --model qwen
 node eval/regress.ts --current report.json --baseline eval/baselines/claude.json [--update]
 ```
 
-| Что | Где |
+| What | Where |
 |---|---|
-| `--target catalog\|claude\|chatgpt\|gemini\|grok\|open:<id>` — какой режим генерации меряем; для официальных целей судья сверяет промпт с правилами, на которые сослался генератор, а метрики выбора техники не считаются | `run.ts`, `target.ts` |
-| `taskTypeHit`, `scoreCI95` (полуширина 95% интервала), `cost` (токены генерации), `promptVersions`, `judgeVersion` | `aggregate.ts` |
-| Состязательные задачи (`adversarial: true`): `injectionHit` — генератор выполнил внедрённую команду, `guardHit` — в промпте есть правило «материал — данные» | `tasks.json`, `aggregate.ts` |
-| Исполнение промптов на эталонах: извлечение полей счёта в JSON, текстовые задачи, тональность; точность, точность под инъекцией, выигрыш над zero-shot, корреляция судьи с точностью | `execute.ts`, `data/exec-suites.json` |
-| Регрессионный гейт: падение балла сверх max(0.5, совокупный 95% интервал), рост запрещённых техник, инъекций, ошибок | `regress.ts`, `baselines/` |
+| `--target catalog\|claude\|chatgpt\|gemini\|grok\|open:<id>` — which generation mode is measured; for official targets the judge checks the prompt against the rules the generator cited, and technique-selection metrics are not computed | `run.ts`, `target.ts` |
+| `taskTypeHit`, `scoreCI95` (half-width of the 95% interval), `cost` (generation tokens), `promptVersions`, `judgeVersion` | `aggregate.ts` |
+| Adversarial tasks (`adversarial: true`): `injectionHit` — the generator executed the injected command, `guardHit` — the prompt has the "material is data" rule | `tasks.json`, `aggregate.ts` |
+| Running prompts on reference suites: invoice fields to JSON, word problems, sentiment; accuracy, accuracy under injection, lift over zero-shot, judge-vs-accuracy correlation | `execute.ts`, `data/exec-suites.json` |
+| Regression gate: a score drop beyond max(0.5, combined 95% interval), growth of forbidden techniques, injections, failures | `regress.ts`, `baselines/` |
 
 ```bash
-npm test                                                     # офлайн, без ключей
+npm test                                                     # offline, no keys
 node eval/run.ts --ids meeting-actions,tickets-classify --repeat 3 --provider ollama --model glm-5.3:cloud
 node eval/run.ts --tasks 5 --repeat 2 --provider gemini --model gemini-2.5-flash
-node eval/run.ts --json > report.json                        # сырые записи для разбора
+node eval/run.ts --json > report.json                        # raw records for analysis
 
-# сверка двух судей разных семей (обязательно для любых выводов)
+# crosscheck two judges from different families (required for any conclusion)
 node eval/run.ts --ids meeting-actions,tickets-classify --provider ollama --model glm-5.3:cloud \
   --judge2-provider ollama --judge2-model deepseek-v4-pro:cloud
 ```
 
-## Что внутри
+## What's inside
 
-| Файл | Роль |
+| File | Role |
 |---|---|
-| `crosscheck.ts` | Сверка двух судей: расхождение, перекос по критериям, вердикт о доверии |
-| `calibrate.ts` | Калибровка судьи на размеченных данных: точность против оценки |
-| `stats.ts` | Pearson / Spearman без зависимостей |
-| `fetch.ts` | Разовое скачивание фикстуры с Hugging Face в `eval/data/` |
-| `tasks.json` | 18 задач: сырой поток мыслей + ожидаемый тип, допустимые и запрещённые техники, ожидаемая лексика |
-| `rubric.md` | 5 критериев с якорями 1/3/5 и порогами вердикта |
-| `judge.ts` | Промпт судьи и парсер оценки (балл без объяснения не принимается) |
-| `aggregate.ts` | Метрики по задачам и техникам, текстовый отчёт |
-| `run.ts` | CLI: прогон пайплайна → оценка → отчёт |
+| `crosscheck.ts` | Two-judge crosscheck: gap, per-criterion bias, trust verdict |
+| `calibrate.ts` | Judge calibration on labelled data: accuracy versus score |
+| `stats.ts` | Pearson / Spearman with no dependencies |
+| `fetch.ts` | One-off download of the Hugging Face fixture into `eval/data/` |
+| `tasks.json` | Tasks: a raw stream of thoughts + expected type, allowed and forbidden techniques, expected wording |
+| `rubric.md` | 5 criteria with 1/3/5 anchors and verdict thresholds |
+| `judge.ts` | Judge prompt and score parser (a score without an explanation is rejected) |
+| `aggregate.ts` | Per-task and per-technique metrics, text report |
+| `run.ts` | CLI: pipeline run → scoring → report |
 
-## Метрики
+## Metrics
 
-| Метрика | Что значит | Куда смотреть |
+| Metric | Meaning | What it tells you |
 |---|---|---|
-| `meanScore` | Средний балл рубрики (1–5) | Общее качество промптов |
-| `stability` | Доля прогонов, где выбрана самая частая техника | **Дрейф выбора**. При `--repeat 1` всегда 100% — мерить только от 3 прогонов |
-| `expectedHit` | Доля прогонов, где выбрана техника из `any_of` | Попадает ли выбор в разумный диапазон |
-| `forbiddenHit` | Доля прогонов, где выбрана техника из `forbidden` | Грубые ошибки выбора; должно быть 0 |
-| `mentionHit` | Есть ли в промпте ожидаемая лексика (`must_mention`) | Дешёвая проверка, что промпт про то же, что задача |
-| `failures` | Упавшие прогоны | Ошибки парсинга и валидации |
-| `crossCheck` | Согласие двух судей: `meanAbsDelta`, `verdictAgreement`, `biasPerCriterion`, `pearson` | Можно ли верить баллам одного судьи |
-| `panel` | Средние по каждому судье и панельное среднее | Единственная цифра, которую стоит сравнивать между прогонами |
+| `meanScore` | Mean rubric score (1–5) | Overall prompt quality |
+| `stability` | Share of runs where the most frequent technique was picked | **Selection drift**. Always 100% at `--repeat 1`: measure from 3 runs |
+| `expectedHit` | Share of runs where a technique from `any_of` was picked | Whether the choice lands in a sensible range |
+| `forbiddenHit` | Share of runs where a technique from `forbidden` was picked | Gross selection errors; should be 0 |
+| `mentionHit` | Whether the prompt has the expected wording (`must_mention`) | A cheap check that the prompt is about the task |
+| `failures` | Failed runs | Parsing and validation errors |
+| `crossCheck` | Agreement of two judges: `meanAbsDelta`, `verdictAgreement`, `biasPerCriterion`, `pearson` | Whether a single judge's scores can be trusted |
+| `panel` | Per-judge means and the panel mean | The only number worth comparing between runs |
 
-## Первый живой прогон (2 задачи, Ollama glm-5.3, офлайн-синтез)
+## First live run (2 tasks, Ollama glm-5.3, offline synthesis)
 
 ```
-meeting-actions    3.40  contextual_prompting   ожидаемо 100%  запрещено 0%
-tickets-classify   2.40  system_prompting       ожидаемо 100%  запрещено 0%
+meeting-actions    3.40  contextual_prompting   expected 100%  forbidden 0%
+tickets-classify   2.40  system_prompting       expected 100%  forbidden 0%
 ```
 
-Оба выбора «попали» в ожидаемый список, но второй получил `reject`: для простой классификации
-выбран `system_prompting` вместо дешёвого `zero_shot`/`verbalizer`, и судья снял баллы за
-`technique_fit` и `clean_output` (английский каркас в русском промпте). Это ровно тот сигнал,
-которого не было от глаз.
+Both choices "hit" the expected list, but the second got `reject`: for a simple classification
+`system_prompting` was picked instead of the cheap `zero_shot`/`verbalizer`, and the judge took points off
+`technique_fit` and `clean_output` (an English skeleton in a Russian prompt). That is exactly the signal
+eyeballing did not give.
 
-## Калибровка на размеченных данных (Hugging Face)
+## Calibration on labelled data (Hugging Face)
 
-Судья оценивает промпт по рубрике, но никто не проверял, что **высокий балл = работающий промпт**.
-Калибровка отвечает на это напрямую: берём размеченные данные, гоняем по ним промпты разных техник
-и смотрим, совпадает ли порядок «по судье» с порядком «по точности».
+The judge scores a prompt by the rubric, but nobody had checked that **a high score = a working prompt**.
+Calibration answers this directly: take labelled data, run prompts of different techniques on it,
+and see whether the "by judge" order matches the "by accuracy" order.
 
-Данные: [sy-volkov/russian-sentiment-analysis-dataset](https://huggingface.co/datasets/sy-volkov/russian-sentiment-analysis-dataset)
-(3 класса тональности, русский). Фикстура сбалансирована по 6 примеров на класс и лежит в
-`eval/data/sentiment-ru.json` — рантайм офлайновый, `fetch.ts` нужен только для обновления.
+Data: [sy-volkov/russian-sentiment-analysis-dataset](https://huggingface.co/datasets/sy-volkov/russian-sentiment-analysis-dataset)
+(3 sentiment classes, Russian). The fixture is balanced at 6 examples per class and lives in
+`eval/data/sentiment-ru.json`; the runtime is offline, and `fetch.ts` is only needed to refresh it.
 
 ```bash
-node eval/fetch.ts                     # обновить фикстуру (18 примеров)
+node eval/fetch.ts                     # refresh the fixture (18 examples)
 node eval/calibrate.ts --techniques zero_shot,few_shot,system_prompting --examples 12 \
   --provider ollama --model glm-5.3:cloud \
   --judge2-provider ollama --judge2-model deepseek-v4-pro:cloud
 ```
 
-Метрики: точность на размеченных примерах, панельный балл судей, и корреляция между ними
-(Spearman — потому что важна монотонность, а не линейность).
+Metrics: accuracy on the labelled examples, the judges' panel score, and the correlation between them
+(Spearman, because monotonicity matters, not linearity).
 
-### Результат: сначала насыщение, потом различение
+### Result: saturation first, then discrimination
 
-**Полный набор (18 примеров)** — все техники дали одинаковую точность, калибровать нечего:
-
-```
-zero_shot          панель 4.10 | 92% (11/12)
-few_shot           панель 3.80 | 92% (11/12)
-system_prompting   панель 3.90 | 92% (11/12)
-Spearman 0, Pearson 0 — потолок, различать нечего
-```
-
-**Только сложные примеры** (`--hard`: дешёвая `qwen3:8b` ошибается, осталось 6 из 18):
+**Full set (18 examples)**: every technique got the same accuracy, nothing to calibrate:
 
 ```
-zero_shot          панель 3.60 | 33% (2/6)
-few_shot           панель 3.50 | 17% (1/6)
-system_prompting   панель 3.90 | 33% (2/6)
-Spearman 0.87, Pearson 0.69 (n=3, пилот)
-Лучший по точности: zero_shot | лучший по судье: system_prompting — РАСХОДЯТСЯ
+zero_shot          panel 4.10 | 92% (11/12)
+few_shot           panel 3.80 | 92% (11/12)
+system_prompting   panel 3.90 | 92% (11/12)
+Spearman 0, Pearson 0 — ceiling, nothing to discriminate
 ```
 
-**Как это читать.** Ранговая корреляция 0.87 выглядит обнадёживающе, но она держится на одном
-согласии: `few_shot` худший и по точности, и по судье. Там, где точность сравнивается (2/6 и 2/6),
-судья выбирает `system_prompting` — то есть **оценивает форму промпта, а не его эффективность**.
-Вывод осторожный: судья не бесполезен (грубую ошибку поймает), но не заменяет прогон по данным.
+**Hard examples only** (`--hard`: the cheap `qwen3:8b` gets them wrong; 6 of 18 left):
 
-### Почему не взял `agentlans/prompt-quality`
+```
+zero_shot          panel 3.60 | 33% (2/6)
+few_shot           panel 3.50 | 17% (1/6)
+system_prompting   panel 3.90 | 33% (2/6)
+Spearman 0.87, Pearson 0.69 (n=3, pilot)
+Best by accuracy: zero_shot | best by judge: system_prompting — DISAGREE
+```
 
-Датасет с человеческими оценками качества промптов существует и выглядит заманчиво
-(`prompt`, `quality`, оценки восьми моделей), но рубрика нашего судьи требует **брифа** задачи:
-критерии `fidelity` и `technique_fit` без него не определены. Сравнивать наш балл с абстрактным
-«качеством промпта» — значит мерить другой конструкт. Поэтому калибруемся на объективной точности,
-а не на субъективных оценках.
+**How to read it.** A rank correlation of 0.87 looks encouraging, but it rests on a single
+agreement: `few_shot` is worst both by accuracy and by judge. Where accuracy ties (2/6 and 2/6),
+the judge picks `system_prompting`, i.e. it **scores the prompt's form, not its effectiveness**.
+The conclusion is cautious: the judge is not useless (it catches gross errors), but it does not replace a run on data.
 
-## Сверка двух судей (3 задачи, glm-5.3 против deepseek-v4-pro, облако Ollama)
+### Why not `agentlans/prompt-quality`
+
+A dataset with human ratings of prompt quality exists and looks tempting
+(`prompt`, `quality`, ratings from eight models), but our judge's rubric needs the task's **brief**:
+the `fidelity` and `technique_fit` criteria are undefined without it. Comparing our score with an abstract
+"prompt quality" would measure a different construct. So we calibrate on objective accuracy,
+not on subjective ratings.
+
+## Two-judge crosscheck (3 tasks, glm-5.3 vs deepseek-v4-pro, Ollama cloud)
 
 ```
 meeting-actions    4.40   system_prompting
 tickets-classify   3.00   system_prompting
 math-word-problem  3.80   chain_of_thought
 
-Сверка: НЕ ДОВЕРЯТЬ
-  расхождение баллов: среднее 0.6, максимум 1.0
-  совпадение вердиктов: 0% | корреляция итогов: 0.86
-  перекос: fidelity −0.67, specificity −1.00, technique_fit −0.33, clean_output −0.33
+Crosscheck: DO NOT TRUST
+  score gap: mean 0.6, max 1.0
+  verdict agreement: 0% | total correlation: 0.86
+  bias: fidelity −0.67, specificity −1.00, technique_fit −0.33, clean_output −0.33
 ```
 
-Главный вывод: судьи **ранжируют одинаково** (корреляция 0.86), но **ставят разный уровень** —
-второй судья систематически строже по `fidelity` и `specificity`, и все три вердикта разошлись.
-Значит любой одиночный балл («3.4 — revise») — свойство судьи, а не промпта.
+The main finding: the judges **rank alike** (correlation 0.86) but **score at different levels**:
+the second judge is systematically stricter on `fidelity` and `specificity`, and all three verdicts differed.
+So any single score ("3.4 — revise") is a property of the judge, not of the prompt.
 
-Практическое правило: сравнивать только **панельное среднее** (`panel.panelMean`) и не принимать
-решений по разнице меньше 1 балла.
+Practical rule: compare only the **panel mean** (`panel.panelMean`) and make no
+decisions on a difference under 1 point.
 
-## Замер дрейфа (одна задача, 3 повтора)
+## Drift measurement (one task, 3 repeats)
 
 ```
 tickets-classify  #1 system_prompting 2.0
 tickets-classify  #2 system_prompting 2.8
 tickets-classify  #3 system_prompting 3.4
-стабильность выбора: 100%
+selection stability: 100%
 ```
 
-Дрейфа не было, зато видно другое: **судья шумит** — разброс 1.4 балла на одной и той же задаче.
-Поэтому одиночный прогон нельзя сравнивать с другим одиночным: только средние по 3+ повторам.
+There was no drift, but something else showed: **the judge is noisy**, with a 1.4-point spread on the same task.
+So a single run cannot be compared with another single run: only means over 3+ repeats.
 
-## Полный прогон: 18 задач × 3 повтора (llama3.2:3b, офлайн-синтез)
+## Full run: 18 tasks × 3 repeats (llama3.2:3b, offline synthesis)
 
 ```
-Прогонов: 54, ошибок: 0
-Средний балл: 4.21 | стабильность выбора: 98%
-Попадание в ожидаемые техники: 17% | запрещённые техники: 17%
-Ожидаемая лексика в промпте: 72%
+Runs: 54, failures: 0
+Mean score: 4.21 | selection stability: 98%
+Expected technique hit: 17% | forbidden techniques: 17%
+Expected wording in the prompt: 72%
 ```
 
-**Что это значит по отдельности.**
+**What each number means.**
 
-- **0 ошибок** — после строгого JSON-режима, повторов разбора и нормализации
-  (`modality: "текст"`, `stakes: "средний"`) пайплайн не падает на слабой модели вообще.
-- **Стабильность 98%** — выбор техники воспроизводим: дрейф только у `agent-research` (67%).
-- **Попадание 17%** — на 3B-модели выбор почти не совпадает с ожидаемым: она систематически берёт
-  `least_to_most` (22 прогона) и `zero_shot` (18). Это ограничение модели, а не каталога: на
-  `glm-5.3` тот же каталог давал осмысленные попадания.
-- **Запрещённые 17%** — `zero_shot` выбран для `docs-qa`, `contract-clauses` и `long-context-summary`,
-  где техника прямо помечена «не подходит»: модель игнорирует `when_not`. Это главный незакрытый
-  дефект выбора.
-- **Балл 4.21** — судья той же 3B-модели, поэтому завышен (см. сверку двух судей выше).
+- **0 failures**: after strict JSON mode, parse retries and normalisation
+  (`modality: "текст"`, `stakes: "средний"`) the pipeline does not fail on the weak model at all.
+- **98% stability**: the technique choice is reproducible; drift only on `agent-research` (67%).
+- **17% hit**: on a 3B model the choice barely matches the expected one: it systematically picks
+  `least_to_most` (22 runs) and `zero_shot` (18). That is a model limitation, not a catalog one: on
+  `glm-5.3` the same catalog gave meaningful hits.
+- **17% forbidden**: `zero_shot` was picked for `docs-qa`, `contract-clauses` and `long-context-summary`,
+  where the technique is explicitly marked "not suitable": the model ignores `when_not`. This is the main open
+  selection defect.
+- **4.21 score**: the judge is the same 3B model, so it is inflated (see the two-judge crosscheck above).
 
-## Слабые модели
+## Weak models
 
-Прогон на `llama3.2:3b` сначала дал **54 ошибки из 54**: модель отвечала прозой вместо JSON. Это
-вскрыло две дыры, обе закрыты:
+The run on `llama3.2:3b` first gave **54 failures out of 54**: the model answered in prose instead of JSON. That
+exposed two holes, both closed:
 
-1. **Строгий JSON-режим.** Для стадий «бриф», «выбор» и «судья» адаптер теперь передаёт
-   `format: "json"` (Ollama), `responseMimeType` (Gemini) и `response_format` (OpenAI).
-2. **Терпимый разбор оценки.** Судья отвечает `{"fidelity": 4}` без обоснования — балл принимается,
-   но помечается `degraded: true`. Балл «объектом без why» по-прежнему ошибка.
+1. **Strict JSON mode.** For the "brief", "selection" and "judge" stages the adapter now passes
+   `format: "json"` (Ollama), `responseMimeType` (Gemini) and `response_format` (OpenAI).
+2. **Tolerant score parsing.** A judge answering `{"fidelity": 4}` without a reason has the score accepted
+   but marked `degraded: true`. A score object without `why` is still an error.
 
-Без этих правок eval на слабых моделях измерял не качество промптов, а неумение модели держать JSON.
+Without these fixes eval on weak models measured not prompt quality but the model's inability to keep to JSON.
 
-## Границы честно
+## Honest limits
 
-- **Судья — та же модель.** Самопредвзятость измерена: см. сверку выше, расхождение вердиктов 100%.
-  Второй судья реализован (`--judge2-provider/--judge2-model`), но калибровки между ними нет:
-  панельное среднее — компромисс, а не истина.
-- **Корреляция судей осмысленна от 3 прогонов.** При 1–2 прогонах `pearson` вырождается (0 или 1 по
-  построению) — смотреть только `meanAbsDelta` и `biasPerCriterion`.
-- **Калибровка — пилот на n=3** и на шести сложных примерах: это направление, а не приговор.
-- **Потолок лёгких задач.** На полном наборе точность 92% у всех — такой набор ничего не различает.
-  Для калибровки нужны заведомо сложные примеры (`--hard`) или задачи с проверяемым форматом.
-- **18 задач мало** для статистики: это набор для регрессий, а не для выводов «техника X лучше Y».
-- **`must_mention` — эвристика.** Проверяет лексику, а не смысл; ложные срабатывания возможны.
-- **`stability` при одном прогоне бессмысленна** — для замера дрейфа нужен `--repeat 3`.
-- **Офлайн-режим** смешивает английский каркас с русским текстом и потому занижает `clean_output`;
-  сравнивать техники между собой корректно в одном режиме.
+- **The judge is the same model.** Self-bias is measured: see the crosscheck above, 100% verdict disagreement.
+  A second judge is implemented (`--judge2-provider/--judge2-model`), but there is no calibration between them:
+  the panel mean is a compromise, not the truth.
+- **Judge correlation is meaningful from 3 runs.** With 1–2 runs `pearson` degenerates (0 or 1 by
+  construction): look only at `meanAbsDelta` and `biasPerCriterion`.
+- **Calibration is a pilot at n=3** on six hard examples: a direction, not a verdict.
+- **Easy-task ceiling.** On the full set everyone gets 92% accuracy; such a set discriminates nothing.
+  Calibration needs deliberately hard examples (`--hard`) or tasks with a checkable format.
+- **The task set is small** for statistics: it is for regressions, not for "technique X beats Y" conclusions.
+- **`must_mention` is a heuristic.** It checks wording, not meaning; false positives are possible.
+- **`stability` is meaningless on one run**: measuring drift needs `--repeat 3`.
+- **Offline mode** mixes the English skeleton with Russian text and so lowers `clean_output`;
+  compare techniques with each other within one mode.
 
-## Как добавить задачу
+## Adding a task
 
-Дописать объект в `tasks.json`; `npm test` проверит, что `task_type` существует, а все ключи в
-`any_of`/`forbidden` есть в каталоге и не пересекаются между собой. Ожидаемую технику лучше брать
-из `task_types` каталога, а не из головы.
+Add an object to `tasks.json`; `npm test` checks that `task_type` exists and that every key in
+`any_of`/`forbidden` is in the catalog and the two do not overlap. Take the expected technique
+from the catalog's `task_types`, not from memory. Task `thoughts` and `must_mention` are Russian on purpose:
+they are the test inputs.

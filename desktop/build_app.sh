@@ -1,6 +1,6 @@
 #!/bin/bash
-# Собирает "Prompta.app" — тонкий лончер, который запускает desktop/app.py
-# системным python3 из репозитория. Никаких зависимостей для сборки не нужно.
+# Builds "Prompta.app" — a thin launcher that runs desktop/app.py
+# with the system python3 from the repository. The build needs no dependencies.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -9,18 +9,18 @@ PYTHON="${PYTHON:-$(command -v python3)}"
 NODE="$(command -v node || true)"
 
 if [ -z "$NODE" ]; then
-  echo "⚠️  node не найден в PATH — пайплайн не запустится. Установи Node.js 20+." >&2
+  echo "⚠️  node is not on PATH — the pipeline will not run. Install Node.js 20+." >&2
 fi
 
-"$PYTHON" - <<'PY' || { echo "⚠️  PyQt6 не установлен. Выполни: python3 -m pip install PyQt6" >&2; exit 1; }
+"$PYTHON" - <<'PY' || { echo "⚠️  PyQt6 is not installed. Run: python3 -m pip install PyQt6" >&2; exit 1; }
 import PyQt6  # noqa: F401
 PY
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
-# иконка: PNG → iconset → icns (sips и iconutil есть в macOS)
-test -f "$ROOT/desktop/icon.png" || { echo "Нет desktop/icon.png" >&2; exit 1; }
+# icon: PNG → iconset → icns (sips and iconutil ship with macOS)
+test -f "$ROOT/desktop/icon.png" || { echo "desktop/icon.png is missing" >&2; exit 1; }
 ICON_TMP="$(mktemp -d)"
 trap 'rm -rf "$ICON_TMP"' EXIT
 ICONSET="$ICON_TMP/icon.iconset"
@@ -75,7 +75,7 @@ PLIST
 
 cat > "$APP/Contents/MacOS/launch" <<LAUNCH
 #!/bin/bash
-# Тонкий лончер: работает из исходников, поэтому правки в коде подхватываются сразу.
+# Thin launcher: it runs from the sources, so code changes take effect immediately.
 export PATH="/opt/homebrew/bin:/usr/local/bin:\$PATH"
 exec "$PYTHON" "$ROOT/desktop/app.py" "\$@"
 LAUNCH
@@ -101,8 +101,8 @@ MICPLIST
     -sectcreate __TEXT __info_plist "$MIC_PLIST"
   codesign --force --sign - --identifier dev.prompta.mic "$APP/Contents/MacOS/prompta-mic" 2>/dev/null
 else
-  echo "⚠️  clang/codesign не найдены — диктовка может не получить доступ к микрофону." >&2
+  echo "⚠️  clang/codesign not found — dictation may not get microphone access." >&2
 fi
 
-echo "✓ собрано: $APP"
-echo "  запуск: open \"$APP\""
+echo "✓ built: $APP"
+echo "  run: open \"$APP\""

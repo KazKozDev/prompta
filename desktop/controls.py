@@ -1,4 +1,4 @@
-"""Элементы управления Prompta: выпадающий список, карточки техник, выбор числа вариантов."""
+"""Prompta controls: the dropdown, technique cards and the variant-count selector."""
 
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ except ImportError:
     from mcp_settings import McpSettingsWidget
 
 from PyQt6.QtCore import QModelIndex, QEvent, QObject, QPoint, QRect, QRectF, QSize, Qt, QUrl, QProcess, QThread, QTimer, QPropertyAnimation, QEasingCurve, pyqtSignal
-from PyQt6.QtGui import QStandardItem, QStandardItemModel, QColor, QCursor, QPainter, QPalette, QPen, QFont, QGuiApplication, QIcon, QPixmap, QKeySequence, QShortcut, QDesktopServices, QTextDocument
+from PyQt6.QtGui import QStandardItem, QStandardItemModel, QColor, QCursor, QPainter, QPalette, QPen, QFont, QGuiApplication, QIcon, QLinearGradient, QPixmap, QKeySequence, QShortcut, QDesktopServices, QTextDocument
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QAbstractScrollArea,
@@ -66,7 +66,7 @@ from PyQt6.QtWidgets import (
 
 try:
     from .theme import CHAT_URLS, DARK_SCROLL_QSS, PROMPT_TARGETS, QSS, ROOT
-    from .widgets import *  # noqa: F401,F403 — базовые виджеты, вынесенные из этого файла
+    from .widgets import *  # noqa: F401,F403 — base widgets moved out of this file
 except ImportError:
     from theme import CHAT_URLS, DARK_SCROLL_QSS, PROMPT_TARGETS, QSS, ROOT
     from widgets import *  # noqa: F401,F403
@@ -212,9 +212,9 @@ class TechniqueItem(QFrame):
 
 
 class Dropdown(QPushButton):
-    """Единый выпадающий список: одна панель на провайдера, модель, варианты и техники.
+    """One dropdown for everything: one panel for provider, model, variants and techniques.
 
-    Умеет: одну или две колонки, заголовки категорий, подсказки, поиск по списку.
+    Supports one or two columns, category headers, hints and search within the list.
     """
 
     changed = pyqtSignal(str)
@@ -254,7 +254,7 @@ class Dropdown(QPushButton):
         chevron_row.addStretch(1)
         chevron_row.addWidget(chevron, 0, Qt.AlignmentFlag.AlignVCenter)
 
-    # ── данные ───────────────────────────────────────────────────
+    # ── data ─────────────────────────────────────────────────────
     def set_multi(self, multi: bool) -> None:
         """Multi mode: clicks toggle items and the panel stays open. Items with status
         "procedure" are exclusive: they cannot be combined with anything else."""
@@ -344,7 +344,7 @@ class Dropdown(QPushButton):
             keys = [k for k in self._selected if not self._is_procedure(k)] + [key]
         self.set_current_keys(keys, emit=True)
 
-    # ── панель ───────────────────────────────────────────────────
+    # ── panel ────────────────────────────────────────────────────
     def _open(self) -> None:
         popup = QFrame(self, Qt.WindowType.Popup | Qt.WindowType.FramelessWindowHint)
         popup.rounded_border = RoundedPopupBorder(popup)
@@ -515,9 +515,13 @@ class ExecutionProfileDropdown(Dropdown):
 
 
 class BackgroundWidget(QWidget):
-    def __init__(self) -> None:
+    """The photo under a cream veil. `veil` is the veil's alpha at the left and right edges:
+    higher = fainter photo. The main window keeps it faint; About lets it show on the right."""
+
+    def __init__(self, veil: tuple[int, int] = (242, 242)) -> None:
         super().__init__()
         self.image = QPixmap(str(ROOT / "desktop/background.png"))
+        self.veil = veil
 
     def paintEvent(self, event) -> None:  # noqa: N802
         painter = QPainter(self)
@@ -526,8 +530,15 @@ class BackgroundWidget(QWidget):
                                       Qt.TransformationMode.SmoothTransformation)
             painter.drawPixmap((self.width() - image.width()) // 2,
                                (self.height() - image.height()) // 2, image)
-            # Cream veil over the photo: higher alpha = fainter photo.
-            painter.fillRect(self.rect(), QColor(255, 248, 222, 242))
+            left, right = self.veil
+            if left == right:
+                painter.fillRect(self.rect(), QColor(255, 248, 222, left))
+            else:
+                gradient = QLinearGradient(0, 0, self.width(), 0)
+                gradient.setColorAt(0.0, QColor(255, 248, 222, left))
+                gradient.setColorAt(0.45, QColor(255, 248, 222, left))  # text column stays readable
+                gradient.setColorAt(1.0, QColor(255, 248, 222, right))
+                painter.fillRect(self.rect(), gradient)
         else:
             painter.fillRect(self.rect(), QColor("#f5f6f8"))
 

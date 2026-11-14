@@ -2,9 +2,9 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-/** Фикстура для калибровки: размеченные примеры с Hugging Face.
- *  Источник: sy-volkov/russian-sentiment-analysis-dataset (3 класса: G/B/N).
- *  Скачивается один раз, кладётся в eval/data/sentiment-ru.json — рантайм офлайновый.
+/** Calibration fixture: labelled examples from Hugging Face.
+ *  Source: sy-volkov/russian-sentiment-analysis-dataset (3 classes: G/B/N).
+ *  Downloaded once into eval/data/sentiment-ru.json, so the runtime stays offline.
  */
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -23,7 +23,7 @@ interface Row {
   row: { processed_text?: string; text?: string; Class?: string; label?: number };
 }
 
-/** HF отдаёт максимум 100 строк за запрос — идём страницами. */
+/** HF returns at most 100 rows per request: page through. */
 async function fetchRows(offset: number, limit: number): Promise<Row[]> {
   const out: Row[] = [];
   for (let o = offset; o < offset + limit; o += 100) {
@@ -58,7 +58,7 @@ async function main() {
   );
 
   for (const label of Object.keys(buckets)) {
-    if (buckets[label].length < PER_CLASS) console.warn(`мало примеров класса ${label}: ${buckets[label].length}`);
+    if (buckets[label].length < PER_CLASS) console.warn(`few examples of class ${label}: ${buckets[label].length}`);
   }
 
   mkdirSync(dirname(OUT), { recursive: true });
@@ -67,8 +67,8 @@ async function main() {
     JSON.stringify(
       {
         source: `https://huggingface.co/datasets/${DATASET}`,
-        license: 'см. карточку датасета',
-        task: 'классификация тональности: positive | negative | neutral',
+        license: 'see the dataset card',
+        task: 'sentiment classification: positive | negative | neutral',
         fetched: new Date().toISOString().slice(0, 10),
         examples,
       },
@@ -77,10 +77,10 @@ async function main() {
     ) + '\n',
     'utf8',
   );
-  console.log(`записано ${examples.length} примеров → ${OUT}`);
+  console.log(`wrote ${examples.length} examples → ${OUT}`);
 }
 
 main().catch((e) => {
-  console.error('ошибка:', e instanceof Error ? e.message : e);
+  console.error('error:', e instanceof Error ? e.message : e);
   process.exit(1);
 });

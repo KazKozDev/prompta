@@ -21,7 +21,7 @@ export interface Example {
   label: Label;
 }
 
-/** Метка из свободного ответа модели: сначала последняя строка, иначе последнее упоминание. */
+/** The label from a free-form model answer: the last line first, else the last mention. */
 export function parseLabel(answer: string): Label | null {
   const patterns: [RegExp, Label][] = [
     [/positi|положит|позитив/i, 'positive'],
@@ -43,7 +43,7 @@ export function parseLabel(answer: string): Label | null {
   const tail = lines.slice(-1)[0] ?? '';
   const fromTail = scan(tail, 'first');
   if (fromTail) return fromTail;
-  // В хвосте не нашлось — смотрим весь ответ, берём последнее упоминание как итог.
+  // Not found at the end: scan the whole answer and take the last mention as the result.
   const reversed = [...patterns].reverse();
   let last: { idx: number; label: Label } | null = null;
   for (const [re, label] of reversed) {
@@ -55,7 +55,7 @@ export function parseLabel(answer: string): Label | null {
   return last?.label ?? null;
 }
 
-/** Отбор сложных примеров: дешёвая модель ошибается или не даёт метку. */
+/** Picking hard examples: a cheap model gets them wrong or gives no label. */
 export async function screenHard(
   examples: Example[],
   ask: (prompt: string) => Promise<string>,
@@ -64,7 +64,7 @@ export async function screenHard(
   const hard: Example[] = [];
   for (const example of examples) {
     const answer = await ask(
-      `Определи тональность текста. Ответь одним словом: positive, negative или neutral.\n\nТекст: ${example.text}\nОтвет:`,
+      `Determine the sentiment of the text. Answer with one word: positive, negative or neutral.\n\nText: ${example.text}\nAnswer:`,
     );
     const label = parseLabel(answer);
     if (label !== example.label) hard.push(example);
@@ -74,11 +74,11 @@ export async function screenHard(
 }
 
 export const CALIBRATION_BRIEF: TaskBrief = {
-  goal: 'определить тональность текста: positive, negative или neutral',
+  goal: 'determine the sentiment of the text: positive, negative or neutral',
   task_type: 'classification',
-  input: 'короткий текст на русском языке',
-  output_format: 'одно слово: positive, negative или neutral',
-  constraints: ['ответ одним словом', 'без пояснений'],
+  input: 'a short text in Russian',
+  output_format: 'one word: positive, negative or neutral',
+  constraints: ['a one-word answer', 'no explanations'],
   language: 'ru',
   modality: 'text',
   stakes: 'high',
@@ -86,7 +86,7 @@ export const CALIBRATION_BRIEF: TaskBrief = {
   budget_calls: 1,
 };
 
-/** Вариации брифа: один и тот же тип задачи, разная жёсткость формата. */
+/** Brief variations: the same task type, different format strictness. */
 export const BRIEF_VARIANTS: { name: string; brief: TaskBrief }[] = [
   {
     name: 'strict',
@@ -96,8 +96,8 @@ export const BRIEF_VARIANTS: { name: string; brief: TaskBrief }[] = [
     name: 'minimal',
     brief: {
       ...CALIBRATION_BRIEF,
-      goal: 'определить, позитивный ли текст, негативный или нейтральный',
-      output_format: 'одно слово',
+      goal: 'determine whether the text is positive, negative or neutral',
+      output_format: 'one word',
       constraints: [],
     },
   },
@@ -105,9 +105,9 @@ export const BRIEF_VARIANTS: { name: string; brief: TaskBrief }[] = [
     name: 'json',
     brief: {
       ...CALIBRATION_BRIEF,
-      goal: 'классифицировать тональность текста',
+      goal: 'classify the sentiment of the text',
       output_format: 'JSON {"label": "positive|negative|neutral"}',
-      constraints: ['только JSON, без пояснений'],
+      constraints: ['JSON only, no explanations'],
     },
   },
 ];
@@ -155,18 +155,18 @@ export function formatCalibration(report: CalibrationReport): string {
   const pct = (x: number) => `${Math.round(x * 100)}%`;
   const rows = report.results.map((r) => {
     const judge2 = r.judge2 === null ? '  — ' : r.judge2.toFixed(2);
-    return `  ${r.techniqueKey.padEnd(24)} судья1 ${r.judge1.toFixed(2)} | судья2 ${judge2} | панель ${r.panel.toFixed(2)} | точность ${pct(r.accuracy)} (${r.correct}/${r.total})`;
+    return `  ${r.techniqueKey.padEnd(24)} judge1 ${r.judge1.toFixed(2)} | judge2 ${judge2} | panel ${r.panel.toFixed(2)} | accuracy ${pct(r.accuracy)} (${r.correct}/${r.total})`;
   });
   return [
-    `Калибровка на размеченных данных: ${report.examples} примеров, ${report.results.length} промптов`,
+    `Calibration on labelled data: ${report.examples} examples, ${report.results.length} prompts`,
     '',
     ...rows,
     '',
-    `Корреляция «панель ↔ точность»: Spearman ${report.correlation.spearman}, Pearson ${report.correlation.pearson} (n=${report.correlation.n}, ${report.correlation.reliability})`,
-    `Лучший по точности: ${report.best.byAccuracy} | лучший по судье: ${report.best.byJudge} | ${report.best.agree ? 'совпали' : 'РАСХОДЯТСЯ'}`,
+    `Correlation "panel ↔ accuracy": Spearman ${report.correlation.spearman}, Pearson ${report.correlation.pearson} (n=${report.correlation.n}, ${report.correlation.reliability})`,
+    `Best by accuracy: ${report.best.byAccuracy} | best by judge: ${report.best.byJudge} | ${report.best.agree ? 'agree' : 'DISAGREE'}`,
     '',
-    'Что это значит: если судья ранжирует промпты так же, как реальная точность, — ему можно верить.',
-    'При n<8 это пилот, а не статистика: направление, а не приговор.',
+    'What it means: if the judge ranks prompts the same way as real accuracy does, it can be trusted.',
+    'With n<8 this is a pilot, not statistics: a direction, not a verdict.',
   ].join('\n');
 }
 
@@ -200,7 +200,7 @@ async function main() {
   const variants = Math.max(1, Number(flag('--variants', '1')));
   const screenModel = flag('--screen-model', 'qwen3:8b');
   const hardLimit = Math.max(3, Number(flag('--hard-limit', '10')));
-  // Исполнение промптов можно вынести на быструю модель: генерация и судьи остаются в облаке.
+  // Prompt execution can move to a fast model: generation and judges stay in the cloud.
   const execProvider = flag('--exec-provider', '') as Provider | '';
   const execModel = flag('--exec-model', '');
   const judge2Provider = flag('--judge2-provider', '') as Provider | '';
@@ -216,16 +216,16 @@ async function main() {
   const execLLM = execProvider
     ? createLLMFromEnv(execProvider, execModel || model, env)
     : llm;
-  if (execProvider) process.stderr.write(`исполнение промптов: ${execProvider}/${execModel || model}\n`);
+  if (execProvider) process.stderr.write(`prompt execution: ${execProvider}/${execModel || model}\n`);
 
   let pool = examples;
   if (hard) {
-    process.stderr.write(`· отбор сложных примеров через ${provider}/${screenModel} (до ${examples.length}) … `);
+    process.stderr.write(`· picking hard examples with ${provider}/${screenModel} (up to ${examples.length}) … `);
     const screenLLM = createLLMFromEnv(provider, screenModel, env);
     pool = await screenHard(examples, (p) => screenLLM(p, { temperature: 0 }), hardLimit);
-    process.stderr.write(`осталось ${pool.length}\n`);
+    process.stderr.write(`${pool.length} left\n`);
     if (pool.length < 3) {
-      process.stderr.write('слишком мало сложных примеров — задача слишком лёгкая для калибровки\n');
+      process.stderr.write('too few hard examples — the task is too easy for calibration\n');
     }
   }
 
@@ -237,25 +237,25 @@ async function main() {
 
   for (const { tech: techniqueKey, variant } of combos) {
     const label = variants > 1 ? `${techniqueKey}/${variant.name}` : techniqueKey;
-    process.stderr.write(`· ${label}: генерация промпта … `);
-    const run = await runPipeline({ thoughts: 'калибровка', catalog, llm, brief: variant.brief, techniqueKey });
+    process.stderr.write(`· ${label}: generating the prompt … `);
+    const run = await runPipeline({ thoughts: 'calibration', catalog, llm, brief: variant.brief, techniqueKey });
     const prompt = run.synthesis.prompt;
 
     const judgePrompt = buildJudgePrompt({
-      thoughts: 'определить тональность коротких русских текстов',
+      thoughts: 'determine the sentiment of short Russian texts',
       brief: variant.brief,
       choice: run.choice,
       synthesis: run.synthesis,
     });
     const judged1 = parseJudgement(await llm(judgePrompt, { temperature: 0 }));
     const judged2 = judge2LLM ? parseJudgement(await judge2LLM(judgePrompt, { temperature: 0 })) : null;
-    process.stderr.write('оценён, прогон примеров … ');
+    process.stderr.write('scored, running the examples … ');
 
     let correct = 0;
     let errors = 0;
     for (const example of pool) {
       try {
-        const answer = await execLLM(`${prompt}\n\nТекст: ${example.text}\nОтвет:`, { temperature: 0 });
+        const answer = await execLLM(`${prompt}\n\nText: ${example.text}\nAnswer:`, { temperature: 0 });
         const label = parseLabel(answer);
         if (label === null) errors += 1;
         else if (label === example.label) correct += 1;
@@ -277,7 +277,7 @@ async function main() {
       judged1,
       judged2,
     });
-    process.stderr.write(`точность ${correct}/${pool.length}\n`);
+    process.stderr.write(`accuracy ${correct}/${pool.length}\n`);
   }
 
   const report = buildCalibrationReport(results, pool.length);
@@ -288,7 +288,7 @@ const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv
 
 if (isMain) {
   main().catch((e) => {
-    console.error('ошибка:', e instanceof Error ? e.message : e);
+    console.error('error:', e instanceof Error ? e.message : e);
     process.exit(1);
   });
 }

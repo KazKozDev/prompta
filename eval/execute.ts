@@ -14,11 +14,11 @@ import type { Correlation } from './stats.ts';
 import { guidanceOf, isOfficial, parseTarget, targetOptions } from './target.ts';
 import type { EvalTarget } from './target.ts';
 
-/** Проверка промпта по результату, а не по форме.
+/** Checks a prompt by its result, not its form.
  *
- *  Пайплайн генерирует промпты (zero-shot и варианты), каждый промпт исполняется на входах с известным
- *  ответом, ответ проверяется детерминированно. Так видно, даёт ли техника или официальная цель
- *  реальный выигрыш над zero-shot, и совпадает ли с этим оценка судьи (--judge).
+ *  The pipeline generates prompts (zero-shot and variants), each prompt runs on inputs with a known
+ *  answer, and the answer is checked deterministically. This shows whether a technique or an official target
+ *  gives a real lift over zero-shot, and whether the judge's score (--judge) agrees.
  *
  *  node eval/execute.ts --suite all --target catalog --provider gemini --model gemini-2.5-flash
  *  node eval/execute.ts --suite invoice-extraction --target claude --provider anthropic --model claude-opus-5-5
@@ -37,7 +37,7 @@ export interface ExecExample {
   input: string;
   expected: unknown;
   adversarial?: boolean;
-  /** Ловушка: на лёгких примерах zero-shot уже даёт 100%, различают техники только трудные. */
+  /** A trap: on easy examples zero-shot already scores 100%; only hard ones tell techniques apart. */
   hard?: boolean;
 }
 
@@ -53,12 +53,12 @@ interface SuiteFile {
   suites: (Omit<Suite, 'examples'> & { examples?: ExecExample[]; from?: string; limit?: number })[];
 }
 
-/** Набор из файла; `from` подтягивает внешнюю фикстуру {examples:[{id,text,label}]}, сбалансированно по меткам. */
+/** A suite from the file; `from` pulls an external fixture {examples:[{id,text,label}]}, balanced by label. */
 export function loadSuites(path = join(root, 'eval', 'data', 'exec-suites.json')): Suite[] {
   const file = JSON.parse(readFileSync(path, 'utf8')) as SuiteFile;
   return file.suites.map((s) => {
     if (!s.from) {
-      if (!s.examples) throw new Error(`${s.id}: нет ни examples, ни from`);
+      if (!s.examples) throw new Error(`${s.id}: neither examples nor from`);
       return s as Suite;
     }
     const ext = JSON.parse(readFileSync(join(root, s.from), 'utf8')) as { examples: { id: string; text: string; label: string }[] };
@@ -70,7 +70,7 @@ export function loadSuites(path = join(root, 'eval', 'data', 'exec-suites.json')
   });
 }
 
-/** Подставить вход в промпт: метка «ВСТАВЬ СЮДА», плейсхолдер материала или блок в конце. */
+/** Put the input into the prompt: an «INSERT HERE» marker, a material placeholder, or a block at the end. */
 export function fillPrompt(prompt: string, input: string): string {
   const marker = /ВСТАВЬ СЮДА:[^\n]*|INSERT HERE:[^\n]*/i;
   if (marker.test(prompt)) {
@@ -83,7 +83,7 @@ export function fillPrompt(prompt: string, input: string): string {
   }
   const slot = /\{\{\s*(input|text|document|context|external_text|question|problem)\s*\}\}/i;
   if (slot.test(prompt)) return prompt.replace(new RegExp(slot.source, 'gi'), input);
-  return `${prompt}\n\n---\nВходные данные:\n${input}`;
+  return `${prompt}\n\n---\nInput:\n${input}`;
 }
 
 const norm = {
@@ -107,7 +107,7 @@ export function parseNumber(value: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-/** Число из свободного ответа: строка «Ответ: N», иначе последнее число в последней строке с цифрой. */
+/** A number from a free-form answer: an "Answer: N" line, else the last number on the last line with a digit. */
 export function answerNumber(answer: string): number | null {
   const tagged = [...answer.matchAll(/(?:ответ|answer)\s*[:：=]\s*\**\s*(-?[\d\s .,]+)/gi)].at(-1);
   if (tagged) return parseNumber(tagged[1]);
@@ -133,7 +133,7 @@ export function answerLabel(answer: string, labels: Record<string, string[]>): s
   return find(tail) ?? find(answer);
 }
 
-/** score — доля верного (для JSON — доля верных полей), formatValid — ответ разобран в нужном формате. */
+/** score — share correct (for JSON, share of correct fields); formatValid — the answer parsed in the required format. */
 export function check(checker: Checker, answer: string, expected: unknown): { score: number; formatValid: boolean } {
   if (checker.type === 'number') {
     const got = answerNumber(answer);
@@ -171,12 +171,12 @@ export interface PromptResult {
   prompt: string;
   accuracy: number;
   formatValid: number;
-  /** Точность только на примерах с внедрённой командой; null — таких нет. */
+  /** Accuracy on examples with an injected command only; null — there are none. */
   adversarialAccuracy: number | null;
-  /** Точность только на трудных примерах; null — таких нет. */
+  /** Accuracy on hard examples only; null — there are none. */
   hardAccuracy: number | null;
   errors: number;
-  /** Первая ошибка исполнителя: без неё 0% точности неотличим от «промпт плохой». */
+  /** The executor's first error: without it, 0% accuracy is indistinguishable from "the prompt is bad". */
   firstError?: string;
   judge?: number;
 }
@@ -186,11 +186,11 @@ export interface SuiteResult {
   target: EvalTarget;
   examples: number;
   prompts: PromptResult[];
-  /** Выигрыш лучшего варианта над zero-shot по точности (доли). */
+  /** The best variant's accuracy lift over zero-shot (fractions). */
   liftOverZeroShot: number;
   promptVersion?: string;
   generationTokens?: { inputTokens: number; outputTokens: number; calls: number };
-  /** Совпадает ли ранжирование судьи с ранжированием по точности. */
+  /** Whether the judge's ranking matches the accuracy ranking. */
   judgeVsAccuracy?: Correlation;
 }
 
@@ -251,8 +251,8 @@ export async function runSuite(opts: {
     }
     const n = suite.examples.length || 1;
     if (errors === suite.examples.length && suite.examples.length > 0) {
-      // Исполнитель не ответил ни разу — это сбой окружения, а не нулевая точность промпта.
-      throw new Error(`исполнитель не ответил ни на один пример (${suite.id}, ${c.name}): ${firstError}`);
+      // The executor never answered: an environment failure, not zero prompt accuracy.
+      throw new Error(`the executor answered no examples (${suite.id}, ${c.name}): ${firstError}`);
     }
     const row: PromptResult = {
       name: c.name,
@@ -272,7 +272,7 @@ export async function runSuite(opts: {
         }), { temperature: 0, json: true }));
         row.judge = judgement.total;
       } catch {
-        /* судья не ответил — строка остаётся без балла */
+        /* the judge did not answer: the row stays without a score */
       }
     }
     prompts.push(row);
@@ -297,17 +297,17 @@ export function formatSuiteResults(results: SuiteResult[]): string {
   const pct = (x: number | null) => (x === null ? '—' : `${Math.round(x * 100)}%`);
   const lines: string[] = [];
   for (const r of results) {
-    lines.push(`${r.suite} · цель ${r.target} · ${r.examples} примеров · промпты ${r.promptVersion ?? '—'}`);
+    lines.push(`${r.suite} · target ${r.target} · ${r.examples} examples · prompts ${r.promptVersion ?? '—'}`);
     for (const p of r.prompts) {
-      lines.push(`  ${p.name.padEnd(28)} точность ${pct(p.accuracy).padStart(4)} | формат ${pct(p.formatValid).padStart(4)} | трудные ${pct(p.hardAccuracy).padStart(4)} | под инъекцией ${pct(p.adversarialAccuracy).padStart(4)}${typeof p.judge === 'number' ? ` | судья ${p.judge.toFixed(2)}` : ''}${p.errors ? ` | ошибок ${p.errors} (${(p.firstError ?? '').slice(0, 80)})` : ''}`);
+      lines.push(`  ${p.name.padEnd(28)} accuracy ${pct(p.accuracy).padStart(4)} | format ${pct(p.formatValid).padStart(4)} | hard ${pct(p.hardAccuracy).padStart(4)} | under injection ${pct(p.adversarialAccuracy).padStart(4)}${typeof p.judge === 'number' ? ` | judge ${p.judge.toFixed(2)}` : ''}${p.errors ? ` | errors ${p.errors} (${(p.firstError ?? '').slice(0, 80)})` : ''}`);
     }
-    lines.push(`  выигрыш лучшего варианта над zero-shot: ${r.liftOverZeroShot >= 0 ? '+' : ''}${Math.round(r.liftOverZeroShot * 100)} п.п.`);
+    lines.push(`  best variant's lift over zero-shot: ${r.liftOverZeroShot >= 0 ? '+' : ''}${Math.round(r.liftOverZeroShot * 100)} pp`);
     if (r.judgeVsAccuracy) {
-      lines.push(`  судья ↔ точность: Spearman ${r.judgeVsAccuracy.spearman} (n=${r.judgeVsAccuracy.n}, ${r.judgeVsAccuracy.reliability})`);
+      lines.push(`  judge ↔ accuracy: Spearman ${r.judgeVsAccuracy.spearman} (n=${r.judgeVsAccuracy.n}, ${r.judgeVsAccuracy.reliability})`);
     }
     lines.push('');
   }
-  lines.push('Выигрыш меньше 1–2 примеров из набора — шум. Выводы «техника лучше» — только по нескольким прогонам.');
+  lines.push('A lift smaller than 1–2 examples of the suite is noise. Draw "technique is better" conclusions only from several runs.');
   return lines.join('\n');
 }
 
@@ -332,18 +332,18 @@ async function main() {
 
   const provider = flag('--provider', 'gemini') as Provider;
   const model = flag('--model', 'gemini-2.5-flash');
-  // Исполнитель по умолчанию — тот же провайдер; для сквозной проверки цели задайте провайдер цели.
+  // The executor defaults to the same provider; for an end-to-end target check, set the target's provider.
   const execProvider = flag('--exec-provider', provider) as Provider;
   const execModel = flag('--exec-model', model);
   const target = parseTarget(flag('--target', 'catalog'));
   const wanted = flag('--suite', 'all');
   const suites = loadSuites().filter((s) => wanted === 'all' || wanted.split(',').includes(s.id));
   if (!suites.length) {
-    console.error(`нет набора ${wanted}; есть: ${loadSuites().map((s) => s.id).join(', ')}`);
+    console.error(`no suite ${wanted}; available: ${loadSuites().map((s) => s.id).join(', ')}`);
     process.exit(2);
   }
   if (isOfficial(target) && argv.includes('--deterministic')) {
-    console.error('официальные цели требуют LLM-синтеза');
+    console.error('official targets require LLM synthesis');
     process.exit(2);
   }
 
@@ -368,7 +368,7 @@ async function main() {
 const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) {
   main().catch((e) => {
-    console.error('ошибка:', e instanceof Error ? e.message : e);
+    console.error('error:', e instanceof Error ? e.message : e);
     process.exit(1);
   });
 }

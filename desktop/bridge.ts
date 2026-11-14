@@ -16,7 +16,7 @@ import { settleWithLimit } from '../pipeline/limit.ts';
 import type { Provider } from '../pipeline/llm.ts';
 import techniqueSources from '../catalog/source-links.json' with { type: 'json' };
 
-/** Мост для десктопного UI: JSON на stdin → JSON на stdout. Никаких аргументов, чтобы не мучиться с кавычками. */
+/** Bridge for the desktop UI: JSON on stdin → JSON on stdout. No arguments, so there is no quoting to get wrong. */
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -43,13 +43,13 @@ interface BridgeRequest {
   hermesOnly?: boolean;
   openModel?: string;
   budgetCalls?: number | null;
-  /** Список техник для выпадающего меню в UI. */
+  /** The technique list for the UI dropdown. */
   listTechniques?: boolean;
-  /** Принудительно собрать промпт по методике конкретной техники. */
+  /** Force a prompt built with one specific technique's method. */
   manualTechnique?: string;
-  /** Несколько техник сразу: по промпту на каждую, параллельно. */
+  /** Several techniques at once: one prompt per technique, in parallel. */
   manualTechniques?: string[];
-  /** Сколько вариантов техник предложить (1–5). */
+  /** How many technique variants to offer (1–5). */
   variants?: number;
 }
 
@@ -117,7 +117,7 @@ async function main() {
         category: t.category,
         status: t.status,
         sources: (techniqueSources as Record<string, { title: string; url: string; reference: string }[]>)[t.key] ?? [],
-        // Подсказка в одну фразу: первое предложение when_to_use без хвоста.
+        // A one-sentence hint: the first sentence of when_to_use, without the rest.
         hint: t.when_to_use.split(/[.;]/)[0].trim().slice(0, 90),
       }));
     process.stdout.write(JSON.stringify({ ok: true, techniques: ready, promptVersion: promptVersion() }));

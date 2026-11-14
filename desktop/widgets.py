@@ -1,6 +1,6 @@
-"""Базовые виджеты Prompta: подсказки, анимация попапов, комбобокс истории, прокрутка и редакторы текста.
+"""Prompta base widgets: tooltips, popup animation, the history combo box, scrolling and text editors.
 
-Вынесены из app.py, чтобы главное окно не было монолитом; app.py реэкспортирует эти имена."""
+Moved out of app.py so the main window is not a monolith; app.py re-exports these names."""
 
 from __future__ import annotations
 
@@ -603,23 +603,20 @@ class ThoughtsEdit(QPlainTextEdit):
             self.microphone_icon.raise_()
 
 
+TICK_PITCH = 7      # px from one tick to the next
+TICK_MAX = 15       # the indicator is a short group of ticks, not a full-height track
+
+
+def dashed_ticks(bar: QScrollBar) -> list[int]:
+    """Tick positions along the bar: at most TICK_MAX, centred on the bar."""
+    length = bar.height() if bar.orientation() == Qt.Orientation.Vertical else bar.width()
+    count = max(0, min(TICK_MAX, (length - 6) // TICK_PITCH + 1))
+    start = (length - (count - 1) * TICK_PITCH - 2) // 2
+    return [start + i * TICK_PITCH for i in range(count)]
+
+
 def paint_dashed_scrollbar(bar: QScrollBar) -> None:
-    """Draw any scroll bar as short ticks: dark on prompt blocks, warm brown elsewhere."""
-    # Filled by hand: initStyleOption is protected for scroll bars that Qt created internally.
-    option = QStyleOptionSlider()
-    option.initFrom(bar)
-    option.orientation = bar.orientation()
-    option.minimum = bar.minimum()
-    option.maximum = bar.maximum()
-    option.sliderPosition = bar.sliderPosition()
-    option.sliderValue = bar.value()
-    option.singleStep = bar.singleStep()
-    option.pageStep = bar.pageStep()
-    option.upsideDown = bar.invertedAppearance()
-    if bar.orientation() == Qt.Orientation.Horizontal:
-        option.state |= QStyle.StateFlag.State_Horizontal
-    thumb = bar.style().subControlRect(QStyle.ComplexControl.CC_ScrollBar, option,
-                                       QStyle.SubControl.SC_ScrollBarSlider, bar)
+    """Draw any scroll bar as a short group of ticks; the bright, longer one is where the view is."""
     painter = QPainter(bar)
     owner = bar.parentWidget()
     while owner and not isinstance(owner, QAbstractScrollArea):
@@ -627,31 +624,82 @@ def paint_dashed_scrollbar(bar: QScrollBar) -> None:
     prompt = owner is not None and owner.objectName() == "prompt"
     if prompt:
         painter.fillRect(bar.rect(), QColor("#454545"))
+    ticks = dashed_ticks(bar)
+    if not ticks or bar.maximum() <= bar.minimum():
+        painter.end()
+        return
+    fraction = (bar.sliderPosition() - bar.minimum()) / (bar.maximum() - bar.minimum())
+    if bar.invertedAppearance():
+        fraction = 1 - fraction
+    current = round(fraction * (len(ticks) - 1))
     vertical = bar.orientation() == Qt.Orientation.Vertical
-    length = bar.height() if vertical else bar.width()
+    thickness = bar.width() if vertical else bar.height()
     painter.setPen(Qt.PenStyle.NoPen)
-    for position in range(5, length - 3, 10):
-        active = (thumb.top() <= position <= thumb.bottom()) if vertical else (thumb.left() <= position <= thumb.right())
-        painter.setBrush(QColor(("#c1bba9" if active else "#696969") if prompt else ("#806a3d" if active else "#b6a580")))
+    for index, position in enumerate(ticks):
+        active = index == current
+        painter.setBrush(QColor(("#ededed" if active else "#5a5a5a") if prompt else ("#5c4a26" if active else "#d9cba6")))
+        size = min(thickness - 2, 10 if active else 7)
         if vertical:
-            painter.drawRect((bar.width() - 6) // 2, position, 6, 2)
+            painter.drawRect((bar.width() - size) // 2, position, size, 2)
         else:
-            painter.drawRect(position, (bar.height() - 6) // 2, 2, 6)
+            painter.drawRect(position, (bar.height() - size) // 2, 2, size)
     painter.end()
 
 
+def drag_dashed_scrollbar(bar: QScrollBar, event) -> bool:
+    """Click or drag along the tick group moves the view to that point; outside it clamps to the ends."""
+    kind = event.type()
+    if kind == QEvent.Type.MouseButtonPress and event.button() == Qt.MouseButton.LeftButton:
+        bar.setSliderDown(True)
+    elif kind == QEvent.Type.MouseButtonRelease and event.button() == Qt.MouseButton.LeftButton:
+        bar.setSliderDown(False)
+        return True
+    elif not (kind == QEvent.Type.MouseMove and bar.isSliderDown()):
+        return kind in (QEvent.Type.MouseButtonPress, QEvent.Type.MouseButtonDblClick)
+    ticks = dashed_ticks(bar)
+    if len(ticks) < 2:
+        return True
+    point = event.position()
+    at = point.y() if bar.orientation() == Qt.Orientation.Vertical else point.x()
+    fraction = min(1.0, max(0.0, (at - ticks[0] - 1) / (ticks[-1] - ticks[0])))
+    if bar.invertedAppearance():
+        fraction = 1 - fraction
+    bar.setSliderPosition(round(bar.minimum() + fraction * (bar.maximum() - bar.minimum())))
+    return True
+
+
 class DashedScrollBar(QScrollBar):
-    """Keep native scroll interaction; render the track and thumb as short ticks."""
+    """Native wheel and keys; drawn and dragged as a short group of ticks."""
     def paintEvent(self, event) -> None:  # noqa: N802
         paint_dashed_scrollbar(self)
 
+    def mousePressEvent(self, event) -> None:  # noqa: N802
+        drag_dashed_scrollbar(self, event)
+
+    def mouseMoveEvent(self, event) -> None:  # noqa: N802
+        drag_dashed_scrollbar(self, event)
+
+    def mouseReleaseEvent(self, event) -> None:  # noqa: N802
+        drag_dashed_scrollbar(self, event)
+
+    def mouseDoubleClickEvent(self, event) -> None:  # noqa: N802
+        drag_dashed_scrollbar(self, event)
+
+
+_DASHED_MOUSE = (QEvent.Type.MouseButtonPress, QEvent.Type.MouseButtonRelease,
+                 QEvent.Type.MouseMove, QEvent.Type.MouseButtonDblClick)
+
 
 class DashedScrollPainter(QObject):
-    """App-wide: every other scroll bar (lists, menus, popups, dialogs) is painted as ticks too."""
+    """App-wide: every other scroll bar (lists, menus, popups, dialogs) is drawn and dragged as ticks too."""
     def eventFilter(self, obj, event) -> bool:  # noqa: N802
-        if event.type() == QEvent.Type.Paint and isinstance(obj, QScrollBar) and not isinstance(obj, DashedScrollBar):
+        if not isinstance(obj, QScrollBar) or isinstance(obj, DashedScrollBar):
+            return False
+        if event.type() == QEvent.Type.Paint:
             paint_dashed_scrollbar(obj)
             return True
+        if event.type() in _DASHED_MOUSE:
+            return drag_dashed_scrollbar(obj, event)
         return False
 
 

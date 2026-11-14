@@ -1,9 +1,9 @@
-"""Локальная история результатов; ключи API и настройки запроса не сохраняются.
+"""Local history of results; API keys and request settings are not stored.
 
-Политика хранения: файл доступен только владельцу (0600), записи старше срока и сверх лимита
-удаляются при каждом сохранении. Лимиты задаются переменными окружения:
-PROMPTA_HISTORY_MAX (по умолчанию 500 записей, 0 — без лимита) и
-PROMPTA_HISTORY_DAYS (по умолчанию 0 — без срока). Отключить историю: PROMPTA_HISTORY_MAX=-1.
+Retention: the file is readable only by its owner (0600); entries past the age limit or over the count limit
+are removed on every save. Limits come from environment variables:
+PROMPTA_HISTORY_MAX (default 500 entries, 0 — no limit) and
+PROMPTA_HISTORY_DAYS (default 0 — no age limit). To turn history off: PROMPTA_HISTORY_MAX=-1.
 """
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ def _env_int(name: str, default: int) -> int:
 
 
 def retention_from_env() -> tuple[int, int]:
-    """(максимум записей, срок в днях); 0 — без ограничения, -1 записей — история выключена."""
+    """(max entries, age in days); 0 — no limit, -1 entries — history is off."""
     return _env_int('PROMPTA_HISTORY_MAX', DEFAULT_MAX_ENTRIES), max(0, _env_int('PROMPTA_HISTORY_DAYS', 0))
 
 
@@ -71,7 +71,7 @@ class HistoryStore:
         for row in rows:
             payload = json.loads(row[4])
             if row[2] not in ('pipeline', 'manual', 'procedure') or not isinstance(payload, dict):
-                raise ValueError('неверный формат записи истории')
+                raise ValueError('invalid history entry format')
             entries.append(dict(zip(('id', 'label', 'kind', 'thoughts', 'payload', 'created_at'), (*row[:4], payload, row[5]))))
         return entries
 
@@ -80,7 +80,7 @@ class HistoryStore:
         entry = {'id': None, 'label': label, 'kind': kind, 'thoughts': thoughts,
                  'payload': payload, 'created_at': created_at}
         if not self.enabled:
-            return entry  # история выключена: результат показывается, но не пишется на диск
+            return entry  # history is off: the result is shown but not written to disk
         encoded = json.dumps(payload, ensure_ascii=False)
         with closing(self._connect()) as connection, connection:
             cursor = connection.execute(
@@ -92,7 +92,7 @@ class HistoryStore:
         return entry
 
     def _prune(self, connection) -> int:
-        """Удаляет записи старше срока и сверх лимита; возвращает, сколько удалено."""
+        """Removes entries past the age limit or over the count limit; returns how many were removed."""
         removed = 0
         if self.max_age_days > 0:
             cutoff = (datetime.now().astimezone() - timedelta(days=self.max_age_days)).isoformat(timespec='seconds')
@@ -111,7 +111,7 @@ class HistoryStore:
             return self._prune(connection)
 
     def clear(self) -> None:
-        """Стереть всю историю: удаляет файл базы, а не только строки, чтобы текст не остался в свободных страницах."""
+        """Erase all history: deletes the database file, not just the rows, so no text is left in free pages."""
         for suffix in ('', '-wal', '-shm', '-journal'):
             Path(str(self.path) + suffix).unlink(missing_ok=True)
 

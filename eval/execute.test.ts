@@ -43,20 +43,20 @@ test('метки и JSON-поля проверяются детерминиро�
 test('fillPrompt: метка, плейсхолдер или блок в конце', () => {
   assert.equal(fillPrompt('Разбери:\nВСТАВЬ СЮДА: текст счёта\nВерни JSON', 'СЧЁТ'), 'Разбери:\nСЧЁТ\nВерни JSON');
   assert.equal(fillPrompt('Текст: {{text}}', 'X'), 'Текст: X');
-  assert.match(fillPrompt('Реши задачу.', 'Y'), /Входные данные:\nY$/);
+  assert.match(fillPrompt('Реши задачу.', 'Y'), /Input:\nY$/);
 });
 
 test('runSuite: zero-shot против варианта, выигрыш и корреляция с судьёй', async () => {
   const suite = loadSuites().find((s) => s.id === 'math-word-problems')!;
   const brief = JSON.stringify({ goal: 'решать задачи', task_type: 'reasoning', input: 'условие задачи', output_format: 'Ответ: число', constraints: [], language: 'ru', modality: 'text', stakes: 'high', assumptions: [], budget_calls: null });
   const llm = async (prompt: string) => {
-    if (prompt.includes('Поток мыслей:')) return brief;
-    if (prompt.includes('Доступные техники')) {
+    if (prompt.includes('Stream of thoughts:')) return brief;
+    if (prompt.includes('Available techniques')) {
       const key = catalog.techniques.find((t) => t.key === 'chain_of_thought') ? 'chain_of_thought' : 'zero_shot';
       return JSON.stringify({ choices: [{ key, reason: 'шаги', confidence: 0.8, whyNotCheaper: 'нужны шаги' }] });
     }
-    if (prompt.includes('Напиши zero-shot промпт')) return 'ZERO: реши текстовую задачу по математике и дай ответ числом в последней строке.';
-    if (prompt.includes('Ты оцениваешь промпт')) return JSON.stringify({ scores: Object.fromEntries(['fidelity', 'specificity', 'technique_fit', 'config_sanity', 'clean_output'].map((c) => [c, { score: 4, why: 'ok' }])) });
+    if (prompt.includes('Write a zero-shot prompt')) return 'ZERO: реши текстовую задачу по математике и дай ответ числом в последней строке.';
+    if (prompt.includes('You are scoring a prompt')) return JSON.stringify({ scores: Object.fromEntries(['fidelity', 'specificity', 'technique_fit', 'config_sanity', 'clean_output'].map((c) => [c, { score: 4, why: 'ok' }])) });
     return 'COT: рассуждай по шагам, затем строка «Ответ: <число>». ВСТАВЬ СЮДА: условие задачи';
   };
   // Исполнитель: «умный» промпт решает всё, zero-shot ошибается на инъекции.
@@ -74,17 +74,17 @@ test('runSuite: zero-shot против варианта, выигрыш и ко�
   assert.ok(r.liftOverZeroShot > 0);
   assert.equal(variant.judge, 4);
   assert.ok(r.promptVersion);
-  assert.match(formatSuiteResults([r]), /выигрыш лучшего варианта над zero-shot: \+14 п\.п\./);
+  assert.match(formatSuiteResults([r]), /best variant's lift over zero-shot: \+14 pp/);
 });
 
 test('runSuite: если исполнитель не ответил ни разу, прогон падает с причиной, а не пишет 0%', async () => {
   const suite = { ...loadSuites().find((s) => s.id === 'math-word-problems')!, examples: loadSuites()[1].examples.slice(0, 2) };
   const brief = JSON.stringify({ goal: 'g', task_type: 'reasoning', input: 'условие', output_format: 'Ответ: число', constraints: [], language: 'ru', modality: 'text', stakes: 'low', assumptions: [], budget_calls: null });
   const llm = async (prompt: string) => {
-    if (prompt.includes('Поток мыслей:')) return brief;
-    if (prompt.includes('Доступные техники')) return JSON.stringify({ key: 'chain_of_thought', reason: 'r', confidence: 1, whyNotCheaper: 'нужны шаги' });
+    if (prompt.includes('Stream of thoughts:')) return brief;
+    if (prompt.includes('Available techniques')) return JSON.stringify({ key: 'chain_of_thought', reason: 'r', confidence: 1, whyNotCheaper: 'нужны шаги' });
     return 'Реши задачу и в конце напиши строку «Ответ: <число>». ВСТАВЬ СЮДА: условие';
   };
   const execLLM = async () => { throw new Error('LLM 410: model was retired'); };
-  await assert.rejects(runSuite({ suite, target: 'catalog', catalog, llm, execLLM, variants: 1 }), /не ответил ни на один пример.*410/);
+  await assert.rejects(runSuite({ suite, target: 'catalog', catalog, llm, execLLM, variants: 1 }), /answered no examples.*410/);
 });

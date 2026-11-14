@@ -20,3 +20,6 @@ speak_siri.py
 
 # Source PDFs: local only, originals are linked from archive-org-prompting/README.md
 archive-org-prompting/pdf/
+
+# Personal model providers and their keys (desktop app), never committed
+desktop/providers.local.json

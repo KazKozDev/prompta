@@ -43,11 +43,11 @@ const BRIEF_JSON = JSON.stringify({
 
 function fakeLLM(overrides: { choice?: string; prompt?: string } = {}) {
   return async (prompt: string) => {
-    if (prompt.includes('Поток мыслей:')) return BRIEF_JSON;
-    if (prompt.includes('Доступные техники')) {
+    if (prompt.includes('Stream of thoughts:')) return BRIEF_JSON;
+    if (prompt.includes('Available techniques')) {
       return overrides.choice ?? JSON.stringify({ key: 'zero_shot', reason: 'просто', confidence: 0.8, whyNotCheaper: 'самая дешёвая' });
     }
-    if (prompt.includes('Ты оцениваешь промпт')) return JUDGE_JSON;
+    if (prompt.includes('You are scoring a prompt')) return JUDGE_JSON;
     return overrides.prompt ?? 'Готовый промпт: классифицируй и верни markdown-таблицу.';
   };
 }
@@ -106,13 +106,13 @@ test('parseJudgement: полный ответ принимается', () => {
 
 test('parseJudgement: пропущенный критерий — ошибка', () => {
   const bad = JSON.stringify({ scores: { fidelity: { score: 5, why: 'x' } } });
-  assert.throws(() => parseJudgement(bad), /не оценил критерий/);
+  assert.throws(() => parseJudgement(bad), /did not score criterion/);
 });
 
 test('parseJudgement: балл без объяснения не принимается', () => {
   const scores = Object.fromEntries(CRITERIA.map((c) => [c, { score: 4, why: 'ок' }]));
   scores.fidelity = { score: 5, why: '' };
-  assert.throws(() => parseJudgement(JSON.stringify({ scores })), /без объяснения/);
+  assert.throws(() => parseJudgement(JSON.stringify({ scores })), /without an explanation/);
 });
 
 test('parseJudgement: баллы зажимаются в 1..5', () => {
@@ -156,7 +156,7 @@ test('aggregate: стабильность, попадания и запреты 
 
   const text = formatReport(r);
   assert.match(text, /t1/);
-  assert.match(text, /стабильность/);
+  assert.match(text, /stability/);
 });
 
 test('eval-прогон целиком на фейковой модели', async () => {
@@ -214,7 +214,7 @@ test('crossCheck: согласие судей даёт «доверять»', ()
   const a = judgement([4, 4, 4, 4, 4]);
   const res = crossCheck([{ primary: a, secondary: a }, { primary: a, secondary: a }]);
   assert.ok(res);
-  assert.equal(res!.verdict, 'доверять');
+  assert.equal(res!.verdict, 'trust');
   assert.equal(res!.meanAbsDelta, 0);
   assert.equal(res!.verdictAgreement, 1);
   assert.equal(res!.pearson, 1);
@@ -228,7 +228,7 @@ test('crossCheck: систематический перекос попадает
   assert.ok(res);
   assert.equal(res!.biasPerCriterion.fidelity, 2);
   assert.ok(res!.contestedCriteria.includes('fidelity'));
-  assert.equal(res!.verdict, 'перепроверить');
+  assert.equal(res!.verdict, 'recheck');
 });
 
 test('crossCheck: полный разброс баллов даёт «не доверять»', () => {
@@ -236,7 +236,7 @@ test('crossCheck: полный разброс баллов даёт «не до�
   const b = judgement([5, 5, 5, 5, 5]);
   const res = crossCheck([{ primary: a, secondary: b }]);
   assert.ok(res);
-  assert.equal(res!.verdict, 'не доверять');
+  assert.equal(res!.verdict, 'do not trust');
   assert.equal(res!.meanAbsDelta, 4);
 });
 
@@ -263,8 +263,8 @@ test('aggregate подхватывает второго судью и печат
   assert.equal(r.panel!.panelMean, 4.5);
   assert.equal(r.panel!.runs, 1);
   const text = formatReport(r);
-  assert.match(text, /Сверка двух судей/);
-  assert.match(formatCrossCheck(r.crossCheck!), /перекос по критериям/);
+  assert.match(text, /Two-judge crosscheck/);
+  assert.match(formatCrossCheck(r.crossCheck!), /bias per criterion/);
 });
 
 test('parseLabel: чистое слово, русский вариант и последняя строка', () => {
@@ -285,10 +285,10 @@ test('stats: pearson и spearman на известных значениях', ()
 });
 
 test('correlate: надёжность зависит от n', () => {
-  assert.equal(correlate([1, 2], [1, 2]).reliability, 'нет данных');
-  assert.equal(correlate([1, 2, 3], [3, 2, 1]).reliability, 'пилот');
+  assert.equal(correlate([1, 2], [1, 2]).reliability, 'no data');
+  assert.equal(correlate([1, 2, 3], [3, 2, 1]).reliability, 'pilot');
   const many = correlate(Array.from({ length: 9 }, (_, i) => i), Array.from({ length: 9 }, (_, i) => i * 2));
-  assert.equal(many.reliability, 'устойчиво');
+  assert.equal(many.reliability, 'stable');
   assert.equal(many.spearman, 1);
 });
 
@@ -304,8 +304,8 @@ test('calibration: отчёт находит лучшего по точност�
   assert.equal(rep.best.agree, false);
   assert.equal(rep.correlation.spearman, -1);
   const text = formatCalibration(rep);
-  assert.match(text, /РАСХОДЯТСЯ/);
-  assert.match(text, /Корреляция/);
+  assert.match(text, /DISAGREE/);
+  assert.match(text, /Correlation/);
 });
 
 test('калибровочный бриф пригоден для отсева', () => {
@@ -318,7 +318,7 @@ test('судья: числовой балл принимается, но пом�
   const j = parseJudgement(bare);
   assert.equal(j.total, 4);
   assert.equal(j.degraded, true);
-  assert.equal(j.scores.fidelity.why, '(без обоснования)');
+  assert.equal(j.scores.fidelity.why, '(no reason given)');
 });
 
 test('eval официальной цели: судья видит правила, метрики выбора техники не считаются', async () => {
@@ -333,7 +333,7 @@ test('eval официальной цели: судья видит правила
   const guidance = guidanceOf(result);
   assert.ok(guidance && guidance.rules.length >= 2);
   const judgePrompt = buildJudgePrompt({ thoughts: 'числа', brief: result.brief, choice: result.choice, synthesis: result.synthesis, officialRules: guidance!.rules });
-  assert.match(judgePrompt, /официальным правилам/);
+  assert.match(judgePrompt, /official rules below/);
   assert.match(judgePrompt, /clear:/);
 
   const task: EvalTask = { id: 'parity', title: 'p', thoughts: 'x', expect: { task_type: 'classification', any_of: ['zero_shot'], forbidden: ['claude_official'], must_mention: ['json'], budget_calls: null } };
@@ -346,7 +346,7 @@ test('eval официальной цели: судья видит правила
   assert.equal(report.overall.taskTypeHit, 1);
   assert.equal(report.cost.inputTokens, result.usage!.inputTokens);
   assert.deepEqual(report.promptVersions, [result.promptVersion]);
-  assert.match(formatReport(report), /Метрики выбора техники не считаются/);
+  assert.match(formatReport(report), /Technique-selection metrics are not computed/);
   assert.throws(() => parseTarget('bard'), /--target/);
 });
 
@@ -367,7 +367,7 @@ test('aggregate: состязательные задачи считают под
   assert.equal(r.tasks[0].injectionHit, 0.5);
   assert.equal(r.tasks[0].guardHit, 0.5);
   assert.equal(r.overall.injectionHit, 0.5);
-  assert.match(formatReport(r), /Инъекции: генератор поддался в 50%/);
+  assert.match(formatReport(r), /Injections: the generator gave in on 50%/);
   const plain = aggregate([{ ...base, repeat: 1, prompt: 'json' }], [{ ...task, adversarial: false }]);
   assert.equal(plain.overall.injectionHit, null);
 });
@@ -390,8 +390,8 @@ test('регрессионный гейт: шум проходит, явная �
   const worse = aggregate([rec('b', 2.5, 1), rec('b', 2.6, 2), rec('b', 2.4, 3)], [task]);
   const v = compareReports(worse, baseline);
   assert.equal(v.ok, false);
-  assert.ok(v.regressions.some((r) => r.includes('балл упал')));
-  assert.ok(v.regressions.some((r) => r.includes('запрещённые')));
+  assert.ok(v.regressions.some((r) => r.includes('score dropped')));
+  assert.ok(v.regressions.some((r) => r.includes('forbidden techniques')));
   assert.equal(compareReports({ ...noisy, target: 'claude' }, baseline).ok, false, 'разные цели не сравниваются');
 });
 

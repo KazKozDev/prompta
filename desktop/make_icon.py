@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Генерирует иконку приложения (1024×1024 PNG) без внешних ассетов."""
+"""Generates the app icon (1024×1024 PNG) without external assets."""
 
 from pathlib import Path
 
@@ -16,7 +16,7 @@ BOTTOM = (0, 90, 214)
 def make() -> None:
     image = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
 
-    # вертикальный градиент
+    # vertical gradient
     gradient = Image.new("RGBA", (SIZE, SIZE))
     draw = ImageDraw.Draw(gradient)
     for y in range(SIZE):
@@ -24,13 +24,13 @@ def make() -> None:
         color = tuple(round(TOP[i] + (BOTTOM[i] - TOP[i]) * t) for i in range(3)) + (255,)
         draw.line([(0, y), (SIZE, y)], fill=color)
 
-    # маска со скруглением
+    # rounded-corner mask
     mask = Image.new("L", (SIZE, SIZE), 0)
     ImageDraw.Draw(mask).rounded_rectangle([0, 0, SIZE - 1, SIZE - 1], radius=RADIUS, fill=255)
 
     image.paste(gradient, (0, 0), mask)
 
-    # глиф «P →»
+    # the «P →» glyph
     glyph = ImageDraw.Draw(image)
     font = None
     for candidate in (
@@ -58,7 +58,7 @@ def make() -> None:
         glyph.rectangle([SIZE // 3, SIZE // 3, 2 * SIZE // 3, 2 * SIZE // 3], fill=(255, 255, 255, 255))
 
     image.save(OUT)
-    print(f"иконка: {OUT}")
+    print(f"icon: {OUT}")
 
 
 if __name__ == "__main__":

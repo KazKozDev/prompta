@@ -1,4 +1,4 @@
-/** Ранговые и линейные корреляции — без зависимостей, чтобы тестировалось офлайн. */
+/** Rank and linear correlations, with no dependencies so they test offline. */
 
 const round2 = (x: number) => Number(x.toFixed(2));
 
@@ -22,7 +22,7 @@ export function pearson(xs: number[], ys: number[]): number {
   return round2(num / Math.sqrt(dx * dy));
 }
 
-/** Ранги с усреднением при совпадениях (как в scipy). */
+/** Ranks with averaging on ties (as in scipy). */
 export function ranks(xs: number[]): number[] {
   const idx = xs.map((v, i) => ({ v, i })).sort((a, b) => a.v - b.v);
   const out = new Array<number>(xs.length);
@@ -46,8 +46,8 @@ export interface Correlation {
   pearson: number;
   spearman: number;
   n: number;
-  /** Насколько выводу можно верить при таком n. */
-  reliability: 'нет данных' | 'пилот' | 'устойчиво';
+  /** How far the conclusion can be trusted at this n. */
+  reliability: 'no data' | 'pilot' | 'stable';
 }
 
 export function correlate(xs: number[], ys: number[]): Correlation {
@@ -56,6 +56,6 @@ export function correlate(xs: number[], ys: number[]): Correlation {
     pearson: pearson(xs, ys),
     spearman: spearman(xs, ys),
     n,
-    reliability: n < 3 ? 'нет данных' : n < 8 ? 'пилот' : 'устойчиво',
+    reliability: n < 3 ? 'no data' : n < 8 ? 'pilot' : 'stable',
   };
 }

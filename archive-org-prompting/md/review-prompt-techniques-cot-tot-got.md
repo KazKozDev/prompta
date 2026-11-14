@@ -9,7 +9,7 @@ archive_title: "Review Of Prompt Engineering Techniques In Finance A Evaluation 
 pdf_url: https://archive.org/download/review-of-prompt-engineering-techniques-in-finance-a-evaluation-of-chain-of-thou/Review_of_Prompt_Engineering_Techniques_in_Finance_A_Evaluation_of_Chain_of_Thought_Tree_of_Thought_and_Graph_of_Thought_Approaches.pdf
 pdf_local: "../pdf/review-prompt-techniques-cot-tot-got.pdf"
 license: "https://creativecommons.org/licenses/by-nc-nd/4.0/"
-extraction: "pdftotext (poppler), без -layout; таблицы и код могут быть искажены"
+extraction: "pdftotext (poppler), without -layout; tables and code may be garbled"
 ---
 # Review of Prompt Engineering Techniques in Finance: Chain-of-Thought, Tree-of-Thought, Graph-of-Thought
 

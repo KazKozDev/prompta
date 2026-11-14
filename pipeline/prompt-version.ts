@@ -8,10 +8,10 @@ import { buildSelectionPrompt } from './select.ts';
 import { buildSynthesisPrompt, INJECTION_GUARDS } from './synthesize.ts';
 import { buildZeroShotPrompt, generateZeroShotPrompt } from './zero-shot.ts';
 
-/** Ручная метка набора промптов: меняйте при осознанной переработке, чтобы отчёты читались людьми. */
-export const PROMPT_SET = '2026-11-09';
+/** A manual label for the prompt set: change it on a deliberate rework so reports stay readable for people. */
+export const PROMPT_SET = '2026-11-14';
 
-/** FNV-1a 32 bit: без зависимостей. */
+/** FNV-1a 32 bit: no dependencies. */
 export function fnv1a(text: string): string {
   let h = 0x811c9dc5;
   for (let i = 0; i < text.length; i += 1) {
@@ -21,7 +21,7 @@ export function fnv1a(text: string): string {
   return h.toString(16).padStart(8, '0');
 }
 
-/** Всё, что формирует текст внутренних промптов пайплайна. Добавили новый промпт — добавьте сюда. */
+/** Everything that shapes the text of the pipeline's internal prompts. Added a new prompt? Add it here. */
 const PROMPT_SOURCES: readonly unknown[] = [
   JSON.stringify(HERMES_PROFILE), JSON.stringify(CAPABILITY_TEXT), executionContext, FRESHNESS_CRITERION, JSON.stringify(FRESHNESS_INSTRUCTIONS), QUALITY_CRITERIA, JSON.stringify(QUALITY_INSTRUCTIONS), applyPromptDefaults, promptDefaultsText, promptRequirements, OFFICIAL_REQUIREMENTS,
   buildBriefPrompt, BRIEF_SCHEMA, buildSelectionPrompt, buildSynthesisPrompt, JSON.stringify(INJECTION_GUARDS),
@@ -30,8 +30,8 @@ const PROMPT_SOURCES: readonly unknown[] = [
 
 let cached: string | undefined;
 
-/** Отпечаток промптов: `<метка>+<хеш исходников>`. Хеш меняется сам при любой правке текста промпта,
- *  поэтому балл eval нельзя случайно приписать другой версии. */
+/** The prompt fingerprint: `<label>+<source hash>`. The hash changes by itself on any edit of a prompt's text,
+ *  so an eval score can never be attributed to another version by mistake. */
 export function promptVersion(): string {
   cached ??= `${PROMPT_SET}+${fnv1a(PROMPT_SOURCES.map((s) => String(s)).join('␞'))}`;
   return cached;

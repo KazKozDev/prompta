@@ -1,4 +1,4 @@
-"""История запросов в окне Prompta: вынесена из PromptaWindow, подмешивается в него."""
+"""Request history in the Prompta window: moved out of PromptaWindow and mixed back into it."""
 
 from __future__ import annotations
 
@@ -21,10 +21,12 @@ try:
     from .history import HistoryStore, history_topic
     from .library import LibraryWidget
     from .mcp_settings import McpSettingsWidget
+    from .settings_ui import LABEL_GAP, LIST_GAP, add_section, field_label, muted, settings_page, text_link
 except ImportError:
     from history import HistoryStore, history_topic
     from library import LibraryWidget
     from mcp_settings import McpSettingsWidget
+    from settings_ui import LABEL_GAP, LIST_GAP, add_section, field_label, muted, settings_page, text_link
 
 from PyQt6.QtCore import QModelIndex, QEvent, QObject, QPoint, QRect, QRectF, QSize, Qt, QUrl, QProcess, QThread, QTimer, QPropertyAnimation, QEasingCurve, pyqtSignal
 from PyQt6.QtGui import QStandardItem, QStandardItemModel, QColor, QCursor, QPainter, QPalette, QPen, QFont, QGuiApplication, QIcon, QPixmap, QKeySequence, QShortcut, QDesktopServices, QTextDocument
@@ -67,7 +69,7 @@ from PyQt6.QtWidgets import (
 
 try:
     from .theme import CHAT_URLS, DARK_SCROLL_QSS, PROMPT_TARGETS, QSS, ROOT
-    from .widgets import *  # noqa: F401,F403 — базовые виджеты, вынесенные из этого файла
+    from .widgets import *  # noqa: F401,F403 — base widgets moved out of this file
 except ImportError:
     from theme import CHAT_URLS, DARK_SCROLL_QSS, PROMPT_TARGETS, QSS, ROOT
     from widgets import *  # noqa: F401,F403
@@ -75,12 +77,71 @@ import os
 from datetime import datetime
 try:
     from .result_view import *  # noqa: F401,F403
+    from .controls import Dropdown
 except ImportError:
     from result_view import *  # noqa: F401,F403
+    from controls import Dropdown
+
+
+DAY_ROLE = Qt.ItemDataRole.UserRole + 42   # a day header row in Settings → History
+TIME_ROLE = Qt.ItemDataRole.UserRole + 43  # HH:MM shown at the right of a request row
+
+
+class HistorySettingsDelegate(HistoryDeleteDelegate):
+    """Settings → History rows: small caps day headers; requests with the title on the left and the time on
+    the right, the time giving way to the delete cross while the row is under the pointer."""
+
+    ROW, HEADER, PAD = 30, 34, 8
+
+    def sizeHint(self, option, index) -> QSize:  # noqa: N802
+        return QSize(option.rect.width(), self.HEADER if index.data(DAY_ROLE) else self.ROW)
+
+    def paint(self, painter, option, index) -> None:  # noqa: D401
+        rect = option.rect
+        painter.save()
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        font = QFont(self.view.font())
+        if index.data(DAY_ROLE):
+            font.setPixelSize(10)
+            font.setWeight(QFont.Weight.Medium)
+            font.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, 2)
+            painter.setFont(font)
+            painter.setPen(QColor("#74694f"))
+            painter.drawText(rect.adjusted(self.PAD, 0, -self.PAD, -6),
+                             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom, str(index.data()).upper())
+            painter.restore()
+            return
+        hovered = bool(option.state & QStyle.StateFlag.State_MouseOver)
+        selected = bool(option.state & QStyle.StateFlag.State_Selected)
+        if selected or hovered:
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QColor("#f6e5b3") if selected else QColor(120, 96, 30, 26))
+            painter.drawRoundedRect(QRectF(rect), 6, 6)
+        font.setPixelSize(13)
+        painter.setFont(font)
+        title_rect = rect.adjusted(self.PAD, 0, -(self.PAD + 52), 0)
+        title = painter.fontMetrics().elidedText(str(index.data()), Qt.TextElideMode.ElideRight, title_rect.width())
+        painter.setPen(QColor("#4a4232"))
+        painter.drawText(title_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, title)
+        if hovered:
+            cross = history_delete_rect(rect)
+            cursor = self.view.viewport().mapFromGlobal(QCursor.pos())
+            if cross.contains(cursor):
+                painter.setPen(Qt.PenStyle.NoPen)
+                painter.setBrush(QColor(128, 106, 61, 40))
+                painter.drawEllipse(cross)
+            self.icon.paint(painter, cross.adjusted(5, 5, -5, -5))
+        else:
+            font.setPixelSize(12)
+            painter.setFont(font)
+            painter.setPen(QColor("#8a7f66"))
+            painter.drawText(rect.adjusted(0, 0, -self.PAD, 0), Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
+                             str(index.data(TIME_ROLE) or ""))
+        painter.restore()
 
 
 class HistoryMixin:
-    """История в главном окне: поиск, выбор, удаление, очистка и настройки хранения."""
+    """History in the main window: search, pick, delete, clear and retention settings."""
 
     def _load_history(self) -> None:
         try:
@@ -155,47 +216,134 @@ class HistoryMixin:
             self.history_store.max_age_days = max(0, prefs["history_days"])
 
     def _build_history_settings(self) -> QWidget:
+        """Retention on top (two short choices), then the requests themselves: searchable, grouped by day."""
         self._load_history_prefs()
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(0, 18, 0, 0)
-        layout.setSpacing(14)
-        layout.addWidget(self._mini_label("How many requests to keep"))
-        self.history_limit = QComboBox()
+        page, layout = settings_page("Every request you build is kept on this Mac, readable only by your account.")
+
+        # The app's own pickers, as on Model & API, not system combo boxes.
+        limits_items = [{"key": str(value), "label": label} for value, label in self.HISTORY_LIMITS]
+        if not any(int(item["key"]) == self.history_store.max_entries for item in limits_items):
+            limits_items.append({"key": str(self.history_store.max_entries),
+                                 "label": f"Keep the newest {self.history_store.max_entries}"})
+        self.history_limit = Dropdown(popup_width=260)
         self.history_limit.setAccessibleName("How many requests to keep")
-        for value, label in self.HISTORY_LIMITS:
-            self.history_limit.addItem(label, value)
-        index = self.history_limit.findData(self.history_store.max_entries)
-        if index < 0:
-            self.history_limit.addItem(f"Keep the newest {self.history_store.max_entries}", self.history_store.max_entries)
-            index = self.history_limit.count() - 1
-        self.history_limit.setCurrentIndex(index)
-        layout.addWidget(self.history_limit)
-        layout.addWidget(self._mini_label("Delete requests older than"))
-        self.history_age = QComboBox()
+        self.history_limit.set_items(limits_items)
+        self.history_limit.set_current(str(self.history_store.max_entries))
+        ages = [{"key": str(value), "label": label} for value, label in self.HISTORY_AGES]
+        self.history_age = Dropdown(popup_width=260)
         self.history_age.setAccessibleName("Delete requests older than")
-        for value, label in self.HISTORY_AGES:
-            self.history_age.addItem(label, value)
-        self.history_age.setCurrentIndex(max(0, self.history_age.findData(self.history_store.max_age_days)))
-        layout.addWidget(self.history_age)
-        hint = QLabel("History stays on this Mac, readable only by your user account. "
-                      "Older entries are removed when a new result is saved.")
-        hint.setObjectName("muted")
-        hint.setWordWrap(True)
-        layout.addWidget(hint)
-        delete_all = QPushButton("Delete all history…")
+        self.history_age.set_items(ages)
+        known_age = any(int(item["key"]) == self.history_store.max_age_days for item in ages)
+        self.history_age.set_current(str(self.history_store.max_age_days) if known_age else ages[0]["key"])
+        limits = QHBoxLayout()  # two short choices side by side, each under its own label
+        limits.setSpacing(16)
+        for title, combo in (("How many to keep", self.history_limit), ("Delete older than", self.history_age)):
+            column = QVBoxLayout()
+            column.setSpacing(LABEL_GAP)
+            column.addWidget(field_label(title))
+            column.addWidget(combo)
+            limits.addLayout(column, 1)
+        add_section(layout, None, limits, hint="Older entries are removed when a new result is saved.")
+
+        self.history_settings_search = QLineEdit()
+        self.history_settings_search.setPlaceholderText("Search requests and prompts")
+        self.history_settings_search.setClearButtonEnabled(True)
+        self.history_settings_search.setAccessibleName("Search history")
+        self.history_settings_search.textChanged.connect(lambda _text: self._fill_history_settings_list())
+        listing = QListWidget()
+        listing.setObjectName("settingsList")
+        listing.setAccessibleName("Saved requests")
+        listing.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        listing.setMouseTracking(True)
+        listing.setItemDelegate(HistorySettingsDelegate(listing))
+        listing.setMinimumHeight(160)
+        use_step_scroll(listing)
+        self.history_settings_list = listing
+        self._history_settings_clicks = HistoryDeleteClicks(listing, self._delete_from_settings_list)
+        listing.itemClicked.connect(self._open_from_settings_list)
+        listing.itemActivated.connect(self._open_from_settings_list)
+        self.history_settings_empty = muted("No saved requests yet.")
+        self.history_settings_title = field_label("Requests")
+        add_section(layout, self.history_settings_title, self.history_settings_search)
+        layout.addSpacing(LIST_GAP - 6)  # day headers carry their own air above
+        layout.addWidget(listing)
+        layout.addWidget(self.history_settings_empty)
+        layout.setStretchFactor(listing, 1)
+        self._fill_history_settings_list()
+
+        delete_all = text_link("Delete all history…", danger=True)
         self.delete_all_history_button = delete_all
         delete_all.setAccessibleName("Delete all history")
         delete_all.clicked.connect(self.clear_history)
-        layout.addWidget(delete_all, 0, Qt.AlignmentFlag.AlignLeft)
-        layout.addStretch(1)
-        self.history_limit.currentIndexChanged.connect(self._history_prefs_changed)
-        self.history_age.currentIndexChanged.connect(self._history_prefs_changed)
+        # The Settings dialog puts this link on its bottom row, next to Done, while History is open.
+        self.history_limit.changed.connect(self._history_prefs_changed)
+        self.history_age.changed.connect(self._history_prefs_changed)
         return page
 
+    @staticmethod
+    def _history_day(stamp: str, today) -> str:
+        """Today, Yesterday, 12 November (the year only when it is not this one)."""
+        try:
+            day = datetime.fromisoformat(stamp[:10]).date()
+        except ValueError:
+            return "Earlier"
+        delta = (today - day).days
+        if delta == 0:
+            return "Today"
+        if delta == 1:
+            return "Yesterday"
+        return f"{day.day} {day:%B}" + ("" if day.year == today.year else f" {day.year}")
+
+    def _fill_history_settings_list(self) -> None:
+        """Settings → History: every saved request, newest first, under day headers; a click opens it, the cross deletes it."""
+        listing = getattr(self, "history_settings_list", None)
+        if listing is None:
+            return
+        needle = self.history_settings_search.text().casefold().strip()
+        listing.clear()
+        items = getattr(self, "_history_items", [])
+        today = datetime.now().date()
+        last_day, shown = None, 0
+        for index in range(len(items) - 1, -1, -1):
+            entry = items[index]
+            label = history_topic(entry['thoughts'], entry['payload'], entry['label'])
+            searchable = f"{label} {entry['thoughts']} {json.dumps(entry['payload'], ensure_ascii=False)}"
+            if needle and needle not in searchable.casefold():
+                continue
+            day = self._history_day(entry['created_at'], today)
+            if day != last_day:
+                header = QListWidgetItem(day, listing)
+                header.setFlags(Qt.ItemFlag.NoItemFlags)
+                header.setData(DAY_ROLE, True)
+                last_day = day
+            item = QListWidgetItem(label, listing)
+            item.setData(Qt.ItemDataRole.UserRole, index)
+            item.setData(DELETABLE_ROLE, True)
+            item.setData(TIME_ROLE, entry['created_at'][11:16])
+            item.setToolTip(f"{label}\n{entry['created_at'][:16].replace('T', ' ')}\n{entry['thoughts'][:300]}")
+            shown += 1
+        self.history_settings_title.setText(f"REQUESTS · {shown}" if shown else "REQUESTS")
+        self.history_settings_empty.setText("No matches." if needle else "No saved requests yet.")
+        self.history_settings_empty.setVisible(shown == 0)
+        listing.setVisible(shown > 0)
+
+    def _open_from_settings_list(self, item) -> None:
+        index = item.data(Qt.ItemDataRole.UserRole)
+        if isinstance(index, int):
+            self.settings_dialog.accept()
+            self._on_history_picked(str(index))
+
+    def _delete_from_settings_list(self, row: int) -> None:
+        item = self.history_settings_list.item(row)
+        index = item.data(Qt.ItemDataRole.UserRole) if item else None
+        row_in_combo = self.history.findData(index) if isinstance(index, int) else -1
+        if row_in_combo > 0:
+            self._delete_history(row_in_combo)  # not the picker's delete: that reopens the picker panel
+        self._fill_history_settings_list()
+
     def _history_prefs_changed(self, *_: object) -> None:
-        self.history_store.max_entries = int(self.history_limit.currentData())
-        self.history_store.max_age_days = int(self.history_age.currentData())
+        self.history_store.max_entries = int(self.history_limit.current_key())
+        self.history_store.max_age_days = int(self.history_age.current_key())
         path = self._history_prefs_path()
         try:
             path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)

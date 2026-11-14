@@ -1,9 +1,9 @@
-import { hints, names, procedures, rationales } from '../catalog/display.en.ts';
+import { hints, names, procedures } from '../catalog/display.en.ts';
 import type { Catalog, ExecutionCapabilities, TaskBrief, Technique } from './types.ts';
 import { PipelineError } from './types.ts';
 import { isNoInput } from './brief.ts';
 
-/** Разбор «цены» техники: 1 | "5–10" | "3+" | "10–40" → [min, max]. */
+/** Parse a technique's "cost": 1 | "5–10" | "3+" | "10–40" → [min, max]. */
 export function costRange(cost: number | string): [number, number] {
   if (typeof cost === 'number') return [cost, cost];
   const nums = cost.match(/\d+/g)?.map(Number) ?? [];
@@ -31,7 +31,6 @@ export function loadCatalog(raw: unknown): Catalog {
     name: names[t.key] ?? t.name,
     when_to_use: hints[t.key] ?? t.when_to_use,
     procedure: procedures[t.key] ?? t.procedure,
-    config: { ...t.config, rationale: rationales[t.config.rationale] ?? t.config.rationale },
   })) };
 }
 
@@ -39,23 +38,23 @@ export function getTechnique(catalog: Catalog, key: string): Technique | undefin
   return catalog.techniques.find((t) => t.key === key);
 }
 
-/** Компактная проекция для промпта выбора: только то, по чему можно решать. */
+/** Compact projection for the selection prompt: only what a decision can rest on. */
 export function projectForSelection(techniques: Technique[]): string {
   return techniques
     .map((t) => {
       const cost = Array.isArray(t.cost_calls) ? t.cost_calls.join('–') : String(t.cost_calls);
-      // Компактно: список уже отфильтрован по типу задачи, поэтому задачи не дублируем.
+      // Compact: the list is already filtered by task type, so the tasks are not repeated.
       const when = t.when_to_use.slice(0, 110);
-      const not = t.when_not ? ` | не подходит: ${t.when_not.slice(0, 80)}` : '';
-      return `- ${t.key} (${cost} вызовов): ${when}${not}`;
+      const not = t.when_not ? ` | not for: ${t.when_not.slice(0, 80)}` : '';
+      return `- ${t.key} (${cost} calls): ${when}${not}`;
     })
     .join('\n');
 }
 
 export interface GateOptions {
-  /** Сколько вызовов LLM доступно на весь ответ. */
+  /** How many LLM calls the whole answer may use. */
   budgetCalls?: number | null;
-  /** Режим без LLM: техника допустима, только если все её плейсхолдеры выводимы из брифа. */
+  /** No-LLM mode: a technique qualifies only if all its placeholders can be filled from the brief. */
   derivablePlaceholders?: Set<string>;
   /** Where the finished prompt runs: techniques that rely on a missing tool are left out. */
   executionCapabilities?: ExecutionCapabilities;
@@ -70,7 +69,7 @@ export interface Gated {
   rejected: { key: string; reason: string }[];
 }
 
-/** Детерминированный отсев ДО вызова LLM: тип записи, статус, бюджет, модальность. */
+/** Deterministic filtering BEFORE any LLM call: entry type, status, budget, modality. */
 /** The task itself is about prompt security: only then is a defense technique a prompt variant. */
 const SECURITY_TASK = /инъекц|injection|jailbreak|джейлбрейк|взлом промпт|prompt (security|hacking|attack)|защит\w* (от атак|промпт)/i;
 /** Answer-engineering techniques parse a model's answer into labels or structured data for a program. */
@@ -142,14 +141,14 @@ export function gateTechniques(brief: TaskBrief, catalog: Catalog, opts: GateOpt
       rejected.push({ key: t.key, reason: unfit });
       continue;
     }
-    // Тип задачи: техника, заявленная для других задач, в короткий список не попадает.
+    // Task type: a technique declared for other tasks does not make the shortlist.
     const types = t.task_types ?? [];
     if (types.length && !types.includes(brief.task_type)) {
       rejected.push({ key: t.key, reason: `Not intended for ${brief.task_type}; designed for ${types.join(', ')}` });
       continue;
     }
 
-    // Задача «ответить по материалам» требует техники, которая реально вставляет материал.
+    // An "answer from the material" task needs a technique that actually inserts the material.
     if (brief.task_type === 'qa_over_docs' && !/\{\{\s*(document|text|context|external_text)\s*\}\}/.test(t.template ?? '')) {
       rejected.push({ key: t.key, reason: 'This task requires a source-grounded technique' });
       continue;
@@ -173,7 +172,7 @@ export function gateTechniques(brief: TaskBrief, catalog: Catalog, opts: GateOpt
 
   candidates.sort((a, b) => costRange(a.cost_calls)[0] - costRange(b.cost_calls)[0]);
 
-  // Если фильтр по типу задачи отсёк всё — ослабляем его, но материал оставляем обязательным.
+  // If the task-type filter removed everything, relax it, but keep the material requirement.
   if (candidates.length === 0) {
     const relaxed = catalog.techniques.filter(
       (t) =>

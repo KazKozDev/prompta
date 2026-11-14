@@ -45,7 +45,7 @@ function parseArgs(argv: string[]) {
     quiet: false,
     ids: [] as string[],
     target: 'catalog' as EvalTarget,
-    /** Сохранить {report, records} в файл — для базовой линии и сравнения в CI. */
+    /** Save {report, records} to a file, for the baseline and comparison in CI. */
     out: '',
   };
   for (let i = 0; i < argv.length; i += 1) {
@@ -74,7 +74,7 @@ async function main() {
   const selected = (flags.ids.length ? allTasks.filter((t) => flags.ids.includes(t.id)) : allTasks).slice(0, flags.tasks);
 
   if (selected.length === 0) {
-    console.error('нет задач под фильтр');
+    console.error('no tasks match the filter');
     process.exit(2);
   }
 
@@ -99,7 +99,7 @@ async function main() {
       : make(judgeProvider, judgeModel);
 
   if (flags.judge2Provider && !flags.judge2Model) {
-    console.error('для --judge2-provider нужен --judge2-model');
+    console.error('--judge2-provider needs --judge2-model');
     process.exit(2);
   }
   const judge2LLM = flags.judge2Provider
@@ -107,7 +107,7 @@ async function main() {
     : null;
 
   if (!flags.quiet && judge2LLM) {
-    process.stderr.write(`второй судья: ${flags.judge2Provider}/${flags.judge2Model}\n`);
+    process.stderr.write(`second judge: ${flags.judge2Provider}/${flags.judge2Model}\n`);
   }
   const records: RunRecord[] = [];
 
@@ -140,7 +140,7 @@ async function main() {
             judgement = await judgeOnce();
             break;
           } catch (e) {
-            // слабые и облачные модели иногда отвечают прозой или обрывают JSON — до трёх попыток
+            // weak and cloud models sometimes answer in prose or cut JSON short: up to three attempts
             if (attempt >= 3) throw e;
           }
         }
@@ -151,7 +151,7 @@ async function main() {
           try {
             judgement2 = parseJudgement(await judge2LLM(judgePrompt, { temperature: 0, json: true }));
           } catch (e) {
-            warnings.push(`второй судья не ответил: ${e instanceof Error ? e.message : String(e)}`);
+            warnings.push(`the second judge did not answer: ${e instanceof Error ? e.message : String(e)}`);
           }
         }
 
@@ -173,7 +173,7 @@ async function main() {
       } catch (e) {
         const error = e instanceof Error ? e.message : String(e);
         records.push({ ok: false, taskId: task.id, repeat: rep, error });
-        if (!flags.quiet) process.stderr.write(`ошибка: ${error.slice(0, 140)}\n`);
+        if (!flags.quiet) process.stderr.write(`error: ${error.slice(0, 140)}\n`);
       }
     }
   }
@@ -189,7 +189,7 @@ const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv
 
 if (isMain) {
   main().catch((e) => {
-    console.error('ошибка:', e instanceof Error ? e.message : e);
+    console.error('error:', e instanceof Error ? e.message : e);
     process.exit(1);
   });
 }

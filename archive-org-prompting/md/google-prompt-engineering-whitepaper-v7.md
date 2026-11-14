@@ -8,8 +8,8 @@ archive_item: https://archive.org/details/22365-3-prompt-engineering-v-7
 archive_title: "22365 3 Prompt Engineering V 7"
 pdf_url: https://archive.org/download/22365-3-prompt-engineering-v-7/22365_3_Prompt%20Engineering_v7%20%281%29.pdf
 pdf_local: "../pdf/google-prompt-engineering-whitepaper-v7.pdf"
-license: "на archive.org не указана"
-extraction: "pdftotext (poppler), без -layout; таблицы и код могут быть искажены"
+license: "not stated on archive.org"
+extraction: "pdftotext (poppler), without -layout; tables and code may be garbled"
 ---
 # Prompt Engineering (Google whitepaper, v7)
 

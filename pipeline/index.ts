@@ -24,19 +24,19 @@ export interface RunOptions {
   thoughts: string;
   catalog: Catalog;
   llm: LLM;
-  /** 'llm' — модель доводит шаблон; 'deterministic' — только подстановка, без вызова. */
+  /** 'llm' — the model finishes the template; 'deterministic' — substitution only, no call. */
   mode?: 'llm' | 'deterministic';
   budgetCalls?: number | null;
-  /** Готовый бриф — чтобы прогонять стадии 2–3 отдельно (тесты, отладка). */
+  /** A ready brief, to run stages 2–3 on their own (tests, debugging). */
   brief?: TaskBrief;
-  /** Принудительно выбрать технику, минуя стадию выбора (калибровка, сравнение техник). */
+  /** Force a technique, skipping the selection stage (calibration, comparing techniques). */
   techniqueKey?: string;
-  /** Сколько вариантов предложить: 1 — только лучший, 2–3 — с альтернативами. */
+  /** How many variants to offer: 1 — only the best, 2–3 — with alternatives. */
   variants?: number;
 }
 
-/** Полный проход: мысли → бриф → отсев → выбор → синтез. К результату добавляются расход
- *  токенов за все стадии и отпечаток версии внутренних промптов. */
+/** The full pass: thoughts → brief → filtering → selection → synthesis. The result also carries the token
+ *  usage of all stages and the version fingerprint of the internal prompts. */
 export async function runPipeline(opts: RunOptions): Promise<PipelineResult> {
   const meter = meterLLM(opts.llm);
   const result = await dispatch({ ...opts, llm: meter.llm });
@@ -92,7 +92,7 @@ async function dispatch(opts: RunOptions): Promise<PipelineResult> {
   const push = (step: string, ms: number, extra: Partial<PipelineTrace> = {}) =>
     trace.push({ step, ms: Math.round(ms), ...extra });
 
-  /** Слабые модели иногда ломают JSON — один повтор с напоминанием о схеме. */
+  /** Weak models sometimes break JSON: one retry with a reminder of the schema. */
   async function askJson<T>(prompt: string, parse: (raw: string) => T): Promise<{ value: T; raw: string }> {
     let lastError: unknown;
     let raw = '';
@@ -100,7 +100,7 @@ async function dispatch(opts: RunOptions): Promise<PipelineResult> {
       const suffix =
         attempt === 1
           ? ''
-          : `\n\nПредыдущий ответ не разобрался (${lastError instanceof Error ? lastError.message : 'ошибка'}). Верни строго JSON по схеме, без пояснений.`;
+          : `\n\nThe previous answer could not be parsed (${lastError instanceof Error ? lastError.message : 'error'}). Return strictly JSON following the schema, no explanations.`;
       raw = await opts.llm(prompt + suffix, { temperature: 0, json: true });
       try {
         return { value: parse(raw), raw };
@@ -172,7 +172,7 @@ async function dispatch(opts: RunOptions): Promise<PipelineResult> {
   opts.onProgress?.(40, 'Technique selected');
   let completed = 0;
   const synthStart = t0();
-  // Варианты независимы — собираем параллельно, чтобы 3 промпта не ждались по очереди.
+  // Variants are independent: build them in parallel so 3 prompts do not wait for each other.
   // Variant 0 is written by the model too, in parallel with the technique variants.
   const zeroShot = mode === 'deterministic'
     ? Promise.resolve({ prompt: buildZeroShotPrompt(opts.thoughts, brief), byModel: false })
@@ -231,34 +231,36 @@ async function dispatch(opts: RunOptions): Promise<PipelineResult> {
   };
 }
 
-/** Человекочитаемый отчёт для CLI и логов. */
+/** Human-readable report for the CLI and logs. */
 export function formatResult(result: PipelineResult): string {
   const { brief, choice, synthesis, rejected } = result;
   const cfg = synthesis.config;
   const lines = [
-    `Задача: ${brief.goal}`,
-    `Тип: ${brief.task_type} | язык: ${brief.language} | цена ошибки: ${brief.stakes}`,
-    `Формат: ${brief.output_format}`,
-    briefAssumptions(brief).length ? `Допущения: ${briefAssumptions(brief).join('; ')}` : 'Допущения: нет',
+    `Task: ${brief.goal}`,
+    `Type: ${brief.task_type} | language: ${brief.language} | stakes: ${brief.stakes}`,
+    `Format: ${brief.output_format}`,
+    ...(brief.audience ? [`Audience: ${brief.audience}`] : []),
+    ...(brief.tone ? [`Tone: ${brief.tone}`] : []),
+    briefAssumptions(brief).length ? `Assumptions: ${briefAssumptions(brief).join('; ')}` : 'Assumptions: none',
     '',
-    'Zero-shot · базовый промпт:',
+    'Zero-shot · baseline prompt:',
     result.zeroShotPrompt ?? buildZeroShotPrompt('', brief),
     '',
-    `Техника: ${choice.name} (${choice.key}), уверенность ${(choice.confidence * 100).toFixed(0)}%`,
-    `Почему: ${choice.reason}`,
-    `Почему не дешевле: ${choice.whyNotCheaper}`,
+    `Technique: ${choice.name} (${choice.key}), confidence ${(choice.confidence * 100).toFixed(0)}%`,
+    `Why: ${choice.reason}`,
+    `Why not cheaper: ${choice.whyNotCheaper}`,
     '',
-    'Промпт:',
+    'Prompt:',
     synthesis.prompt,
     '',
-    `Конфиг: temperature=${cfg.temperature ?? '—'}, top_p=${cfg.top_p ?? '—'}, max_tokens=${cfg.max_tokens}`,
-    `Обоснование: ${cfg.rationale}`,
+    `Config: temperature=${cfg.temperature ?? '—'}, top_p=${cfg.top_p ?? '—'}, max_tokens=${cfg.max_tokens}`,
+    `Rationale: ${cfg.rationale}`,
   ];
   if (result.usage) {
-    lines.push(`Расход: ${result.usage.calls} вызовов, токены ${result.usage.inputTokens} → ${result.usage.outputTokens}`);
+    lines.push(`Usage: ${result.usage.calls} calls, tokens ${result.usage.inputTokens} → ${result.usage.outputTokens}`);
   }
-  if (result.promptVersion) lines.push(`Версия промптов: ${result.promptVersion}`);
-  if (synthesis.warnings.length) lines.push('', `Предупреждения: ${synthesis.warnings.join('; ')}`);
-  if (rejected.length) lines.push(`Отсеяно до выбора: ${rejected.length} техник`);
+  if (result.promptVersion) lines.push(`Prompt version: ${result.promptVersion}`);
+  if (synthesis.warnings.length) lines.push('', `Warnings: ${synthesis.warnings.join('; ')}`);
+  if (rejected.length) lines.push(`Filtered out before selection: ${rejected.length} techniques`);
   return lines.join('\n');
 }

@@ -5,12 +5,12 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "Prompt Engineering (Google whitepaper, v7)",
-    "ref": "whitepaper, с. 13–15",
+    "ref": "whitepaper, p. 13–15",
     "text": "General prompting / zero shot\nA zero-shot5 prompt is the simplest type of prompt. It only provides a description of a task\nand some text for the LLM to get started with. This input could be anything: a question, a\nstart of a story, or instructions. The name zero-shot stands for ’no examples’.\n\nFebruary 2025\n\n13\n\nPrompt Engineering\n\nLet’s use Vertex AI Studio (for Language) in Vertex AI,6 which provides a playground to test\nprompts. In Table 1, you will see an example zero-shot prompt to classify movie reviews.\nThe table format as used below is a great way of documenting prompts. Your prompts will\nlikely go through many iterations before they end up in a codebase, so it’s important to keep\ntrack of your prompt engineering work in a disciplined, structured way. More on this table\nformat, the importance of tracking prompt engineering work, and the prompt development\nprocess is in the Best Practices section later in this chapter (“Document the various prompt\nattempts”).\nThe model temperature should be set to a low number, since no creativity is needed, and we\nuse the gemini-pro default top-K and top-P values, which effectively disable both settings\n(see ‘LLM Output Configuration’ above). Pay attention to the generated output. The words\ndisturbing and masterpiece should make the prediction a little more complicated, as both\nwords are used in the same sentence.\n\nFebruary 2025\n\n14"
    },
    {
     "source": "Prompt Engineering Guide: A Practical Beginner's Handbook for Working with AI, ChatGPT, Claude & Gemini",
-    "ref": "handbook, с. 7",
+    "ref": "handbook, p. 7",
     "text": "Chapter 4: Essential Prompting Techniques\nZero-Shot Prompting\nZero-shot prompting means asking AI to perform a task without examples.\nExample:\n\"Write a summary of the Industrial Revolution.\"\nThis method is simple and often effective.\n\nFew-Shot Prompting\nFew-shot prompting provides examples.\nExample:\nPositive Review:\n\"The product arrived quickly and works perfectly.\"\n\nGenZ Quiz Cash: Win Cash Money"
    }
   ],
@@ -20,7 +20,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "Prompt Engineering (Google whitepaper, v7)",
-    "ref": "whitepaper, с. 15–18",
+    "ref": "whitepaper, p. 15–18",
     "text": "When zero-shot doesn’t work, you can provide demonstrations or examples in the prompt,\nwhich leads to “one-shot” and “few-shot” prompting. General prompting / zero shot\n\nOne-shot & few-shot\nWhen creating prompts for AI models, it is helpful to provide examples. These examples can\nhelp the model understand what you are asking for. Examples are especially useful when you\nwant to steer the model to a certain output structure or pattern.\nA one-shot prompt, provides a single example, hence the name one-shot. The idea is the\nmodel has an example it can imitate to best complete the task.\nA few-shot prompt 7 provides multiple examples to the model. This approach shows the\nmodel a pattern that it needs to follow. The idea is similar to one-shot, but multiple examples\nof the desired pattern increases the chance the model follows the pattern.\n\nFebruary 2025\n\n15\n\nPrompt Engineering\n\nThe number of examples you need for few-shot prompting depends on a few factors,\nincluding the complexity of the task, the quality of the examples, and the capabilities of the\ngenerative AI (gen AI) model you are using. As a general rule of thumb, you should use at\nleast three to five examples for few-shot prompting. However, you may need to use more\nexamples for more complex tasks, or you may need to use fewer due to the input length\nlimitation of your model.\nTable 2 shows a few-shot prompt example, let’s u"
    }
   ],
@@ -30,7 +30,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "Prompt Engineering (Google whitepaper, v7)",
-    "ref": "whitepaper, с. 18–21",
+    "ref": "whitepaper, p. 18–21",
     "text": "System, contextual and role prompting\nSystem, contextual and role prompting are all techniques used to guide how LLMs generate\ntext, but they focus on different aspects:\n• System prompting sets the overall context and purpose for the language model. It\ndefines the ‘big picture’ of what the model should be doing, like translating a language,\nclassifying a review etc.\n• Contextual prompting provides specific details or background information relevant to\nthe current conversation or task. It helps the model to understand the nuances of what’s\nbeing asked and tailor the response accordingly.\n• Role prompting assigns a specific character or identity for the language model to adopt.\nThis helps the model generate responses that are consistent with the assigned role and its\nassociated knowledge and behavior.\nThere can be considerable overlap between system, contextual, and role prompting. E.g. a\nprompt that assigns a role to the system, can also have a context.\nHowever, each type of prompt serves a slightly different primary purpose:\n• System prompt: Defines the model’s fundamental capabilities and overarching purpose.\n• Contextual prompt: Provides immediate, task-specific information to guide the response.\nIt’s highly specific to the current task or input, which is dynamic.\n• Role prompt: Frames the model’s output style and voice. It adds a layer of specificity\nand personality.\n\nFebrua"
    }
   ],
@@ -40,7 +40,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "Prompt Engineering (Google whitepaper, v7)",
-    "ref": "whitepaper, с. 21–23",
+    "ref": "whitepaper, p. 21–23",
     "text": "Role prompting\nRole prompting is a technique in prompt engineering that involves assigning a specific role to\nthe gen AI model. This can help the model to generate more relevant and informative output,\nas the model can craft its responses to the specific role that it has been assigned.\nFor example, you could role prompt a gen AI model to be a book editor, a kindergarten\nteacher, or a motivational speaker. Once the model has been assigned a role, you can then\ngive it prompts that are specific to that role. For example, you could prompt a teacher to\ncreate a lesson plan that they can then review. Have a look into Table 5, where the model\ntakes the role of a travel guide.\n\nFebruary 2025\n\n21\n\nPrompt Engineering\n\nGoal\n\nAct as travel guide and provide 3 travel suggestions\n\nModel\n\ngemini-pro\n\nTemperature\n\n1\n\nToken Limit\n\n1024\n\nTop-K\n\n40\n\nTop-P\n\n0.8\n\nPrompt\n\nI want you to act as a travel guide. I will write to you\nabout my location and you will suggest 3 places to visit near\nme. In some cases, I will also give you the type of places I\nwill visit.\nMy suggestion: \"I am in Amsterdam and I want to visit\nonly museums.\"\nTravel Suggestions:\n\nOutput\n\n1. Rijksmuseum: World-renowned museum, known for Dutch masterpieces\nlike Rembrandt’s “The Night Watch.” Don’t miss the incredible collection of\npaintings and artifacts showcasing Dutch art and history.\n2. Van Gogh Museum: Immerse yourself in th"
    }
   ],
@@ -50,7 +50,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "Prompt Engineering (Google whitepaper, v7)",
-    "ref": "whitepaper, с. 23–25",
+    "ref": "whitepaper, p. 23–25",
     "text": "Contextual prompting\nBy providing contextual prompts, you can help ensure that your AI interactions are as\nseamless and efficient as possible. The model will be able to more quickly understand your\nrequest and be able to generate more accurate and relevant responses, as you can see in the\nexample of Table 7.\n\nFebruary 2025\n\n23\n\nPrompt Engineering\n\nGoal\n\nSuggest articles for a blog about retro games\n\nModel\n\ngemini-pro\n\nTemperature\n\n1\n\nToken Limit\n\n1024\n\nTop-K\n\n40\n\nTop-P\n\n0.8\n\nPrompt\n\nContext: You are writing for a blog about retro 80's arcade\nvideo games.\nSuggest 3 topics to write an article about with a few lines of\ndescription of what this article should contain.\n\nOutput\n\n1. **The Evolution of Arcade Cabinet Design:**\nThis article would explore the evolution of arcade cabinet designs, from the\nearly wood and metal cabinets of the 1970s to the sleek, neon-lit designs of\nthe 1980s and beyond.\n2. **Blast From The Past: Iconic Arcade Games of The 80’s:**\n- This article would feature a glimpse into the history, impact, and legacy\nof some of the most iconic and influential arcade games of the 1980s,\nhighlighting their innovations, popular mechanics, and enduring charm.\n3. **The Rise and Retro Revival of Pixel Art:**\n- This article would delve into the evolution of pixel art as a defining visual\nstyle of early arcade games, tracing its roots, exploring its techniques, and\ndiscussi"
    }
   ],
@@ -60,7 +60,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "Prompt Engineering",
-    "ref": "shah, гл. 5, с. 6",
+    "ref": "shah, ch. 5, p. 6",
     "text": "Chapter 5: Advanced Prompt Engineering\nPrompt Chaining for Complex Responses\nPrompt chaining is a technique used to break down complex tasks into multiple prompts,\nallowing AI to generate more structured and accurate responses. Instead of requesting a large\namount of information in one prompt, you sequence prompts to refine and deepen the AI's\noutput.\n\nExample of Prompt Chaining:\n1.Initial Prompt: \"Explain the basics of deep learning.\"\n2.Follow-up Prompt: \"What are the key differences between deep learning and traditional\nmachine learning?\"\n3.Final Prompt: \"List some practical applications of deep learning in industries today.\"\n\nBy guiding AI through step-by-step queries, users can achieve better understanding and more\nrelevant responses.\n\nUsing AI for Creative Writing, Coding, and Problem-Solving\nAI models can enhance creativity and efficiency across various fields:\nCreative Writing: AI can generate story ideas, refine narratives, and even assist in writing poems\nor novels.\n\n5"
    }
   ],
@@ -70,7 +70,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "Prompt Engineering (Google whitepaper, v7)",
-    "ref": "whitepaper, с. 25–29",
+    "ref": "whitepaper, p. 25–29",
     "text": "Step-back prompting\nStep-back8 prompting is a technique for improving the performance by prompting the LLM\nto first consider a general question related to the specific task at hand, and then feeding the\nanswer to that general question into a subsequent prompt for the specific task. This ‘step\nback’ allows the LLM to activate relevant background knowledge and reasoning processes\nbefore attempting to solve the specific problem.\nBy considering the broader and underlying principles, LLMs can generate more accurate and\ninsightful responses. Step-back prompting encourages LLMs to think critically and apply their\nknowledge in new and creative ways. It changes the final prompt doing the task by utilizing\nmore knowledge in the LLM’s parameters than would otherwise come into play when the LLM\nis prompted directly.\nIt can help to mitigate biases in LLM responses, by focusing on general principles instead of\nspecific details, step-back prompting.\nLet’s have a look into these examples to understand how step-back prompting can improve\nthe results. Let’s first review a traditional prompt (Table 8) before we compare it to a step\nback prompt (Table 9):\n\nFebruary 2025\n\n25\n\nPrompt Engineering\n\nGoal\n\nWrite a storyline for a level of a first-person shooter video game.\n\nModel\n\ngemini-pro\n\nTemperature\n\n1\n\nToken Limit\n\n1024\n\nTop-K\n\n40\n\nTop-P\n\n0.8\n\nPrompt\n\nWrite a one paragraph storyline for a new l"
    }
   ],
@@ -80,12 +80,12 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "Prompt Engineering (Google whitepaper, v7)",
-    "ref": "whitepaper, с. 29–32 и best practices с. 64",
+    "ref": "whitepaper, p. 29–32 and best practices p. 64",
     "text": "Chain of Thought (CoT)\nChain of Thought (CoT) 9 prompting is a technique for improving the reasoning capabilities\nof LLMs by generating intermediate reasoning steps. This helps the LLM generate more\naccurate answers. You can combine it with few-shot prompting to get better results on more\ncomplex tasks that require reasoning before responding as it’s a challenge with a zero-shot\nchain of thought.\nCoT has a lot of advantages. First of all, it’s low-effort while being very effective and works\nwell with off-the-shelf LLMs (so no need to finetune). You also get interpretability with CoT\nprompting, as you can learn from the LLM’s responses and see the reasoning steps that were\nfollowed. If there’s a malfunction, you will be able to identify it. Chain of thought appears\nto improve robustness when moving between different LLM versions. Which means the\nperformance of your prompt should drift less between different LLMs than if your prompt\ndoes not use reasoning chains. Of course there are also disadvantages, but they are\nsomewhat intuitive.\nThe LLM response includes the chain of thought reasoning, which means more output\ntokens, which means predictions cost more money and take longer.\nTo explain the following example in Table 11, let’s first try to create a prompt that is not using\nCoT prompting to showcase the flaws of a large language model.\nPrompt\n\nWhen I was 3 years old, my partner"
    },
    {
     "source": "Review of Prompt Engineering Techniques in Finance: Chain-of-Thought, Tree-of-Thought, Graph-of-Thought",
-    "ref": "review, с. 5",
+    "ref": "review, p. 5",
     "text": "ems requiring multi-step\nreasoning, several advanced techniques have emerged:\n Chain-of-Thought (CoT) Prompting\nInnovative Research Publication\n\nTimeline\n\nCoT prompting encourages LLMs to reason step-by-step,\nimproving performance on complex tasks [3], [4], [5], [58],\n[59], [60]. Chain-of-Thought (CoT) prompting encourages\nLLMs to articulate their reasoning process step-by-step,\nleading to more accurate and transparent outputs for\ncomplex tasks [3], [61], [62]. This technique mimics human\nproblem-solving by breaking down a problem into\nintermediate steps [35].\n Zero-shot CoT: Simply adding \"Let’s think step by step\"\nto the prompt can significantly improve performance [4].\n Few-shot CoT: Providing examples where the reasoning\nsteps are explicitly shown before the final answer.\n Auto-CoT: Automatically generating diverse reasoning\npaths for a given problem [58].\n Chain-of-Preference\nOptimization:\nA\nrecent\nadvancement aimed at improving CoT reasoning [63].\n Tree-of-Thought (ToT) Prompting\nBuilding upon CoT, Tree-of-Thought (ToT) prompting\nallows LLMs to explore multiple reasoning paths\nsimultaneously, resembling a decision tree [6], [37], [64].\nThis method enables more deliberate planning and\nexploration, particularly for tasks requiring non-trivial\nplanning or search [38], [65]. ToT enhances decisionmaking by allowing backtracking and pruning of\nunpromising paths [8], [39]."
    }
   ],
@@ -95,7 +95,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "Prompt Engineering (Google whitepaper, v7)",
-    "ref": "whitepaper, с. 32–36",
+    "ref": "whitepaper, p. 32–36",
     "text": "Self-consistency\nWhile large language models have shown impressive success in various NLP tasks, their\nability to reason is often seen as a limitation that cannot be overcome solely by increasing\nmodel size. As we learned in the previous Chain of Thought prompting section, the model can\nbe prompted to generate reasoning steps like a human solving a problem. However CoT uses\na simple ‘greedy decoding’ strategy, limiting its effectiveness. Self-consistency11 combines\nsampling and majority voting to generate diverse reasoning paths and select the most\nconsistent answer. It improves the accuracy and coherence of responses generated by LLMs.\nSelf-consistency gives a pseudo-probability likelihood of an answer being correct, but\nobviously has high costs.\nIt follows the following steps:\n1. Generating diverse reasoning paths: The LLM is provided with the same prompt multiple\ntimes. A high temperature setting encourages the model to generate different reasoning\npaths and perspectives on the problem.\n2. Extract the answer from each generated response.\n3. Choose the most common answer.\nLet’s look into an example of an email classification system, which classifies an email as\nIMPORTANT or NOT IMPORTANT. A zero-shot chain of thought prompt will be sent to the LLM\nmultiple times, to see if the responses differ after each submit. Notice the friendly tone, the\nword choice and the sarcasm that’s"
    }
   ],
@@ -105,12 +105,12 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "Prompt Engineering (Google whitepaper, v7)",
-    "ref": "whitepaper, с. 36–37",
+    "ref": "whitepaper, p. 36–37",
     "text": "Tree of Thoughts (ToT)\nNow that we are familiar with chain of thought and self-consistency prompting, let’s review\nTree of Thoughts (ToT).12 It generalizes the concept of CoT prompting because it allows LLMs\nto explore multiple different reasoning paths simultaneously, rather than just following a\nsingle linear chain of thought. This is depicted in Figure 1.\n\nFigure 1. A visualization of chain of thought prompting on the left versus. Tree of Thoughts prompting on\nthe right\n\nFebruary 2025\n\n36\n\nPrompt Engineering\n\nThis approach makes ToT particularly well-suited for complex tasks that require exploration. It\nworks by maintaining a tree of thoughts, where each thought represents a coherent language\nsequence that serves as an intermediate step toward solving a problem. The model can then\nexplore different reasoning paths by branching out from different nodes in the tree.\nThere’s a great notebook, which goes into a bit more detail showing The Tree of Thought\n(ToT) which is based on the paper ‘Large Language Model Guided Tree-of-Thought’.9\n\nReAct (reason & act)\nReason and act (ReAct) [10]13 prompting is a paradigm for enabling LLMs to solve complex\ntasks using natural language reasoning combined with external tools (search, code\ninterpreter etc.) allowing the LLM to perform certain actions, such as interacting with external\nAPIs to retrieve information which is a first step toward"
    },
    {
     "source": "Review of Prompt Engineering Techniques in Finance: Chain-of-Thought, Tree-of-Thought, Graph-of-Thought",
-    "ref": "review, с. 5",
+    "ref": "review, p. 5",
     "text": "the\ndesired input-output format and behavior.\nB. Advanced Reasoning Techniques\nToT and GoT prompting generalize CoT by exploring\nmultiple reasoning paths [1], [6], [7], [8], [9]. These\nmethods have been shown to outperform linear reasoning in\ncertain problem domains.\nTo tackle more complex problems requiring multi-step\nreasoning, several advanced techniques have emerged:\n Chain-of-Thought (CoT) Prompting\nInnovative Research Publication\n\nTimeline\n\nCoT prompting encourages LLMs to reason step-by-step,\nimproving performance on complex tasks [3], [4], [5], [58],\n[59], [60]. Chain-of-Thought (CoT) prompting encourages\nLLMs to articulate their reasoning process step-by-step,\nleading to more accurate and transparent outputs for\ncomplex tasks [3], [61], [62]. This technique mimics human\nproblem-solving by breaking down a problem into\nintermediate steps [35].\n Zero-shot CoT: Simply adding \"Let’s think step by step\"\nto the prompt can significantly improve performance [4].\n Few-shot CoT: Providing examples where the reasoning\nsteps are explicitly shown before the final answer.\n Auto-CoT: Automatically generating diverse reasoning\npaths for a given problem [58].\n Chain-of-Preference\nOptimization:\nA\nrecent\nadvancement aimed at improving CoT reasoning [63].\n Tree-of-Thought (ToT) Prompting\nBuilding upon CoT, Tree-of-Thought (ToT) prompting\nallows LLMs to explore multiple reasoning pat"
    }
   ],
@@ -120,7 +120,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "Prompt Engineering (Google whitepaper, v7)",
-    "ref": "whitepaper, с. 37–40",
+    "ref": "whitepaper, p. 37–40",
     "text": "ReAct (reason & act)\nReason and act (ReAct) [10]13 prompting is a paradigm for enabling LLMs to solve complex\ntasks using natural language reasoning combined with external tools (search, code\ninterpreter etc.) allowing the LLM to perform certain actions, such as interacting with external\nAPIs to retrieve information which is a first step towards agent modeling.\nReAct mimics how humans operate in the real world, as we reason verbally and can\ntake actions to gain information. ReAct performs well against other prompt engineering\napproaches in a variety of domains.\nReAct prompting works by combining reasoning and acting into a thought-action loop. The\nLLM first reasons about the problem and generates a plan of action. It then performs the\nactions in the plan and observes the results. The LLM then uses the observations to update\nits reasoning and generate a new plan of action. This process continues until the LLM\nreaches a solution to the problem.\nTo see this in action, you need to write some code. In code Snippet 1 I am using the langchain\nframework for Python, together with VertexAI (google-cloud-aiplatform) and the\ngoogle-search-results pip packages.\n\nFebruary 2025\n\n37\n\nPrompt Engineering\n\nTo run this sample you must create a (free) SerpAPI key from https://serpapi.com/manageapi-key and set an environment variable SERPAPI_API_KEY.\nNext let’s write some Python code, with the ta"
    }
   ],
@@ -130,7 +130,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "Review of Prompt Engineering Techniques in Finance: Chain-of-Thought, Tree-of-Thought, Graph-of-Thought",
-    "ref": "review, с. 5",
+    "ref": "review, p. 5",
     "text": "onmaking by allowing backtracking and pruning of\nunpromising paths [8], [39].\n Graph-of-Thought (GoT) Prompting\nGraph-of-Thought (GoT) is a more recent and advanced\nframework that extends ToT by representing thoughts as a\ngraph, allowing for more flexible and non-linear reasoning\npaths [41], [43]. This approach enables LLMs to perform\nelaborate problem-solving by dynamically connecting and\nprocessing thoughts in a graph structure [42], [66]. GoT\naims to revolutionize prompt engineering by enabling more\nhuman-like problem-solving capabilities [44], [67].\nC. Other Advanced Techniques\nOther notable techniques include:\n Least-to-Most Prompting: Breaking down complex\nproblems into a series of simpler sub-problems and\nsolving them sequentially [68].\n Chain-of-Draft Prompting: Iteratively refining responses\nthrough multiple drafts [69].\n55"
    }
   ],
@@ -140,12 +140,12 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "Prompt Engineering (Google whitepaper, v7)",
-    "ref": "whitepaper, с. 40–42",
+    "ref": "whitepaper, p. 40–42",
     "text": "Automatic Prompt Engineering\nAt this point you might realize that writing a prompt can be complex. Wouldn’t it be nice to\nautomate this (write a prompt to write prompts)? Well, there’s a method: Automatic Prompt\nEngineering (APE). This method15 not only alleviates the need for human input but also\nenhances the model’s performance in various tasks.\nYou will prompt a model to generate more prompts. Evaluate them, possibly alter the good\nones. And repeat.\nFor example, you can use automatic prompt engineering that will help with training a chatbot\nfor a merchandise t-shirt webshop. We want to figure out all the various ways customers\ncould phrase their order for buying a band merchandise t-shirt.\n1. Write the prompt which will generate the output variants. In this example, I am using\ngemini-pro to generate 10 instructions. See Table 15:\n\nFebruary 2025\n\n40\n\nPrompt Engineering\n\nPrompt\n\nWe have a band merchandise t-shirt webshop, and to train a\nchatbot we need various ways to order: \"One Metallica t-shirt\nsize S\". Generate 10 variants, with the same semantics but keep\nthe same meaning.\n\nOutput\n\n1. I’d like to purchase a Metallica t-shirt in size small.\n2. Can I order a small-sized Metallica t-shirt?\n3. I’d like to buy one Metallica t-shirt in small.\n4. One Metallica shirt, size small, please.\n5. I want one Metallica t-shirt in size small.\n6. I’d like to place an order for one Metal"
    },
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.4, с. 16",
+    "ref": "§2.4, p. 16",
     "text": "any mentioned dataset or model from the body of\npapers in our dataset. After, we manually filtered\nout results that were not models or datasets. The\ncitation counts were acquired by searching items\nfrom the finalized list on Semantic Scholar.\n\n2.4\n\nIn addition to surveying prompting techniques, we\nalso review prompt engineering techniques, which\nare used to automatically optimize prompts. We\ndiscuss some techniques that use gradient updates,\nsince the set of prompt engineering techniques is\nmuch smaller than that of prompting techniques.\n\nCumulative Reasoning (Zhang et al., 2023b)\nfirst generates several potential steps in answering\nthe question. It then has a LLM evaluate them, deciding to either accept or reject these steps. Finally,\nit checks whether it has arrived at the final answer.\nIf so, it terminates the process, but otherwise it\nrepeats it. This method has demonstrated improvements in logical inference tasks and mathematical\nproblem.\n\n2.3\n\nMeta Prompting is the process of prompting a\nLLM to generate or improve a prompt or prompt\ntemplate (Reynolds and McDonell, 2021; Zhou\net al., 2022b; Ye et al., 2023). This is often done\nwithout any scoring mechanism, using just a simple template (Figure 2.12). However, other works\npresent more complex uses of meta-prompting,\nwith multiple iterations and scoring mechanisms\nYang et al. (2023a); Fernando et al. (2023).\n\nPrompting Tech"
    }
   ],
@@ -155,7 +155,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "Prompt Engineering (Google whitepaper, v7)",
-    "ref": "whitepaper, с. 42–54",
+    "ref": "whitepaper, p. 42–54",
     "text": "Code prompting\nGemini focuses primarily on text-based prompts, which also includes writing prompts for\nreturning code. Let’s go to the Vertex AI Studio and test these prompts to look at some\ncoding examples.\n\nPrompts for writing code\nGemini can also be a developer and help you with writing code in any programming language\nof choice. As a developer this can help you speed up the process of writing code.\nImagine a folder on your machine with hundreds of files that needs to be renamed.\nRenaming each file would take you a lot of time. You know a little Bash, and could write\na script to automate this, but that may also take awhile. So let’s write a prompt. You can\nwrite the prompt in the public consumer chatbot Gemini, or if you are more concerned\nabout confidentiality, you can write these prompts within your Google Cloud account and\nopen Vertex AI Studio. The advantage of Vertex AI Studio is that you can configure the\ntemperature etc.\n\nFebruary 2025\n\n42\n\nPrompt Engineering\n\nName\n\n1_bash_rename_files_in_folder\n\nGoal\n\nWrite a prompt to write code in Bash to rename files in a folder.\n\nModel\n\ngemini-pro\n\nTemperature\n\n0.1\n\nToken Limit\n\n1024\n\nTop-K\n\nN/A\n\nTop-P\n\n1\n\nPrompt\n\nWrite a code snippet in Bash, which asks for a folder name.\nThen it takes the contents of the folder and renames all the\nfiles inside by prepending the name draft to the file name.\n\nOutput\n\n```bash\n#!/bin/bash\n# Ask"
    }
   ],
@@ -165,7 +165,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "Prompt Engineering for Students of Medicine and Their Teachers",
-    "ref": "heston, гл. 1, с. 11–12",
+    "ref": "heston, ch. 1, p. 11–12",
     "text": "epare students for clinical practice.\n3. The different types of prompts include closed-ended prompts (fact-based),\nopen-ended prompts (encourage expansive thinking), Socratic prompts (stimulate\ncritical thinking), and reflective prompts (foster introspection and personal growth).\n4. Prompt engineering is the dynamic process of continuous and never-ending\nimprovement, with the goal being effective prompts that obtain good feedback.\n\n1.6: Example Prompts for Chapter 1\n1. What are the three major types of prompts? What is each type used for? Give an\nexample of each prompt type, then test and refine it.\n2. How do prompts promote critical thinking?\n3. What are the benefits of using reflective prompts? How should each subsequent\nprompt build upon the previous one? What is the result?\n4. How can prompt engineering improve learning?\n5. Design an effective prompt for medical or nursing students. Create a prompt that\nresults in a helpful reply from an AI engine. Test it out on ChatGPT or Google Bard."
    }
   ],
@@ -175,7 +175,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "Prompt Engineering for Students of Medicine and Their Teachers",
-    "ref": "heston, гл. 1, с. 11–12",
+    "ref": "heston, ch. 1, p. 11–12",
     "text": "e.\n3. The different types of prompts include closed-ended prompts (fact-based),\nopen-ended prompts (encourage expansive thinking), Socratic prompts (stimulate\ncritical thinking), and reflective prompts (foster introspection and personal growth).\n4. Prompt engineering is the dynamic process of continuous and never-ending\nimprovement, with the goal being effective prompts that obtain good feedback.\n\n1.6: Example Prompts for Chapter 1\n1. What are the three major types of prompts? What is each type used for? Give an\nexample of each prompt type, then test and refine it.\n2. How do prompts promote critical thinking?\n3. What are the benefits of using reflective prompts? How should each subsequent\nprompt build upon the previous one? What is the result?\n4. How can prompt engineering improve learning?\n5. Design an effective prompt for medical or nursing students. Create a prompt that\nresults in a helpful reply from an AI engine. Test it out on ChatGPT or Google Bard."
    }
   ],
@@ -185,7 +185,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "Prompt Engineering for Students of Medicine and Their Teachers",
-    "ref": "heston, гл. 1, с. 11–12",
+    "ref": "heston, ch. 1, p. 11–12",
     "text": "d how prompt engineering can address these limitations.\n7. Consider the role of Socratic questioning in medical and nursing education. How can\nit be applied in modern classroom settings?\n8. Draw parallels between the principles of active learning and the application of\nprompt engineering in medical and nursing education.\n9. Imagine you are explaining the importance of prompt engineering to a peer who is\nunfamiliar with the concept. How would you convey its value in medical and nursing\neducation?\n10. Consider a topic or concept in your field of study that students often find\nchallenging. How might you utilize prompt engineering to facilitate better\nunderstanding and engagement with this topic?\n\n1.5 Key Takeaways\n1. Prompt engineering is an iterative process of creating and then refining questions\nthat elicit the desired response from students or an AI.\n2. Given the complexity of medicine, well-engineered prompts can improve student\nengagement, understanding, memory, and critical thinking. Good prompts help\nprepare students for clinical practice.\n3. The different types of prompts include closed-ended prompts (fact-based),\nopen-ended prompts (encourage expansive thinking), Socratic prompts (stimulate\ncritical thinking), and reflective prompts (foster introspection and personal growth).\n4. Prompt engineering is the dynamic process of continuous and never-ending\nimprovement, with"
    }
   ],
@@ -195,7 +195,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "Prompt Engineering for Students of Medicine and Their Teachers",
-    "ref": "heston, гл. 1, с. 11–12",
+    "ref": "heston, ch. 1, p. 11–12",
     "text": "ourage expansive thinking), Socratic prompts (stimulate\ncritical thinking), and reflective prompts (foster introspection and personal growth).\n4. Prompt engineering is the dynamic process of continuous and never-ending\nimprovement, with the goal being effective prompts that obtain good feedback.\n\n1.6: Example Prompts for Chapter 1\n1. What are the three major types of prompts? What is each type used for? Give an\nexample of each prompt type, then test and refine it.\n2. How do prompts promote critical thinking?\n3. What are the benefits of using reflective prompts? How should each subsequent\nprompt build upon the previous one? What is the result?\n4. How can prompt engineering improve learning?\n5. Design an effective prompt for medical or nursing students. Create a prompt that\nresults in a helpful reply from an AI engine. Test it out on ChatGPT or Google Bard."
    }
   ],
@@ -205,7 +205,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.1.2, с. 11",
+    "ref": "§2.2.1.2, p. 11",
     "text": "K-Nearest Neighbor (KNN) (Liu et al., 2021) is\npart of a family of algorithms that selects exemplars\nsimilar to Dxtest\nto boost performance. Although efi\nfective, employing KNN during prompt generation\nmay be time and resource intensive.\nVote-K (Su et al., 2022) is another method to\nselect similar exemplars to the test sample. In one\nstage, a model proposes useful unlabeled candidate\nexemplars for an annotator to label. In the second stage, the labeled pool is used for Few-Shot\nPrompting. Vote-K also ensures that newly added\nexemplars are sufficiently different than existing\nones to increase diversity and representativeness.\n\nExemplar Similarity Selecting exemplars that\nare similar to the test sample is generally beneficial for performance (Liu et al., 2021; Min et al.,\n2022). However, in some cases, selecting more\ndiverse exemplars can improve performance (Su\net al., 2022; Min et al., 2022).\nInstruction Selection While instructions are required to guide LLMs in zero-shot prompts (Wei\net al., 2022a), the benefits of adding instructions\nbefore exemplars in few-shot prompts is less clear.\nAjith et al. (2024) show that generic, task-agnostic\ninstructions (i.e., no instruction or “Complete the\nfollowing task:”) improve classification and question answering accuracy over task-specific ones\n(e.g., What is the answer to this question?) concluding instruction-following abilities can be"
    }
   ],
@@ -215,7 +215,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.1.2, с. 11",
+    "ref": "§2.2.1.2, p. 11",
     "text": "K-Nearest Neighbor (KNN) (Liu et al., 2021) is\npart of a family of algorithms that selects exemplars\nsimilar to Dxtest\nto boost performance. Although efi\nfective, employing KNN during prompt generation\nmay be time and resource intensive.\nVote-K (Su et al., 2022) is another method to\nselect similar exemplars to the test sample. In one\nstage, a model proposes useful unlabeled candidate\nexemplars for an annotator to label. In the second stage, the labeled pool is used for Few-Shot\nPrompting. Vote-K also ensures that newly added\nexemplars are sufficiently different than existing\nones to increase diversity and representativeness.\n\nExemplar Similarity Selecting exemplars that\nare similar to the test sample is generally beneficial for performance (Liu et al., 2021; Min et al.,\n2022). However, in some cases, selecting more\ndiverse exemplars can improve performance (Su\net al., 2022; Min et al., 2022).\nInstruction Selection While instructions are required to guide LLMs in zero-shot prompts (Wei\net al., 2022a), the benefits of adding instructions\nbefore exemplars in few-shot prompts is less clear.\nAjith et al. (2024) show that generic, task-agnostic\ninstructions (i.e., no instruction or “Complete the\nfollowing task:”) improve classification and question answering accuracy over task-specific ones\n(e.g., What is the answer to this question?) concluding instruction-following abilities can be"
    }
   ],
@@ -225,7 +225,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.1.2, с. 11",
+    "ref": "§2.2.1.2, p. 11",
     "text": "Self-Generated In-Context Learning (SG-ICL)\n(Kim et al., 2022) leverages a GenAI to automatically generate exemplars. While better than zeroshot scenarios when training data is unavailable,\nthe generated samples are not as effective as actual\ndata.\nPrompt Mining (Jiang et al., 2020) is the process\nof discovering optimal \"middle words\" in prompts\nthrough large corpus analysis. These middle words\nare effectively prompt templates. For example, instead of using the common \"Q: A:\" format for fewshot prompts, there may exist something similar\nthat occurs more frequently in the corpus. Formats\nwhich occur more often in the corpus will likely\nlead to improved prompt performance.\n\n2.2.1.2 Few-Shot Prompting Techniques\nConsidering all of these factors, Few-Shot Prompting can be very difficult to implement effectively.\nWe now examine techniques for Few-Shot Prompting in the supervised setting. Ensembling approaches can also benefit Few-Shot Prompting, but\nwe discuss them separately (Section 2.2.4).\nAssume we have a training dataset, Dtrain ,\nwhich contains multiple inputs Dxtrain\nand outputs\ni\nDytrain\n,\nwhich\ncan\nbe\nused\nto\nfew-shot\nprompt a\ni\nGenAI (rather than performing gradient-based updates). Assume that this prompt can be dynamically\n\nMore Complicated Techniques such as LENS\n(Li and Qiu, 2023a), UDR (Li et al., 2023f), and\nActive Example Selection (Zhang et al., 2022a)\nleverage iter"
    }
   ],
@@ -235,7 +235,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.1.2, с. 11",
+    "ref": "§2.2.1.2, p. 11",
     "text": "Self-Generated In-Context Learning (SG-ICL)\n(Kim et al., 2022) leverages a GenAI to automatically generate exemplars. While better than zeroshot scenarios when training data is unavailable,\nthe generated samples are not as effective as actual\ndata.\nPrompt Mining (Jiang et al., 2020) is the process\nof discovering optimal \"middle words\" in prompts\nthrough large corpus analysis. These middle words\nare effectively prompt templates. For example, instead of using the common \"Q: A:\" format for fewshot prompts, there may exist something similar\nthat occurs more frequently in the corpus. Formats\nwhich occur more often in the corpus will likely\nlead to improved prompt performance.\n\n2.2.1.2 Few-Shot Prompting Techniques\nConsidering all of these factors, Few-Shot Prompting can be very difficult to implement effectively.\nWe now examine techniques for Few-Shot Prompting in the supervised setting. Ensembling approaches can also benefit Few-Shot Prompting, but\nwe discuss them separately (Section 2.2.4).\nAssume we have a training dataset, Dtrain ,\nwhich contains multiple inputs Dxtrain\nand outputs\ni\nDytrain\n,\nwhich\ncan\nbe\nused\nto\nfew-shot\nprompt a\ni\nGenAI (rather than performing gradient-based updates). Assume that this prompt can be dynamically\n\nMore Complicated Techniques such as LENS\n(Li and Qiu, 2023a), UDR (Li et al., 2023f), and\nActive Example Selection (Zhang et al., 2022a)\nleverage iter"
    }
   ],
@@ -245,7 +245,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.1.2, с. 10–11",
+    "ref": "§2.2.1.2, p. 10–11",
     "text": ". Exemplar Quantity\nInclude as many exemplars as\npossible*\n\n2. Exemplar Ordering\nRandomly order exemplars*\n\nTrees are beautiful: Happy\n\nI hate Pizza: Angry\n\nSquirrels are so cute: Happy\n\nYouTube Ads Suck: Angry\n\nI’m so excited:\n\nI am so mad: Angry\n\nI love life: Happy\n\nI hate my boss: Angry\n\nLife is good: Happy\n\nI’m so excited:\n\nTrees are beautiful: Happy\n\nI’m so excited:\n\nI love life: Happy\n\nLife is good: Happy\n\nI am so mad: Angry\n\nI hate my boss: Angry\n\nI’m so excited:\n\n1\n\n3. Exemplar Label Distribution\nProvide a balanced label\ndistribution*\n\n4. Exemplar Label Quality\nEnsure exemplars are labeled\ncorrectly*\n\nI am so mad: Angry\n\nI love life: Happy\n\nI hate my boss: Angry\n\nLife is good: Happy\n\nI’m so excited:\n\nI am so mad: Angry\n\nI love life: Happy\n\nI hate my boss: Angry\n\nLife is good: Happy\n\nI’m so excited:\n\nI am so mad: Angry\n\nPeople are so dense: Angry\n\nI hate my boss: Angry\n\nLife is good: Happy\n\nI’m so excited:\n\nI am so mad: Happy\n\nI love life: Angry\n\nI hate my boss: Angry\n\nLife is good: Happy\n\nI’m so excited:\n\n5. Exemplar Format\nChoose a common format*\n\n6. Exemplars Similarity\nSelect similar exemplars to\nthe test instance*\n\nIm hyped!: Happy\n\nIm not very excited: Angry\n\nI’m so excited:\n\nIm hyped!: Happy\n\nIm not very excited: Angry\n\nI’m so excited:\n\nTrees are nice===Happy\n\nYouTube Ads Suck===Angry\n\nI’m so excited===\n\nTrees are beautiful: Happy\n\nYouTube Ads Suck: Angry\n\nI’m so"
    }
   ],
@@ -255,7 +255,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.1.3, с. 12",
+    "ref": "§2.2.1.3, p. 12",
     "text": "Style Prompting (Lu et al., 2023a) involves specifying the desired style, tone, or genre in the prompt\nto shape the output of a GenAI. A similar effect\ncan be achieved using role prompting.\n\nSelf-Ask (Press et al., 2022) prompts LLMs to\nfirst decide if they need to ask follow up questions\nfor a given prompt. If so, the LLM generates these\nquestions, then answers them and finally answers\nthe original question.\n\nEmotion Prompting (Li et al., 2023a) incorporates phrases of psychological relevance to humans\n(e.g., \"This is important to my career\") into the\nprompt, which may lead to improved LLM performance on benchmarks and open-ended text generation.\n\n2.2.2\n\nThought Generation\n\nThought generation encompasses a range of techniques that prompt the LLM to articulate its reasoning while solving a problem (Zhang et al., 2023c).\n\nSystem 2 Attention (S2A) (Weston and\nSukhbaatar, 2023) first asks an LLM to rewrite\nthe prompt and remove any information unrelated\nto the question therein. Then, it passes this new\nprompt into an LLM to retrieve a final response.\n\nChain-of-Thought (CoT) Prompting (Wei et al.,\n2022b) leverages few-shot prompting to encourage the LLM to express its thought process before\ndelivering its final answer.6 This technique is occasionally referred to as Chain-of-Thoughts (Tutunov\net al., 2023; Besta et al., 2024; Chen et al., 2023d).\nIt has been demonstrated to signific"
    }
   ],
@@ -265,7 +265,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.1.3, с. 12",
+    "ref": "§2.2.1.3, p. 12",
     "text": "Emotion Prompting (Li et al., 2023a) incorporates phrases of psychological relevance to humans\n(e.g., \"This is important to my career\") into the\nprompt, which may lead to improved LLM performance on benchmarks and open-ended text generation.\n\n2.2.2\n\nThought Generation\n\nThought generation encompasses a range of techniques that prompt the LLM to articulate its reasoning while solving a problem (Zhang et al., 2023c).\n\nSystem 2 Attention (S2A) (Weston and\nSukhbaatar, 2023) first asks an LLM to rewrite\nthe prompt and remove any information unrelated\nto the question therein. Then, it passes this new\nprompt into an LLM to retrieve a final response.\n\nChain-of-Thought (CoT) Prompting (Wei et al.,\n2022b) leverages few-shot prompting to encourage the LLM to express its thought process before\ndelivering its final answer.6 This technique is occasionally referred to as Chain-of-Thoughts (Tutunov\net al., 2023; Besta et al., 2024; Chen et al., 2023d).\nIt has been demonstrated to significantly enhance\nthe LLM’s performance in mathematics and reasoning tasks. In Wei et al. (2022b), the prompt includes\nan exemplar featuring a question, a reasoning path,\nand the correct answer (Figure 2.8).\n\nSimToM (Wilf et al., 2023) deals with complicated questions which involve multiple people or\nobjects. Given the question, it attempts to establish\nthe set of facts one person knows, then answer the\nquestion ba"
    }
   ],
@@ -275,7 +275,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.1.3, с. 12",
+    "ref": "§2.2.1.3, p. 12",
     "text": "System 2 Attention (S2A) (Weston and\nSukhbaatar, 2023) first asks an LLM to rewrite\nthe prompt and remove any information unrelated\nto the question therein. Then, it passes this new\nprompt into an LLM to retrieve a final response.\n\nChain-of-Thought (CoT) Prompting (Wei et al.,\n2022b) leverages few-shot prompting to encourage the LLM to express its thought process before\ndelivering its final answer.6 This technique is occasionally referred to as Chain-of-Thoughts (Tutunov\net al., 2023; Besta et al., 2024; Chen et al., 2023d).\nIt has been demonstrated to significantly enhance\nthe LLM’s performance in mathematics and reasoning tasks. In Wei et al. (2022b), the prompt includes\nan exemplar featuring a question, a reasoning path,\nand the correct answer (Figure 2.8).\n\nSimToM (Wilf et al., 2023) deals with complicated questions which involve multiple people or\nobjects. Given the question, it attempts to establish\nthe set of facts one person knows, then answer the\nquestion based only on those facts. This is a two\nprompt process and can help eliminate the effect of\nirrelevant information in the prompt.\n\n2.2.2.1\n\nZero-Shot-CoT\n\nThe most straightforward version of CoT contains\nzero exemplars. It involves appending a thought\ninducing phrase like \"Let’s think step by step.\"\n(Kojima et al., 2022) to the prompt. Other suggested thought-generating phrases include \"First,\nlet’s think about this"
    }
   ],
@@ -285,7 +285,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.1.3, с. 12",
+    "ref": "§2.2.1.3, p. 12",
     "text": "SimToM (Wilf et al., 2023) deals with complicated questions which involve multiple people or\nobjects. Given the question, it attempts to establish\nthe set of facts one person knows, then answer the\nquestion based only on those facts. This is a two\nprompt process and can help eliminate the effect of\nirrelevant information in the prompt.\n\n2.2.2.1\n\nZero-Shot-CoT\n\nThe most straightforward version of CoT contains\nzero exemplars. It involves appending a thought\ninducing phrase like \"Let’s think step by step.\"\n(Kojima et al., 2022) to the prompt. Other suggested thought-generating phrases include \"First,\nlet’s think about this logically\" (Kojima et al.,\n2022). Zhou et al. (2022b) uses LLMs to generate\n\"Let’s work this out in a step by step way to be\nsure we have the right answer\". Yang et al. (2023a)\nsearches for an optimal thought inducer. Zero-Shot-\n\nRephrase and Respond (RaR) (Deng et al., 2023)\ninstructs the LLM to rephrase and expand the question before generating the final answer. For example, it might add the following phrase to the\nquestion: \"Rephrase and expand the question, and\nrespond\". This could all be done in a single pass\nor the new question could be passed to the LLM\nseparately. RaR has demonstrated improvements\non multiple benchmarks.\nRe-reading (RE2) (Xu et al., 2023) adds the\nphrase \"Read the question again:\" to the prompt in\naddition to repeating the question. Alth"
    }
   ],
@@ -295,7 +295,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.1.3, с. 12",
+    "ref": "§2.2.1.3, p. 12",
     "text": "Rephrase and Respond (RaR) (Deng et al., 2023)\ninstructs the LLM to rephrase and expand the question before generating the final answer. For example, it might add the following phrase to the\nquestion: \"Rephrase and expand the question, and\nrespond\". This could all be done in a single pass\nor the new question could be passed to the LLM\nseparately. RaR has demonstrated improvements\non multiple benchmarks.\nRe-reading (RE2) (Xu et al., 2023) adds the\nphrase \"Read the question again:\" to the prompt in\naddition to repeating the question. Although this is\nsuch a simple technique, it has shown improvement\n\n6\nWe note that such techniques are often described using\nwords like \"think\" that anthropomorphize models. We attempt\nnot to use this language, but do use original authors’ language\nwhere appropriate.\n\n12"
    }
   ],
@@ -305,7 +305,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.1.3, с. 12",
+    "ref": "§2.2.1.3, p. 12",
     "text": "o the LLM\nseparately. RaR has demonstrated improvements\non multiple benchmarks.\nRe-reading (RE2) (Xu et al., 2023) adds the\nphrase \"Read the question again:\" to the prompt in\naddition to repeating the question. Although this is\nsuch a simple technique, it has shown improvement\n\n6\nWe note that such techniques are often described using\nwords like \"think\" that anthropomorphize models. We attempt\nnot to use this language, but do use original authors’ language\nwhere appropriate.\n\n12"
    }
   ],
@@ -315,7 +315,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.1.3, с. 12",
+    "ref": "§2.2.1.3, p. 12",
     "text": "Self-Ask (Press et al., 2022) prompts LLMs to\nfirst decide if they need to ask follow up questions\nfor a given prompt. If so, the LLM generates these\nquestions, then answers them and finally answers\nthe original question.\n\nEmotion Prompting (Li et al., 2023a) incorporates phrases of psychological relevance to humans\n(e.g., \"This is important to my career\") into the\nprompt, which may lead to improved LLM performance on benchmarks and open-ended text generation.\n\n2.2.2\n\nThought Generation\n\nThought generation encompasses a range of techniques that prompt the LLM to articulate its reasoning while solving a problem (Zhang et al., 2023c).\n\nSystem 2 Attention (S2A) (Weston and\nSukhbaatar, 2023) first asks an LLM to rewrite\nthe prompt and remove any information unrelated\nto the question therein. Then, it passes this new\nprompt into an LLM to retrieve a final response.\n\nChain-of-Thought (CoT) Prompting (Wei et al.,\n2022b) leverages few-shot prompting to encourage the LLM to express its thought process before\ndelivering its final answer.6 This technique is occasionally referred to as Chain-of-Thoughts (Tutunov\net al., 2023; Besta et al., 2024; Chen et al., 2023d).\nIt has been demonstrated to significantly enhance\nthe LLM’s performance in mathematics and reasoning tasks. In Wei et al. (2022b), the prompt includes\nan exemplar featuring a question, a reasoning path,\nand the correct answer ("
    }
   ],
@@ -325,7 +325,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.2, с. 13",
+    "ref": "§2.2.2, p. 13",
     "text": "Analogical Prompting (Yasunaga et al., 2023)\nis similar to SG-ICL, and automatically generates\nexemplars that include CoTs. It has demonstrated\nimprovements in mathematical reasoning and code\ngeneration tasks.\n\nActive Prompting (Diao et al., 2023) starts with\nsome training questions/exemplars, asks the LLM\nto solve them, then calculates uncertainty (disagreement in this case) and asks human annotators to\nrewrite the exemplars with highest uncertainty.\n\nThread-of-Thought (ThoT) Prompting (Zhou\net al., 2023) consists of an improved thought inducer for CoT reasoning. Instead of \"Let’s think\nstep by step,\" it uses \"Walk me through this context\nin manageable parts step by step, summarizing and\nanalyzing as we go.\" This thought inducer works\nwell in question-answering and retrieval settings,\nespecially when dealing with large, complex contexts.\n\nMemory-of-Thought Prompting (Li and Qiu,\n2023b) leverage unlabeled training exemplars to\nbuild Few-Shot CoT prompts at test time. Before\ntest time, it performs inference on the unlabeled\ntraining exemplars with CoT. At test time, it retrieves similar instances to the test sample. This\ntechnique has shown substantial improvements in\nbenchmarks like Arithmetic, commonsense, and\nfactual reasoning.\n\nTabular Chain-of-Thought (Tab-CoT) (Jin and\nLu, 2023) consists of a Zero-Shot CoT prompt that\nmakes the LLM output reasoning as a markdown\ntable. Thi"
    }
   ],
@@ -335,7 +335,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.2, с. 13",
+    "ref": "§2.2.2, p. 13",
     "text": "Thread-of-Thought (ThoT) Prompting (Zhou\net al., 2023) consists of an improved thought inducer for CoT reasoning. Instead of \"Let’s think\nstep by step,\" it uses \"Walk me through this context\nin manageable parts step by step, summarizing and\nanalyzing as we go.\" This thought inducer works\nwell in question-answering and retrieval settings,\nespecially when dealing with large, complex contexts.\n\nMemory-of-Thought Prompting (Li and Qiu,\n2023b) leverage unlabeled training exemplars to\nbuild Few-Shot CoT prompts at test time. Before\ntest time, it performs inference on the unlabeled\ntraining exemplars with CoT. At test time, it retrieves similar instances to the test sample. This\ntechnique has shown substantial improvements in\nbenchmarks like Arithmetic, commonsense, and\nfactual reasoning.\n\nTabular Chain-of-Thought (Tab-CoT) (Jin and\nLu, 2023) consists of a Zero-Shot CoT prompt that\nmakes the LLM output reasoning as a markdown\ntable. This tabular design enables the LLM to improve the structure and thus the reasoning of its\noutput.\n\nAutomatic Chain-of-Thought (Auto-CoT) Prompting (Zhang et al., 2022b) uses Wei et al. (2022b)’s\nZero-Shot prompt to automatically generate chains\nof thought. These are then used to build a Few-Shot\nCoT prompt for a test sample.\n\n2.2.2.2 Few-Shot CoT\nThis set of techniques presents the LLM with multiple exemplars, which include chains-of-thought.\nThis can sig"
    }
   ],
@@ -345,7 +345,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.2, с. 13",
+    "ref": "§2.2.2, p. 13",
     "text": "Tabular Chain-of-Thought (Tab-CoT) (Jin and\nLu, 2023) consists of a Zero-Shot CoT prompt that\nmakes the LLM output reasoning as a markdown\ntable. This tabular design enables the LLM to improve the structure and thus the reasoning of its\noutput.\n\nAutomatic Chain-of-Thought (Auto-CoT) Prompting (Zhang et al., 2022b) uses Wei et al. (2022b)’s\nZero-Shot prompt to automatically generate chains\nof thought. These are then used to build a Few-Shot\nCoT prompt for a test sample.\n\n2.2.2.2 Few-Shot CoT\nThis set of techniques presents the LLM with multiple exemplars, which include chains-of-thought.\nThis can significantly enhance performance. This\ntechnique is occasionally referred to as ManualCoT (Zhang et al., 2022b) or Golden CoT (Del and\nFishel, 2023).\n\n2.2.3\n\nDecomposition\n\nSignificant research has focused on decomposing\ncomplex problems into simpler sub-questions. This\nis an effective problem-solving strategy for humans\nas well as GenAI (Patel et al., 2022). Some decomposition techniques are similar to thought-inducing\ntechniques, such as CoT, which often naturally\nbreaks down problems into simpler components.\nHowever, explicitly breaking down problems can\nfurther improve LLMs’ problem solving ability.\n\nContrastive CoT Prompting (Chia et al., 2023)\nadds both exemplars with incorrect and correct explanations to the CoT prompt in order to show the\nLLM how not to reason. This method has"
    }
   ],
@@ -355,7 +355,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.2, с. 13",
+    "ref": "§2.2.2, p. 13",
     "text": "Contrastive CoT Prompting (Chia et al., 2023)\nadds both exemplars with incorrect and correct explanations to the CoT prompt in order to show the\nLLM how not to reason. This method has shown\nsignificant improvement in areas like Arithmetic\nReasoning and Factual QA.\nUncertainty-Routed CoT Prompting (Google,\n2023) samples multiple CoT reasoning paths, then\nselects the majority if it is above a certain threshold (calculated based on validation data). If not, it\nsamples greedily and selects that response. This\nmethod demonstrates improvement on the MMLU\n\nLeast-to-Most Prompting (Zhou et al., 2022a)\nstarts by prompting a LLM to break a given problem into sub-problems without solving them. Then,\nit solves them sequentially, appending model responses to the prompt each time, until it arrives\n13"
    }
   ],
@@ -365,7 +365,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.2, с. 13",
+    "ref": "§2.2.2, p. 13",
     "text": "Contrastive CoT Prompting (Chia et al., 2023)\nadds both exemplars with incorrect and correct explanations to the CoT prompt in order to show the\nLLM how not to reason. This method has shown\nsignificant improvement in areas like Arithmetic\nReasoning and Factual QA.\nUncertainty-Routed CoT Prompting (Google,\n2023) samples multiple CoT reasoning paths, then\nselects the majority if it is above a certain threshold (calculated based on validation data). If not, it\nsamples greedily and selects that response. This\nmethod demonstrates improvement on the MMLU\n\nLeast-to-Most Prompting (Zhou et al., 2022a)\nstarts by prompting a LLM to break a given problem into sub-problems without solving them. Then,\nit solves them sequentially, appending model responses to the prompt each time, until it arrives\n13"
    }
   ],
@@ -375,7 +375,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.2, с. 13",
+    "ref": "§2.2.2, p. 13",
     "text": "Complexity-based Prompting (Fu et al., 2023b)\ninvolves two major modifications to CoT. First, it\nselects complex examples for annotation and inclusion in the prompt, based on factors like question length or reasoning steps required. Second,\nduring inference, it samples multiple reasoning\nchains (answers) and uses a majority vote among\nchains exceeding a certain length threshold, under\nthe premise that longer reasoning indicates higher\nanswer quality. This technique has shown improvements on three mathematical reasoning datasets.\n\nAnalogical Prompting (Yasunaga et al., 2023)\nis similar to SG-ICL, and automatically generates\nexemplars that include CoTs. It has demonstrated\nimprovements in mathematical reasoning and code\ngeneration tasks.\n\nActive Prompting (Diao et al., 2023) starts with\nsome training questions/exemplars, asks the LLM\nto solve them, then calculates uncertainty (disagreement in this case) and asks human annotators to\nrewrite the exemplars with highest uncertainty.\n\nThread-of-Thought (ThoT) Prompting (Zhou\net al., 2023) consists of an improved thought inducer for CoT reasoning. Instead of \"Let’s think\nstep by step,\" it uses \"Walk me through this context\nin manageable parts step by step, summarizing and\nanalyzing as we go.\" This thought inducer works\nwell in question-answering and retrieval settings,\nespecially when dealing with large, complex contexts.\n\nMemory-of-Th"
    }
   ],
@@ -385,7 +385,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.2, с. 13",
+    "ref": "§2.2.2, p. 13",
     "text": "Active Prompting (Diao et al., 2023) starts with\nsome training questions/exemplars, asks the LLM\nto solve them, then calculates uncertainty (disagreement in this case) and asks human annotators to\nrewrite the exemplars with highest uncertainty.\n\nThread-of-Thought (ThoT) Prompting (Zhou\net al., 2023) consists of an improved thought inducer for CoT reasoning. Instead of \"Let’s think\nstep by step,\" it uses \"Walk me through this context\nin manageable parts step by step, summarizing and\nanalyzing as we go.\" This thought inducer works\nwell in question-answering and retrieval settings,\nespecially when dealing with large, complex contexts.\n\nMemory-of-Thought Prompting (Li and Qiu,\n2023b) leverage unlabeled training exemplars to\nbuild Few-Shot CoT prompts at test time. Before\ntest time, it performs inference on the unlabeled\ntraining exemplars with CoT. At test time, it retrieves similar instances to the test sample. This\ntechnique has shown substantial improvements in\nbenchmarks like Arithmetic, commonsense, and\nfactual reasoning.\n\nTabular Chain-of-Thought (Tab-CoT) (Jin and\nLu, 2023) consists of a Zero-Shot CoT prompt that\nmakes the LLM output reasoning as a markdown\ntable. This tabular design enables the LLM to improve the structure and thus the reasoning of its\noutput.\n\nAutomatic Chain-of-Thought (Auto-CoT) Prompting (Zhang et al., 2022b) uses Wei et al. (2022b)’s\nZero-Shot prompt t"
    }
   ],
@@ -395,7 +395,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.2, с. 13",
+    "ref": "§2.2.2, p. 13",
     "text": "Memory-of-Thought Prompting (Li and Qiu,\n2023b) leverage unlabeled training exemplars to\nbuild Few-Shot CoT prompts at test time. Before\ntest time, it performs inference on the unlabeled\ntraining exemplars with CoT. At test time, it retrieves similar instances to the test sample. This\ntechnique has shown substantial improvements in\nbenchmarks like Arithmetic, commonsense, and\nfactual reasoning.\n\nTabular Chain-of-Thought (Tab-CoT) (Jin and\nLu, 2023) consists of a Zero-Shot CoT prompt that\nmakes the LLM output reasoning as a markdown\ntable. This tabular design enables the LLM to improve the structure and thus the reasoning of its\noutput.\n\nAutomatic Chain-of-Thought (Auto-CoT) Prompting (Zhang et al., 2022b) uses Wei et al. (2022b)’s\nZero-Shot prompt to automatically generate chains\nof thought. These are then used to build a Few-Shot\nCoT prompt for a test sample.\n\n2.2.2.2 Few-Shot CoT\nThis set of techniques presents the LLM with multiple exemplars, which include chains-of-thought.\nThis can significantly enhance performance. This\ntechnique is occasionally referred to as ManualCoT (Zhang et al., 2022b) or Golden CoT (Del and\nFishel, 2023).\n\n2.2.3\n\nDecomposition\n\nSignificant research has focused on decomposing\ncomplex problems into simpler sub-questions. This\nis an effective problem-solving strategy for humans\nas well as GenAI (Patel et al., 2022). Some decomposition techniques are s"
    }
   ],
@@ -405,7 +405,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.2, с. 13",
+    "ref": "§2.2.2, p. 13",
     "text": "Automatic Chain-of-Thought (Auto-CoT) Prompting (Zhang et al., 2022b) uses Wei et al. (2022b)’s\nZero-Shot prompt to automatically generate chains\nof thought. These are then used to build a Few-Shot\nCoT prompt for a test sample.\n\n2.2.2.2 Few-Shot CoT\nThis set of techniques presents the LLM with multiple exemplars, which include chains-of-thought.\nThis can significantly enhance performance. This\ntechnique is occasionally referred to as ManualCoT (Zhang et al., 2022b) or Golden CoT (Del and\nFishel, 2023).\n\n2.2.3\n\nDecomposition\n\nSignificant research has focused on decomposing\ncomplex problems into simpler sub-questions. This\nis an effective problem-solving strategy for humans\nas well as GenAI (Patel et al., 2022). Some decomposition techniques are similar to thought-inducing\ntechniques, such as CoT, which often naturally\nbreaks down problems into simpler components.\nHowever, explicitly breaking down problems can\nfurther improve LLMs’ problem solving ability.\n\nContrastive CoT Prompting (Chia et al., 2023)\nadds both exemplars with incorrect and correct explanations to the CoT prompt in order to show the\nLLM how not to reason. This method has shown\nsignificant improvement in areas like Arithmetic\nReasoning and Factual QA.\nUncertainty-Routed CoT Prompting (Google,\n2023) samples multiple CoT reasoning paths, then\nselects the majority if it is above a certain threshold (calculated based"
    }
   ],
@@ -415,7 +415,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.3, с. 13",
+    "ref": "§2.2.3, p. 13",
     "text": "Least-to-Most Prompting (Zhou et al., 2022a)\nstarts by prompting a LLM to break a given problem into sub-problems without solving them. Then,\nit solves them sequentially, appending model responses to the prompt each time, until it arrives\n13"
    }
   ],
@@ -425,7 +425,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.3, с. 14",
+    "ref": "§2.2.3, p. 14",
     "text": "Decomposed Prompting (DECOMP) (Khot\net al., 2022) Few-Shot prompts a LLM to show it\nhow to use certain functions. These might include\nthings like string splitting or internet searching;\nthese are often implemented as separate LLM calls.\nGiven this, the LLM breaks down its original problem into sub-problems which it sends to different\nfunctions. It has shown improved performance over\nLeast-to-Most prompting on some tasks.\n\nSkeleton-of-Thought (Ning et al., 2023) focuses\non accelerating answer speed through parallelization. Given a problem, it prompts an LLM to create\na skeleton of the answer, in a sense, sub-problems\nto be solved. Then, in parallel, it sends these questions to a LLM and concatenates all the outputs to\nget a final response.\n\nPlan-and-Solve Prompting (Wang et al., 2023f)\nconsists of an improved Zero-Shot CoT prompt,\n\"Let’s first understand the problem and devise a\nplan to solve it. Then, let’s carry out the plan and\nsolve the problem step by step\". This method generates more robust reasoning processes than standard\nZero-Shot-CoT on multiple reasoning datasets.\n\nMetacognitive Prompting (Wang and Zhao,\n2024) attempts to make the LLM mirror human\nmetacognitive processes with a five part prompt\nchain, with steps including clarifying the question,\npreliminary judgement, evaluation of response, decision confirmation, and confidence assessment.\n\nTree-of-Thought (ToT) (Ya"
    }
   ],
@@ -435,7 +435,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.3, с. 14",
+    "ref": "§2.2.3, p. 14",
     "text": "Plan-and-Solve Prompting (Wang et al., 2023f)\nconsists of an improved Zero-Shot CoT prompt,\n\"Let’s first understand the problem and devise a\nplan to solve it. Then, let’s carry out the plan and\nsolve the problem step by step\". This method generates more robust reasoning processes than standard\nZero-Shot-CoT on multiple reasoning datasets.\n\nMetacognitive Prompting (Wang and Zhao,\n2024) attempts to make the LLM mirror human\nmetacognitive processes with a five part prompt\nchain, with steps including clarifying the question,\npreliminary judgement, evaluation of response, decision confirmation, and confidence assessment.\n\nTree-of-Thought (ToT) (Yao et al., 2023b), also\nknown as Tree of Thoughts, (Long, 2023), creates a\ntree-like search problem by starting with an initial\nproblem then generating multiple possible steps in\nthe form of thoughts (as from a CoT). It evaluates\nthe progress each step makes towards solving the\nproblem (through prompting) and decides which\nsteps to continue with, then keeps creating more\nthoughts. ToT is particularly effective for tasks that\nrequire search and planning.\n\n2.2.4\n\nEnsembling\n\nIn GenAI, ensembling is the process of using multiple prompts to solve the same problem, then aggregating these responses into a final output. In many\ncases, a majority vote—selecting the most frequent\nresponse—is used to generate the final output. Ensembling techniques re"
    }
   ],
@@ -445,7 +445,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.3, с. 14",
+    "ref": "§2.2.3, p. 14",
     "text": "Recursion-of-Thought (Lee and Kim, 2023) is\nsimilar to regular CoT. However, every time it encounters a complicated problem in the middle of its\nreasoning chain, it sends this problem into another\nprompt/LLM call. After this is completed, the answer is inserted into the original prompt. In this\nway, it can recursively solve complex problems, including ones which might otherwise run over that\nmaximum context length. This method has shown\nimprovements on arithmetic and algorithmic tasks.\nThough implemented using fine-tuning to output a\nspecial token that sends sub-problem into another\nprompt, it could also be done only through prompting.\n\nDemonstration Ensembling (DENSE) (Khalifa\net al., 2023) creates multiple few-shot prompts,\neach containing a distinct subset of exemplars from\nthe training set. Next, it aggregates over their outputs to generate a final response.\nMixture of Reasoning Experts (MoRE) (Si et al.,\n2023d) creates a set of diverse reasoning experts\nby using different specialized prompts for different\nreasoning types (such as retrieval augmentation\nprompts for factual reasoning, Chain-of-Thought\nreasoning for multi-hop and math reasoning, and\ngenerated knowledge prompting for commonsense\nreasoning). The best answer from all experts is\nselected based on an agreement score.\n\nProgram-of-Thoughts (Chen et al., 2023d) uses\nLLMs like Codex to generate programming code\nas rea"
    }
   ],
@@ -455,7 +455,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.3, с. 14",
+    "ref": "§2.2.3, p. 14",
     "text": "mathematical and programming-related tasks but\nis less effective for semantic reasoning tasks.\nFaithful Chain-of-Thought (Lyu et al., 2023)\ngenerates a CoT that has both natural language and\nsymbolic language (e.g. Python) reasoning, just\nlike Program-of-Thoughts. However, it also makes\nuse of different types of symbolic languages in a\ntask-dependent fashion.\n\nDecomposed Prompting (DECOMP) (Khot\net al., 2022) Few-Shot prompts a LLM to show it\nhow to use certain functions. These might include\nthings like string splitting or internet searching;\nthese are often implemented as separate LLM calls.\nGiven this, the LLM breaks down its original problem into sub-problems which it sends to different\nfunctions. It has shown improved performance over\nLeast-to-Most prompting on some tasks.\n\nSkeleton-of-Thought (Ning et al., 2023) focuses\non accelerating answer speed through parallelization. Given a problem, it prompts an LLM to create\na skeleton of the answer, in a sense, sub-problems\nto be solved. Then, in parallel, it sends these questions to a LLM and concatenates all the outputs to\nget a final response.\n\nPlan-and-Solve Prompting (Wang et al., 2023f)\nconsists of an improved Zero-Shot CoT prompt,\n\"Let’s first understand the problem and devise a\nplan to solve it. Then, let’s carry out the plan and\nsolve the problem step by step\". This method generates more robust reasoning processes than s"
    }
   ],
@@ -465,7 +465,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.3, с. 13",
+    "ref": "§2.2.3, p. 13",
     "text": "Universal\nSelf-Consistency 2.2.4\nUSP 2.2.4\nPrompt Paraphrasing 2.2.4\nChain-of-Verification 2.2.5\nSelf-Calibration 2.2.5\nSelf-Refine 2.2.5\nSelf-Criticism 2.2.5\nSelf-Verification 2.2.5\nReverseCoT 2.2.5\nCumulative Reason. 2.2.5\nDECOMP 2.2.3\nFaithful CoT 2.2.3\nLeast-to-Most 2.2.3\nPlan-and-Solve 2.2.3\nDecomposition 2.2.3\n\nMemory-of-Thought\n2.2.2.2\n\nProgram-of-Thought 2.2.3\nRecurs.-of-Thought 2.2.3\nSkeleton-of-Thought 2.2.3\nTree-of-Thought 2.2.3\nMetacognitive 2.2.3\n\nFigure 2.2: All text-based prompting techniques from our dataset.\n\n9\n\n. Exemplar Quantity\nInclude as many exemplars as\npossible*\n\n2. Exemplar Ordering\nRandomly order exemplars*\n\nTrees are beautiful: Happy\n\nI hate Pizza: Angry\n\nSquirrels are so cute: Happy\n\nYouTube Ads Suck: Angry\n\nI’m so excited:\n\nI am so mad: Angry\n\nI love life: Happy\n\nI hate my boss: Angry\n\nLife is good: Happy\n\nI’m so excited:\n\nTrees are beautiful: Happy\n\nI’m so excited:\n\nI love life: Happy\n\nLife is good: Happy\n\nI am so mad: Angry\n\nI hate my boss: Angry\n\nI’m so excited:\n\n1\n\n3. Exemplar Label Distribution\nProvide a balanced label\ndistribution*\n\n4. Exemplar Label Quality\nEnsure exemplars are labeled\ncorrectly*\n\nI am so mad: Angry\n\nI love life: Happy\n\nI hate my boss: Angry\n\nLife is good: Happy\n\nI’m so excited:\n\nI am so mad: Angry\n\nI love life: Happy\n\nI hate my boss: Angry\n\nLife is good: Happy\n\nI’m so excited:\n\nI am so mad: Angry\n\nPeople are so dense: An"
    }
   ],
@@ -475,7 +475,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.3, с. 14",
+    "ref": "§2.2.3, p. 14",
     "text": "Skeleton-of-Thought (Ning et al., 2023) focuses\non accelerating answer speed through parallelization. Given a problem, it prompts an LLM to create\na skeleton of the answer, in a sense, sub-problems\nto be solved. Then, in parallel, it sends these questions to a LLM and concatenates all the outputs to\nget a final response.\n\nPlan-and-Solve Prompting (Wang et al., 2023f)\nconsists of an improved Zero-Shot CoT prompt,\n\"Let’s first understand the problem and devise a\nplan to solve it. Then, let’s carry out the plan and\nsolve the problem step by step\". This method generates more robust reasoning processes than standard\nZero-Shot-CoT on multiple reasoning datasets.\n\nMetacognitive Prompting (Wang and Zhao,\n2024) attempts to make the LLM mirror human\nmetacognitive processes with a five part prompt\nchain, with steps including clarifying the question,\npreliminary judgement, evaluation of response, decision confirmation, and confidence assessment.\n\nTree-of-Thought (ToT) (Yao et al., 2023b), also\nknown as Tree of Thoughts, (Long, 2023), creates a\ntree-like search problem by starting with an initial\nproblem then generating multiple possible steps in\nthe form of thoughts (as from a CoT). It evaluates\nthe progress each step makes towards solving the\nproblem (through prompting) and decides which\nsteps to continue with, then keeps creating more\nthoughts. ToT is particularly effective for tasks tha"
    }
   ],
@@ -485,7 +485,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.3, с. 14",
+    "ref": "§2.2.3, p. 14",
     "text": "Metacognitive Prompting (Wang and Zhao,\n2024) attempts to make the LLM mirror human\nmetacognitive processes with a five part prompt\nchain, with steps including clarifying the question,\npreliminary judgement, evaluation of response, decision confirmation, and confidence assessment.\n\nTree-of-Thought (ToT) (Yao et al., 2023b), also\nknown as Tree of Thoughts, (Long, 2023), creates a\ntree-like search problem by starting with an initial\nproblem then generating multiple possible steps in\nthe form of thoughts (as from a CoT). It evaluates\nthe progress each step makes towards solving the\nproblem (through prompting) and decides which\nsteps to continue with, then keeps creating more\nthoughts. ToT is particularly effective for tasks that\nrequire search and planning.\n\n2.2.4\n\nEnsembling\n\nIn GenAI, ensembling is the process of using multiple prompts to solve the same problem, then aggregating these responses into a final output. In many\ncases, a majority vote—selecting the most frequent\nresponse—is used to generate the final output. Ensembling techniques reduce the variance of LLM\noutputs and often improving accuracy, but come\nwith the cost of increasing the number of model\ncalls needed to reach a final answer.\n\nRecursion-of-Thought (Lee and Kim, 2023) is\nsimilar to regular CoT. However, every time it encounters a complicated problem in the middle of its\nreasoning chain, it sends this problem"
    }
   ],
@@ -495,7 +495,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.4, с. 14",
+    "ref": "§2.2.4, p. 14",
     "text": "Demonstration Ensembling (DENSE) (Khalifa\net al., 2023) creates multiple few-shot prompts,\neach containing a distinct subset of exemplars from\nthe training set. Next, it aggregates over their outputs to generate a final response.\nMixture of Reasoning Experts (MoRE) (Si et al.,\n2023d) creates a set of diverse reasoning experts\nby using different specialized prompts for different\nreasoning types (such as retrieval augmentation\nprompts for factual reasoning, Chain-of-Thought\nreasoning for multi-hop and math reasoning, and\ngenerated knowledge prompting for commonsense\nreasoning). The best answer from all experts is\nselected based on an agreement score.\n\nProgram-of-Thoughts (Chen et al., 2023d) uses\nLLMs like Codex to generate programming code\nas reasoning steps. A code interpreter executes\nthese steps to obtain the final answer. It excels in\n\nMax Mutual Information Method (Sorensen\net al., 2022) creates multiple prompt templates with\n14"
    }
   ],
@@ -505,7 +505,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.4, с. 14",
+    "ref": "§2.2.4, p. 14",
     "text": "Demonstration Ensembling (DENSE) (Khalifa\net al., 2023) creates multiple few-shot prompts,\neach containing a distinct subset of exemplars from\nthe training set. Next, it aggregates over their outputs to generate a final response.\nMixture of Reasoning Experts (MoRE) (Si et al.,\n2023d) creates a set of diverse reasoning experts\nby using different specialized prompts for different\nreasoning types (such as retrieval augmentation\nprompts for factual reasoning, Chain-of-Thought\nreasoning for multi-hop and math reasoning, and\ngenerated knowledge prompting for commonsense\nreasoning). The best answer from all experts is\nselected based on an agreement score.\n\nProgram-of-Thoughts (Chen et al., 2023d) uses\nLLMs like Codex to generate programming code\nas reasoning steps. A code interpreter executes\nthese steps to obtain the final answer. It excels in\n\nMax Mutual Information Method (Sorensen\net al., 2022) creates multiple prompt templates with\n14"
    }
   ],
@@ -515,7 +515,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.4, с. 14",
+    "ref": "§2.2.4, p. 14",
     "text": "Universal\nSelf-Consistency 2.2.4\nUSP 2.2.4\nPrompt Paraphrasing 2.2.4\nChain-of-Verification 2.2.5\nSelf-Calibration 2.2.5\nSelf-Refine 2.2.5\nSelf-Criticism 2.2.5\nSelf-Verification 2.2.5\nReverseCoT 2.2.5\nCumulative Reason. 2.2.5\nDECOMP 2.2.3\nFaithful CoT 2.2.3\nLeast-to-Most 2.2.3\nPlan-and-Solve 2.2.3\nDecomposition 2.2.3\n\nMemory-of-Thought\n2.2.2.2\n\nProgram-of-Thought 2.2.3\nRecurs.-of-Thought 2.2.3\nSkeleton-of-Thought 2.2.3\nTree-of-Thought 2.2.3\nMetacognitive 2.2.3\n\nFigure 2.2: All text-based prompting techniques from our dataset.\n\n9\n\n. Exemplar Quantity\nInclude as many exemplars as\npossible*\n\n2. Exemplar Ordering\nRandomly order exemplars*\n\nTrees are beautiful: Happy\n\nI hate Pizza: Angry\n\nSquirrels are so cute: Happy\n\nYouTube Ads Suck: Angry\n\nI’m so excited:\n\nI am so mad: Angry\n\nI love life: Happy\n\nI hate my boss: Angry\n\nLife is good: Happy\n\nI’m so excited:\n\nTrees are beautiful: Happy\n\nI’m so excited:\n\nI love life: Happy\n\nLife is good: Happy\n\nI am so mad: Angry\n\nI hate my boss: Angry\n\nI’m so excited:\n\n1\n\n3. Exemplar Label Distribution\nProvide a balanced label\ndistribution*\n\n4. Exemplar Label Quality\nEnsure exemplars are labeled\ncorrectly*\n\nI am so mad: Angry\n\nI love life: Happy\n\nI hate my boss: Angry\n\nLife is good: Happy\n\nI’m so excited:\n\nI am so mad: Angry\n\nI love life: Happy\n\nI hate my boss: Angry\n\nLife is good: Happy\n\nI’m so excited:\n\nI am so mad: Angry\n\nPeople are so dense: An"
    }
   ],
@@ -525,7 +525,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.4, с. 14",
+    "ref": "§2.2.4, p. 14",
     "text": "Max Mutual Information Method (Sorensen\net al., 2022) creates multiple prompt templates with\n14"
    }
   ],
@@ -535,7 +535,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.4, с. 15",
+    "ref": "§2.2.4, p. 15",
     "text": "Universal Self-Consistency (Chen et al., 2023e)\nis similar to Self-Consistency except that rather\nthan selecting the majority response by programmatically counting how often it occurs, it inserts\nall outputs into a prompt template that selects the\nmajority answer. This is helpful for free-form text\ngeneration and cases where the same answer may\nbe output slightly differently by different prompts.\n\nSelf-Calibration (Kadavath et al., 2022) first\nprompts an LLM to answer a question. Then, it\nbuilds a new prompt that includes the question, the\nLLM’s answer, and an additional instruction asking\nwhether the answer is correct. This can be useful\nfor gauging confidence levels when applying LLMs\nwhen deciding when to accept or revise the original\nanswer.\n\nMeta-Reasoning over Multiple CoTs (Yoran\net al., 2023) is similar to universal SelfConsistency; it first generates multiple reasoning\nchains (but not necessarily final answers) for a\ngiven problem. Next, it inserts all of these chains\nin a single prompt template then generates a final\nanswer from them.\n\nSelf-Refine (Madaan et al., 2023) is an iterative\nframework where, given an initial answer from the\nLLM, it prompts the same LLM to provide feedback on the answer, and then prompts the LLM to\nimprove the answer based on the feedback. This\niterative process continues until a stopping condition is met (e.g., max number of steps reached)."
    }
   ],
@@ -545,7 +545,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.4, с. 15",
+    "ref": "§2.2.4, p. 15",
     "text": "Meta-Reasoning over Multiple CoTs (Yoran\net al., 2023) is similar to universal SelfConsistency; it first generates multiple reasoning\nchains (but not necessarily final answers) for a\ngiven problem. Next, it inserts all of these chains\nin a single prompt template then generates a final\nanswer from them.\n\nSelf-Refine (Madaan et al., 2023) is an iterative\nframework where, given an initial answer from the\nLLM, it prompts the same LLM to provide feedback on the answer, and then prompts the LLM to\nimprove the answer based on the feedback. This\niterative process continues until a stopping condition is met (e.g., max number of steps reached).\nSelf-Refine has demonstrated improvement across\na range of reasoning, coding, and generation tasks.\n\nDiVeRSe (Li et al., 2023i) creates multiple\nprompts for a given problem then performs SelfConsistency for each, generating multiple reasoning paths. They score reasoning paths based on\neach step in them then select a final response.\n\nReversing Chain-of-Thought (RCoT) (Xue\net al., 2023) first prompts LLMs to reconstruct\nthe problem based on generated answer. Then, it\ngenerates fine-grained comparisons between the\noriginal problem and the reconstructed problem\nas a way to check for any inconsistencies. These\ninconsistencies are then converted to feedback for\nthe LLM to revise the generated answer.\n\nConsistency-based Self-adaptive Prompting\n(COSP) (Wa"
    }
   ],
@@ -555,7 +555,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.4, с. 15",
+    "ref": "§2.2.4, p. 15",
     "text": "multiple times to perform\nCoT, crucially with a non-zero temperature to elicit\ndiverse reasoning paths. Next, it uses a majority\nvote over all generated responses to select a final\nresponse. Self-Consistency has shown improvements on arithmetic, commonsense, and symbolic\nreasoning tasks.\n\n2.2.5\n\nSelf-Criticism\n\nWhen creating GenAI systems, it can be useful to\nhave LLMs criticize their own outputs (Huang et al.,\n2022). This could simply be a judgement (e.g., is\nthis output correct) or the LLM could be prompted\nto provide feedback, which is then used to improve\nthe answer. Many approaches to generating and\nintegrating self-criticism have been developed.\n\nUniversal Self-Consistency (Chen et al., 2023e)\nis similar to Self-Consistency except that rather\nthan selecting the majority response by programmatically counting how often it occurs, it inserts\nall outputs into a prompt template that selects the\nmajority answer. This is helpful for free-form text\ngeneration and cases where the same answer may\nbe output slightly differently by different prompts.\n\nSelf-Calibration (Kadavath et al., 2022) first\nprompts an LLM to answer a question. Then, it\nbuilds a new prompt that includes the question, the\nLLM’s answer, and an additional instruction asking\nwhether the answer is correct. This can be useful\nfor gauging confidence levels when applying LLMs\nwhen deciding when to accept or revise the"
    }
   ],
@@ -565,7 +565,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.4, с. 15",
+    "ref": "§2.2.4, p. 15",
     "text": "Consistency-based Self-adaptive Prompting\n(COSP) (Wan et al., 2023a) constructs Few-Shot\nCoT prompts by running Zero-Shot CoT with\nSelf-Consistency on a set of examples then\nselecting a high agreement subset of the outputs\nto be included in the final prompt as exemplars. It\nagain performs Self-Consistency with this final\nprompt.\n\nSelf-Verification (Weng et al., 2022) generates multiple candidate solutions with Chain-ofThought (CoT). It then scores each solution by\nmasking certain parts of the original question and\nasking an LLM to predict them based on the rest\nof the question and the generated solution. This\nmethod has shown improvement on eight reasoning\ndatasets.\n\nUniversal Self-Adaptive Prompting (USP) (Wan\net al., 2023b) builds upon the success of COSP, aiming to make it generalizable to all tasks. USP makes\nuse of unlabeled data to generate exemplars and a\nmore complicated scoring function to select them.\nAdditionally, USP does not use Self-Consistency.\n15"
    }
   ],
@@ -575,7 +575,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.4, с. 15",
+    "ref": "§2.2.4, p. 15",
     "text": "Universal Self-Adaptive Prompting (USP) (Wan\net al., 2023b) builds upon the success of COSP, aiming to make it generalizable to all tasks. USP makes\nuse of unlabeled data to generate exemplars and a\nmore complicated scoring function to select them.\nAdditionally, USP does not use Self-Consistency.\n15"
    }
   ],
@@ -585,7 +585,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.5, с. 15",
+    "ref": "§2.2.5, p. 15",
     "text": "Self-Calibration (Kadavath et al., 2022) first\nprompts an LLM to answer a question. Then, it\nbuilds a new prompt that includes the question, the\nLLM’s answer, and an additional instruction asking\nwhether the answer is correct. This can be useful\nfor gauging confidence levels when applying LLMs\nwhen deciding when to accept or revise the original\nanswer.\n\nMeta-Reasoning over Multiple CoTs (Yoran\net al., 2023) is similar to universal SelfConsistency; it first generates multiple reasoning\nchains (but not necessarily final answers) for a\ngiven problem. Next, it inserts all of these chains\nin a single prompt template then generates a final\nanswer from them.\n\nSelf-Refine (Madaan et al., 2023) is an iterative\nframework where, given an initial answer from the\nLLM, it prompts the same LLM to provide feedback on the answer, and then prompts the LLM to\nimprove the answer based on the feedback. This\niterative process continues until a stopping condition is met (e.g., max number of steps reached).\nSelf-Refine has demonstrated improvement across\na range of reasoning, coding, and generation tasks.\n\nDiVeRSe (Li et al., 2023i) creates multiple\nprompts for a given problem then performs SelfConsistency for each, generating multiple reasoning paths. They score reasoning paths based on\neach step in them then select a final response.\n\nReversing Chain-of-Thought (RCoT) (Xue\net al., 2023) first prompts"
    }
   ],
@@ -595,7 +595,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.5, с. 15",
+    "ref": "§2.2.5, p. 15",
     "text": "Self-Refine (Madaan et al., 2023) is an iterative\nframework where, given an initial answer from the\nLLM, it prompts the same LLM to provide feedback on the answer, and then prompts the LLM to\nimprove the answer based on the feedback. This\niterative process continues until a stopping condition is met (e.g., max number of steps reached).\nSelf-Refine has demonstrated improvement across\na range of reasoning, coding, and generation tasks.\n\nDiVeRSe (Li et al., 2023i) creates multiple\nprompts for a given problem then performs SelfConsistency for each, generating multiple reasoning paths. They score reasoning paths based on\neach step in them then select a final response.\n\nReversing Chain-of-Thought (RCoT) (Xue\net al., 2023) first prompts LLMs to reconstruct\nthe problem based on generated answer. Then, it\ngenerates fine-grained comparisons between the\noriginal problem and the reconstructed problem\nas a way to check for any inconsistencies. These\ninconsistencies are then converted to feedback for\nthe LLM to revise the generated answer.\n\nConsistency-based Self-adaptive Prompting\n(COSP) (Wan et al., 2023a) constructs Few-Shot\nCoT prompts by running Zero-Shot CoT with\nSelf-Consistency on a set of examples then\nselecting a high agreement subset of the outputs\nto be included in the final prompt as exemplars. It\nagain performs Self-Consistency with this final\nprompt.\n\nSelf-Verification (Weng e"
    }
   ],
@@ -605,7 +605,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.5, с. 15",
+    "ref": "§2.2.5, p. 15",
     "text": "Reversing Chain-of-Thought (RCoT) (Xue\net al., 2023) first prompts LLMs to reconstruct\nthe problem based on generated answer. Then, it\ngenerates fine-grained comparisons between the\noriginal problem and the reconstructed problem\nas a way to check for any inconsistencies. These\ninconsistencies are then converted to feedback for\nthe LLM to revise the generated answer.\n\nConsistency-based Self-adaptive Prompting\n(COSP) (Wan et al., 2023a) constructs Few-Shot\nCoT prompts by running Zero-Shot CoT with\nSelf-Consistency on a set of examples then\nselecting a high agreement subset of the outputs\nto be included in the final prompt as exemplars. It\nagain performs Self-Consistency with this final\nprompt.\n\nSelf-Verification (Weng et al., 2022) generates multiple candidate solutions with Chain-ofThought (CoT). It then scores each solution by\nmasking certain parts of the original question and\nasking an LLM to predict them based on the rest\nof the question and the generated solution. This\nmethod has shown improvement on eight reasoning\ndatasets.\n\nUniversal Self-Adaptive Prompting (USP) (Wan\net al., 2023b) builds upon the success of COSP, aiming to make it generalizable to all tasks. USP makes\nuse of unlabeled data to generate exemplars and a\nmore complicated scoring function to select them.\nAdditionally, USP does not use Self-Consistency.\n15"
    }
   ],
@@ -615,7 +615,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.5, с. 15",
+    "ref": "§2.2.5, p. 15",
     "text": "Self-Verification (Weng et al., 2022) generates multiple candidate solutions with Chain-ofThought (CoT). It then scores each solution by\nmasking certain parts of the original question and\nasking an LLM to predict them based on the rest\nof the question and the generated solution. This\nmethod has shown improvement on eight reasoning\ndatasets.\n\nUniversal Self-Adaptive Prompting (USP) (Wan\net al., 2023b) builds upon the success of COSP, aiming to make it generalizable to all tasks. USP makes\nuse of unlabeled data to generate exemplars and a\nmore complicated scoring function to select them.\nAdditionally, USP does not use Self-Consistency.\n15"
    }
   ],
@@ -625,7 +625,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.5, с. 15",
+    "ref": "§2.2.5, p. 15",
     "text": "Universal\nSelf-Consistency 2.2.4\nUSP 2.2.4\nPrompt Paraphrasing 2.2.4\nChain-of-Verification 2.2.5\nSelf-Calibration 2.2.5\nSelf-Refine 2.2.5\nSelf-Criticism 2.2.5\nSelf-Verification 2.2.5\nReverseCoT 2.2.5\nCumulative Reason. 2.2.5\nDECOMP 2.2.3\nFaithful CoT 2.2.3\nLeast-to-Most 2.2.3\nPlan-and-Solve 2.2.3\nDecomposition 2.2.3\n\nMemory-of-Thought\n2.2.2.2\n\nProgram-of-Thought 2.2.3\nRecurs.-of-Thought 2.2.3\nSkeleton-of-Thought 2.2.3\nTree-of-Thought 2.2.3\nMetacognitive 2.2.3\n\nFigure 2.2: All text-based prompting techniques from our dataset.\n\n9\n\n. Exemplar Quantity\nInclude as many exemplars as\npossible*\n\n2. Exemplar Ordering\nRandomly order exemplars*\n\nTrees are beautiful: Happy\n\nI hate Pizza: Angry\n\nSquirrels are so cute: Happy\n\nYouTube Ads Suck: Angry\n\nI’m so excited:\n\nI am so mad: Angry\n\nI love life: Happy\n\nI hate my boss: Angry\n\nLife is good: Happy\n\nI’m so excited:\n\nTrees are beautiful: Happy\n\nI’m so excited:\n\nI love life: Happy\n\nLife is good: Happy\n\nI am so mad: Angry\n\nI hate my boss: Angry\n\nI’m so excited:\n\n1\n\n3. Exemplar Label Distribution\nProvide a balanced label\ndistribution*\n\n4. Exemplar Label Quality\nEnsure exemplars are labeled\ncorrectly*\n\nI am so mad: Angry\n\nI love life: Happy\n\nI hate my boss: Angry\n\nLife is good: Happy\n\nI’m so excited:\n\nI am so mad: Angry\n\nI love life: Happy\n\nI hate my boss: Angry\n\nLife is good: Happy\n\nI’m so excited:\n\nI am so mad: Angry\n\nPeople are so dense: An"
    }
   ],
@@ -635,7 +635,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.2.5, с. 16",
+    "ref": "§2.2.5, p. 16",
     "text": "Cumulative Reasoning (Zhang et al., 2023b)\nfirst generates several potential steps in answering\nthe question. It then has a LLM evaluate them, deciding to either accept or reject these steps. Finally,\nit checks whether it has arrived at the final answer.\nIf so, it terminates the process, but otherwise it\nrepeats it. This method has demonstrated improvements in logical inference tasks and mathematical\nproblem.\n\n2.3\n\nMeta Prompting is the process of prompting a\nLLM to generate or improve a prompt or prompt\ntemplate (Reynolds and McDonell, 2021; Zhou\net al., 2022b; Ye et al., 2023). This is often done\nwithout any scoring mechanism, using just a simple template (Figure 2.12). However, other works\npresent more complex uses of meta-prompting,\nwith multiple iterations and scoring mechanisms\nYang et al. (2023a); Fernando et al. (2023).\n\nPrompting Technique Usage\n\nAs we have just seen, there exist many text-based\nprompting techniques. However, only a small subset of them are commonly used in research and in\nindustry. We measure technique usage by proxy of\nmeasuring the number of citations by other papers\nin our dataset. We do so with the presumption that\npapers about prompting are more likely to actually\nuse or evaluate the cited technique. We graph the\ntop 25 papers cited in this way from our dataset and\nfind that most of them propose new prompting techniques (Figure 2.11). The prevale"
    }
   ],
@@ -645,7 +645,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.4, с. 16",
+    "ref": "§2.4, p. 16",
     "text": "Meta Prompting is the process of prompting a\nLLM to generate or improve a prompt or prompt\ntemplate (Reynolds and McDonell, 2021; Zhou\net al., 2022b; Ye et al., 2023). This is often done\nwithout any scoring mechanism, using just a simple template (Figure 2.12). However, other works\npresent more complex uses of meta-prompting,\nwith multiple iterations and scoring mechanisms\nYang et al. (2023a); Fernando et al. (2023).\n\nPrompting Technique Usage\n\nAs we have just seen, there exist many text-based\nprompting techniques. However, only a small subset of them are commonly used in research and in\nindustry. We measure technique usage by proxy of\nmeasuring the number of citations by other papers\nin our dataset. We do so with the presumption that\npapers about prompting are more likely to actually\nuse or evaluate the cited technique. We graph the\ntop 25 papers cited in this way from our dataset and\nfind that most of them propose new prompting techniques (Figure 2.11). The prevalence of citations\nfor Few-Shot and Chain-of-Thought prompting is\nunsurprising and helps to establish a baseline for\nunderstanding the prevalence of other techniques.\n2.3.1\n\nPrompt Engineering\n\nImprove the following prompt: {PROMPT}\n\nFigure 2.12: A simple Meta Prompting template.\n\nAutoPrompt (Shin et al., 2020b) uses a frozen\nLLM as well as a prompt template that includes\nsome \"trigger tokens\", whose values are update"
    }
   ],
@@ -655,7 +655,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.4, с. 16",
+    "ref": "§2.4, p. 16",
     "text": "AutoPrompt (Shin et al., 2020b) uses a frozen\nLLM as well as a prompt template that includes\nsome \"trigger tokens\", whose values are updated\nvia backpropogation at training time. This is a\nversion of soft-prompting.\nAutomatic Prompt Engineer (APE) (Zhou et al.,\n2022b) uses a set of exemplars to generate a ZeroShot instruction prompt. It generates multiple possible prompts, scores them, then creates variations\nof the best ones (e.g. by using prompt paraphrasing). It iterates on this process until some desiderata are reached.\n\nBenchmarks\n\nIn prompting research, when researchers propose\na new technique, they usually benchmark it across\nmultiple models and datasets. This is important to\nprove the utility of the technique and examine how\nit transfers across models.\nIn order to make it easier for researchers proposing new techniques to know how to benchmark\nthem, we quantitatively examine which models\n(Figure 2.9) and what benchmark datasets (Figure 2.10) are being used. Again, we measure usage\nby how many times papers in our dataset cite the\nbenchmark datasets and models.\nTo find which datasets and models are being\nused, we prompted GPT-4-1106-preview to extract\n\nGradientfree Instructional Prompt Search\n(GrIPS) (Prasad et al., 2023) is similar to APE,\nbut uses a more complex set of operations including deletion, addition, swapping, and paraphrasing\nin order to create variations of a"
    }
   ],
@@ -665,7 +665,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.4, с. 16",
+    "ref": "§2.4, p. 16",
     "text": "Gradientfree Instructional Prompt Search\n(GrIPS) (Prasad et al., 2023) is similar to APE,\nbut uses a more complex set of operations including deletion, addition, swapping, and paraphrasing\nin order to create variations of a starting prompt.\nPrompt Optimization with Textual Gradients (ProTeGi) (Pryzant et al., 2023) is a unique approach\nto prompt engineering that improves a prompt template through a multi-step process. First, it passes\n16"
    }
   ],
@@ -675,7 +675,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.4, с. 16",
+    "ref": "§2.4, p. 16",
     "text": "Gradientfree Instructional Prompt Search\n(GrIPS) (Prasad et al., 2023) is similar to APE,\nbut uses a more complex set of operations including deletion, addition, swapping, and paraphrasing\nin order to create variations of a starting prompt.\nPrompt Optimization with Textual Gradients (ProTeGi) (Pryzant et al., 2023) is a unique approach\nto prompt engineering that improves a prompt template through a multi-step process. First, it passes\n16"
    }
   ],
@@ -685,7 +685,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.4, с. 18",
+    "ref": "§2.4, p. 18",
     "text": "RLPrompt (Deng et al., 2022) uses a frozen LLM\nwith an unfrozen module added. It uses this LLM to\ngenerate prompt templates, scores the templates on\na dataset, and updates the unfrozen module using\nSoft Q-Learning (Guo et al., 2022). Interestingly,\nthe method often selects grammatically nonsensical\ntext as the optimal prompt template.\n\nAnswer Extraction:\n\nSelect the proper label\n\nFigure 2.13: An annotated output of a LLM output for a\nlabeling task, which shows the three design decisions of\nanswer engineering: the choice of answer shape, space,\nand extractor. Since this is an output from a classification task, the answer shape could be restricted to a\nsingle token and the answer space to one of two tokens\n(\"positive\" or \"negative\"), though they are unrestricted\nin this image.\n\nDialogue-comprised Policy-gradient-based Discrete Prompt Optimization (DP2O) (Li et al.,\n2023b) is perhaps the most complicated prompt engineering technique, involving reinforcement learning, a custom prompt scoring function, and conversations with an LLM to construct the prompt.\n\n2.5\n\nLikely Negative\nThis is negative\nNEGATIVE !\n\n2.5.1\n\nAnswer Shape\n\nThe shape of an answer is its physical format. For\nexample, it could be a token, span of tokens, or\neven an image or video.7 It is sometimes useful to\nrestrict the output shape of a LLM to a single token\nfor tasks like binary classification.\n\nAnswer Engineerin"
    }
   ],
@@ -695,17 +695,27 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.4, с. 18",
+    "ref": "§2.4, p. 18",
     "text": "Dialogue-comprised Policy-gradient-based Discrete Prompt Optimization (DP2O) (Li et al.,\n2023b) is perhaps the most complicated prompt engineering technique, involving reinforcement learning, a custom prompt scoring function, and conversations with an LLM to construct the prompt.\n\n2.5\n\nLikely Negative\nThis is negative\nNEGATIVE !\n\n2.5.1\n\nAnswer Shape\n\nThe shape of an answer is its physical format. For\nexample, it could be a token, span of tokens, or\neven an image or video.7 It is sometimes useful to\nrestrict the output shape of a LLM to a single token\nfor tasks like binary classification.\n\nAnswer Engineering\n\n2.5.2\n\nAnswer engineering is the iterative process of developing or selecting among algorithms that extract\nprecise answers from LLM outputs. To understand\nthe need for answer engineering, consider a binary classification task where the labels are \"Hate\nSpeech\" and \"Not Hate Speech\". The prompt template might look like this:\n\nAnswer Space\n\nThe space of an answer is the domain of values\nthat its structure may contain. This may simply be\nthe space of all tokens, or in a binary labeling task,\ncould just be two possible tokens.\n2.5.3\n\nAnswer Extractor\n\nIn cases where it is impossible to entirely control\nthe answer space (e.g. consumer-facing LLMs), or\nthe expected answer may be located somewhere\nwithin the model output, a rule can be defined to\nextract the final answer. This ru"
    }
   ],
   "paper": "Dialogue for Prompting: a Policy-Gradient-Based Discrete Prompt Generation for Few-shot Learning (Li et al., 2023 · arXiv:2308.07272)"
  },
+ "dspy": {
+  "excerpts": [
+   {
+    "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
+    "ref": "§6.2.3, p. 42",
+    "text": "DSPy. We concluded the case study by exploring an alternative to manual prompt engineering, the DSPy framework (Khattab et al., 2023),\nwhich automatically optimizes LLM prompts for\na given target metric. Specifically, we begin\nwith a chain-of-thought classification pipeline\nthat uses the definition of entrapment in Figure\n6.7. Over 16 iterations, DSPy bootstrapped synthetic LLM-generated demonstrations and randomly sampled training exemplars, with the\n42"
+   }
+  ],
+  "paper": "DSPy: Compiling Declarative Language Model Calls into Self-Improving Pipelines (Khattab et al., 2023 · arXiv:2310.03714)"
+ },
  "verbalizer": {
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.5.3, с. 18",
+    "ref": "§2.5.3, p. 18",
     "text": "Verbalizer Often used in labeling tasks, a verbalizer maps a token, span, or other type of output\nto a label and vice-versa (injective) (Schick and\nSchütze, 2021). For example, if we wish for a\nmodel to predict whether a Tweet is positive or\nnegative, we could prompt it to output either \"+\"\nor \"-\" and a verbalizer would map these token sequences to the appropriate labels. The selection\nof a verbalizer constitutes a component of answer\nengineering.\n7\n\nWe use a different definition than Liu et al. (2023b) with\nrespect to granularity (e.g. token vs span), since the output\ncould be of a different modality.\n\n18"
    }
   ],
@@ -715,7 +725,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.5.3, с. 18",
+    "ref": "§2.5.3, p. 18",
     "text": "Regex As mentioned previously, Regexes are often used to extract answers. They are usually used\nto search for the first instance of a label. However,\ndepending on the output format and whether CoTs\nare generated, it may be better to search for the last\ninstance.\nSeparate LLM Sometimes outputs are so complicated that regexes won’t work consistently. In\nthis case, it can be useful to have a separate LLM\nevaluate the output and extract an answer. This\nseparate LLM will often use an answer trigger\n(Kojima et al., 2022), e.g. \"The answer (Yes or No)\nis\", to extract the answer.\n\n19\n\n3\n\nBeyond English Text Prompting\nX-InSTA Prompting (Tanwar et al., 2023) explores three distinct approaches for aligning incontext examples with the input sentence for classification tasks: using semantically similar examples\nto the input (semantic alignment), examples that\nshare the same label as the input (task-based alignment), and the combination of both semantic and\ntask-based alignments.\n\nPrompting GenAIs with English text currently\nstands as the dominant method for interaction.\nPrompting in other languages or through different modalities often requires special techniques to\nachieve comparable performance. In this context,\nwe discuss the domains of multilingual and multimodal prompting.\n\n3.1\n\nMultilingual\n\nIn-CLT (Cross-lingual Transfer) Prompting\n(Kim et al., 2023) leverages both the source and"
    }
   ],
@@ -725,7 +735,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§2.5.3, с. 18",
+    "ref": "§2.5.3, p. 18",
     "text": "rule is often a simple\nfunction (e.g. a regular expression), but can also\nuse a separate LLM to extract the answer.\n\nIs this \"Hate Speech\" or \"Not Hate Speech\":\n{TEXT}\nWhen a hate speech sample is put through the\ntemplate, it might have outputs such as \"It’s hate\nspeech\", \"Hate Speech.\", or even \"Hate speech,\nbecause it uses negative language against a racial\ngroup\". This variance in response formats is difficult to parse consistently; improved prompting can\nhelp, but only to a certain extent.\nThere are three design decisions in answer engineering, the choice of answer space, answer\nshape, and answer extractor (Figure 2.13). Liu\net al. (2023b) define the first two as necessary\ncomponents of answer engineering and we append\nthe third. We consider answer engineering to be\ndistinct from prompt engineering, but extremely\nclosely related; the processes are often conducted\nin tandem.\n\nVerbalizer Often used in labeling tasks, a verbalizer maps a token, span, or other type of output\nto a label and vice-versa (injective) (Schick and\nSchütze, 2021). For example, if we wish for a\nmodel to predict whether a Tweet is positive or\nnegative, we could prompt it to output either \"+\"\nor \"-\" and a verbalizer would map these token sequences to the appropriate labels. The selection\nof a verbalizer constitutes a component of answer\nengineering.\n7\n\nWe use a different definition than Liu et al. (2023b)"
    }
   ],
@@ -735,7 +745,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§4.1.2, с. 24",
+    "ref": "§4.1.2, p. 24",
     "text": "Writing and executing code is another important\nability of many agents.9\nProgram-aided Language Model (PAL) (Gao\net al., 2023b) translates a problem directly into\n\n24"
    }
   ],
@@ -745,7 +755,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§4.1.2, с. 25",
+    "ref": "§4.1.2, p. 25",
     "text": "Tool-Integrated Reasoning Agent (ToRA) (Gou\net al., 2024b) is similar to PAL, but instead of a\nsingle code generation step, it interleaves code and\nreasoning steps for as long as necessary to solve\nthe problem.\n\nVoyager (Wang et al., 2023a) is composed of\nthree parts. First, it proposes tasks for itself to\ncomplete in order to learn more about the world.\nSecond, it generates code to execute these actions.\nFinally, it saves these actions to be retrieved later\nwhen useful, as part of a long-term memory system.\nThis system could be applied to real world tasks\nwhere an agent needs to explore and interact with\na tool or website (e.g. penetration testing, usability\ntesting).\n\nTaskWeaver (Qiao et al., 2023) is also similar to\nPAL, transforming user requests into code, but can\nalso make use of user-defined plugin.\n4.1.3\n\nObservation-Based Agents\n\nSome agents are designed to solve problems by\ninteracting with toy environments (Brockman et al.,\n2016; Towers et al., 2023). These observationbased agents receive observations inserted into their\nprompts.\n\nGhost in the Minecraft (GITM) (Zhu et al.,\n2023) starts with an arbitrary goal, breaks it down\ninto subgoals recursively, then iteratively plans and\nexecutes actions by producing structured text (e.g.\n\"equip(sword)\") rather than writing code. GITM\nuses an external knowledge base of Minecraft items\nto assist with decomposition as well as a m"
    }
   ],
@@ -755,7 +765,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§4.1.2, с. 25",
+    "ref": "§4.1.2, p. 25",
     "text": "TaskWeaver (Qiao et al., 2023) is also similar to\nPAL, transforming user requests into code, but can\nalso make use of user-defined plugin.\n4.1.3\n\nObservation-Based Agents\n\nSome agents are designed to solve problems by\ninteracting with toy environments (Brockman et al.,\n2016; Towers et al., 2023). These observationbased agents receive observations inserted into their\nprompts.\n\nGhost in the Minecraft (GITM) (Zhu et al.,\n2023) starts with an arbitrary goal, breaks it down\ninto subgoals recursively, then iteratively plans and\nexecutes actions by producing structured text (e.g.\n\"equip(sword)\") rather than writing code. GITM\nuses an external knowledge base of Minecraft items\nto assist with decomposition as well as a memory\nof past experience.\n\nReasoning and Acting (ReAct) (Yao et al.\n(2022)) generates a thought, takes an action, and\nreceives an observation (and repeats this process)\nwhen given a problem to solve. All of this information is inserted into the prompt so it has a memory\nof past thoughts, actions, and observations.\n\n4.1.4 Retrieval Augmented Generation (RAG)\n\nReflexion (Shinn et al., 2023) builds on ReAct,\nadding a layer of introspection. It obtains a trajectory of actions and observations, then is given an\nevaluation of success/failure. Then, it generates\na reflection on what it did and what went wrong.\nThis reflection is added to its prompt as a working\nmemory, and the"
    }
   ],
@@ -765,7 +775,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§4.1.3, с. 25",
+    "ref": "§4.1.3, p. 25",
     "text": "Reflexion 4.1.3\nVoyager 4.1.3.1\nLifelong Learn. Agents 4.1.3.1\nGITM 4.1.3.1\nIRCoT 4.1.4\nDSP 4.1.4\n\nRetrieval Aug. Generation 4.1.4\nVerify-and-Edit 4.1.4\nIterative Retrieval Aug. 4.1.4\n\nFigure 4.1: Agent techniques covered in this section.\n\ncode, which is sent to a Python interpreter to generate an answer.\n\nopen-world videogame. We view these agents\nnot merely as applications of agent techniques\nto Minecraft, but rather novel agent frameworks\nwhich can be explored in real world tasks that require lifelong learning.\n\nTool-Integrated Reasoning Agent (ToRA) (Gou\net al., 2024b) is similar to PAL, but instead of a\nsingle code generation step, it interleaves code and\nreasoning steps for as long as necessary to solve\nthe problem.\n\nVoyager (Wang et al., 2023a) is composed of\nthree parts. First, it proposes tasks for itself to\ncomplete in order to learn more about the world.\nSecond, it generates code to execute these actions.\nFinally, it saves these actions to be retrieved later\nwhen useful, as part of a long-term memory system.\nThis system could be applied to real world tasks\nwhere an agent needs to explore and interact with\na tool or website (e.g. penetration testing, usability\ntesting).\n\nTaskWeaver (Qiao et al., 2023) is also similar to\nPAL, transforming user requests into code, but can\nalso make use of user-defined plugin.\n4.1.3\n\nObservation-Based Agents\n\nSome agents are designed to"
    }
   ],
@@ -775,7 +785,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§4.1.3.1, с. 25",
+    "ref": "§4.1.3.1, p. 25",
     "text": "Reflexion 4.1.3\nVoyager 4.1.3.1\nLifelong Learn. Agents 4.1.3.1\nGITM 4.1.3.1\nIRCoT 4.1.4\nDSP 4.1.4\n\nRetrieval Aug. Generation 4.1.4\nVerify-and-Edit 4.1.4\nIterative Retrieval Aug. 4.1.4\n\nFigure 4.1: Agent techniques covered in this section.\n\ncode, which is sent to a Python interpreter to generate an answer.\n\nopen-world videogame. We view these agents\nnot merely as applications of agent techniques\nto Minecraft, but rather novel agent frameworks\nwhich can be explored in real world tasks that require lifelong learning.\n\nTool-Integrated Reasoning Agent (ToRA) (Gou\net al., 2024b) is similar to PAL, but instead of a\nsingle code generation step, it interleaves code and\nreasoning steps for as long as necessary to solve\nthe problem.\n\nVoyager (Wang et al., 2023a) is composed of\nthree parts. First, it proposes tasks for itself to\ncomplete in order to learn more about the world.\nSecond, it generates code to execute these actions.\nFinally, it saves these actions to be retrieved later\nwhen useful, as part of a long-term memory system.\nThis system could be applied to real world tasks\nwhere an agent needs to explore and interact with\na tool or website (e.g. penetration testing, usability\ntesting).\n\nTaskWeaver (Qiao et al., 2023) is also similar to\nPAL, transforming user requests into code, but can\nalso make use of user-defined plugin.\n4.1.3\n\nObservation-Based Agents\n\nSome agents are designed to"
    }
   ],
@@ -785,7 +795,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§4.1.3.1, с. 25",
+    "ref": "§4.1.3.1, p. 25",
     "text": "Ghost in the Minecraft (GITM) (Zhu et al.,\n2023) starts with an arbitrary goal, breaks it down\ninto subgoals recursively, then iteratively plans and\nexecutes actions by producing structured text (e.g.\n\"equip(sword)\") rather than writing code. GITM\nuses an external knowledge base of Minecraft items\nto assist with decomposition as well as a memory\nof past experience.\n\nReasoning and Acting (ReAct) (Yao et al.\n(2022)) generates a thought, takes an action, and\nreceives an observation (and repeats this process)\nwhen given a problem to solve. All of this information is inserted into the prompt so it has a memory\nof past thoughts, actions, and observations.\n\n4.1.4 Retrieval Augmented Generation (RAG)\n\nReflexion (Shinn et al., 2023) builds on ReAct,\nadding a layer of introspection. It obtains a trajectory of actions and observations, then is given an\nevaluation of success/failure. Then, it generates\na reflection on what it did and what went wrong.\nThis reflection is added to its prompt as a working\nmemory, and the process repeats.\n\nIn the context of GenAI agents, RAG is a paradigm\nin which information is retrieved from an external\nsource and inserted into the prompt. This can enhance performance in knowledge intensive tasks\n(Lewis et al., 2021). When retrieval itself is used\nas an external tool, RAG systems are considered to\nbe agents.\n\n4.1.3.1\n\nVerify-and-Edit (Zhao et al., 2023a) impr"
    }
   ],
@@ -795,7 +805,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§4.1.4, с. 25",
+    "ref": "§4.1.4, p. 25",
     "text": "Retrieval Aug. Generation 4.1.4\nVerify-and-Edit 4.1.4\nIterative Retrieval Aug. 4.1.4\n\nFigure 4.1: Agent techniques covered in this section.\n\ncode, which is sent to a Python interpreter to generate an answer.\n\nopen-world videogame. We view these agents\nnot merely as applications of agent techniques\nto Minecraft, but rather novel agent frameworks\nwhich can be explored in real world tasks that require lifelong learning.\n\nTool-Integrated Reasoning Agent (ToRA) (Gou\net al., 2024b) is similar to PAL, but instead of a\nsingle code generation step, it interleaves code and\nreasoning steps for as long as necessary to solve\nthe problem.\n\nVoyager (Wang et al., 2023a) is composed of\nthree parts. First, it proposes tasks for itself to\ncomplete in order to learn more about the world.\nSecond, it generates code to execute these actions.\nFinally, it saves these actions to be retrieved later\nwhen useful, as part of a long-term memory system.\nThis system could be applied to real world tasks\nwhere an agent needs to explore and interact with\na tool or website (e.g. penetration testing, usability\ntesting).\n\nTaskWeaver (Qiao et al., 2023) is also similar to\nPAL, transforming user requests into code, but can\nalso make use of user-defined plugin.\n4.1.3\n\nObservation-Based Agents\n\nSome agents are designed to solve problems by\ninteracting with toy environments (Brockman et al.,\n2016; Towers et al., 2023). T"
    }
   ],
@@ -805,7 +815,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§4.1.4, с. 25",
+    "ref": "§4.1.4, p. 25",
     "text": "the CoTs, and allowing the LLM to augment them\naccordingly.\nDemonstrate-Search-Predict (Khattab et al.,\n2022) first decomposes a question into subquestions, then uses queries to solve them and\ncombine their responses in a final answer. It uses\nfew-shot prompting to decompose the problem and\ncombine responses.\nInterleaved Retrieval guided by Chain-ofThought (IRCoT) (Trivedi et al., 2023) is a\ntechnique for multi-hop question answering that\ninterleaves CoT and retrieval. IRCoT leverages\nCoT to guide which documents to retrieve and\nretrieval to help plan the reasoning steps of CoT.\n\n4.2.1\n\nThe prompting technique used in the evaluator\nprompt (e.g. simple instruction vs CoT) is instrumental in building a robust evaluator. Evaluation prompts often benefit from regular text-based\nprompting techniques, including a role, instructions\nfor the task, the definitions of the evaluation criteria, and in-context examples. Find a full list of\ntechniques in Appendix A.6.\n\nIterative Retrieval Augmentation techniques,\nlike Forward-Looking Active REtrieval augmented\ngeneration (FLARE) (Jiang et al., 2023) and Imitate, Retrieve, Paraphrase (IRP) (Balepur et al.,\n2023), perform retrieval multiple times during longform generation. Such models generally perform\nan iterative three-step process of: 1) generating\na temporary sentence to serve as a content plan\nfor the next output sentence; 2) retrieving"
    }
   ],
@@ -815,7 +825,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§4.1.4, с. 26",
+    "ref": "§4.1.4, p. 26",
     "text": "problem and\ncombine responses.\nInterleaved Retrieval guided by Chain-ofThought (IRCoT) (Trivedi et al., 2023) is a\ntechnique for multi-hop question answering that\ninterleaves CoT and retrieval. IRCoT leverages\nCoT to guide which documents to retrieve and\nretrieval to help plan the reasoning steps of CoT.\n\n4.2.1\n\nThe prompting technique used in the evaluator\nprompt (e.g. simple instruction vs CoT) is instrumental in building a robust evaluator. Evaluation prompts often benefit from regular text-based\nprompting techniques, including a role, instructions\nfor the task, the definitions of the evaluation criteria, and in-context examples. Find a full list of\ntechniques in Appendix A.6.\n\nIterative Retrieval Augmentation techniques,\nlike Forward-Looking Active REtrieval augmented\ngeneration (FLARE) (Jiang et al., 2023) and Imitate, Retrieve, Paraphrase (IRP) (Balepur et al.,\n2023), perform retrieval multiple times during longform generation. Such models generally perform\nan iterative three-step process of: 1) generating\na temporary sentence to serve as a content plan\nfor the next output sentence; 2) retrieving external knowledge using the temporary sentence as a\nquery; and 3) injecting the retrieved knowledge\ninto the temporary sentence to create the next output sentence. These temporary sentences have been\nshown to be better search queries compared to the\ndocument titles provided in l"
    }
   ],
@@ -825,7 +835,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§4.1.4, с. 26",
+    "ref": "§4.1.4, p. 26",
     "text": "Iterative Retrieval Augmentation techniques,\nlike Forward-Looking Active REtrieval augmented\ngeneration (FLARE) (Jiang et al., 2023) and Imitate, Retrieve, Paraphrase (IRP) (Balepur et al.,\n2023), perform retrieval multiple times during longform generation. Such models generally perform\nan iterative three-step process of: 1) generating\na temporary sentence to serve as a content plan\nfor the next output sentence; 2) retrieving external knowledge using the temporary sentence as a\nquery; and 3) injecting the retrieved knowledge\ninto the temporary sentence to create the next output sentence. These temporary sentences have been\nshown to be better search queries compared to the\ndocument titles provided in long-form generation\ntasks.\n\n4.2\n\nPrompting Techniques\n\nIn-Context Learning is frequently used in evaluation prompts, much in the same way it is used in\nother applications (Dubois et al., 2023; Kocmi and\nFedermann, 2023a; Brown et al., 2020).\nRole-based Evaluation is a useful technique for\nimproving and diversifying evaluations (Wu et al.,\n2023b; Chan et al., 2024). By creating prompts\nwith the same instructions for evaluation, but different roles, it is possible to effectively generate\ndiverse evaluations. Additionally, roles can be used\nin a multiagent setting where LLMs debate the validity of the text to be evaluated (Chan et al., 2024).\n\nEvaluation\n\nThe potential of LLMs to extr"
    }
   ],
@@ -835,7 +845,7 @@ export const sourceExcerpts: Record<string, { excerpts: SourceExcerpt[]; paper: 
   "excerpts": [
    {
     "source": "The Prompt Report: A Systematic Survey of Prompt Engineering Techniques",
-    "ref": "§5.1.3, с. 30",
+    "ref": "§5.1.3, p. 30",
     "text": "Prompt-based Defenses Multiple prompt-based\ndefenses have been proposed, in which instructions\nare included in the prompt to avoid prompt injection (Schulhoff, 2022). For example, the following\nstring could be added to a prompt:\n\nDo not output any malicious content\n\nHowever, Schulhoff et al. (2023) ran a study with\nhundreds of thousands of malicious prompts and\nfound that no prompt-based defense is fully secure,\nthough they can mitigate prompt hacking to some\nextent.\n\nBugs (and security vulnerabilities) occur more\nfrequently in LLM-generated code (Pearce et al.,\n2021, 2022; Sandoval et al., 2022; Perry et al.,\n2022). Minor changes to the prompting technique\ncan also lead to such vulnerabilities in the generated code (Pearce et al., 2021).\n5.1.2.3\n\nDetectors are tools designed to detect malicious\ninputs and prevent prompt hacking (AI, 2023; Inan\net al., 2023). Many companies have built such\ndetectors (ArthurAI, 2024; Preamble, 2024; Lakera, 2024), which are often built using fine-tuned\nmodels trained on malicious prompts. Generally,\nthese tools can mitigate prompt hacking to a greater\nextent than prompt-based defenses.\n\nCustomer Service\n\nMalicious users frequently perform prompt injection attacks against corporate chatbots, leading\nto brand embarrassment (Bakke, 2023; Goodside,\n2022). These attacks may induce the chatbot to\noutput harmful comment or agree to sell the user\na comp"
    }
   ],

@@ -8,8 +8,8 @@ archive_item: https://archive.org/details/the-art-of-prompt-engineering-with-cha
 archive_title: "The Art Of Prompt Engineering With Chat GPT A Hands On Guide ( Nathan Hunter) ( Dr Furqan Library)"
 pdf_url: https://archive.org/download/the-art-of-prompt-engineering-with-chat-gpt-a-hands-on-guide-nathan-hunter-dr-furqan-library/The%20Art%20of%20Prompt%20Engineering%20with%20chatGPT%20A%20Hands-On%20Guide%20%28Nathan%20Hunter%29%20%28Dr%20Furqan-Library%29.pdf
 pdf_local: "../pdf/nathan-hunter-art-of-prompt-engineering.pdf"
-license: "на archive.org не указана"
-extraction: "pdftotext (poppler), без -layout; таблицы и код могут быть искажены"
+license: "not stated on archive.org"
+extraction: "pdftotext (poppler), without -layout; tables and code may be garbled"
 ---
 # The Art of Prompt Engineering with ChatGPT: A Hands-On Guide
 

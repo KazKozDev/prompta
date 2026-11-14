@@ -1,66 +1,66 @@
-# Рубрика оценки: что считается хорошим промптом
+# Scoring rubric: what counts as a good prompt
 
-Пять критериев, каждый 1–5. Оценивается **только промпт**, без учёта того, понравился ли он
-человеку. Судья — LLM с температурой 0, промпт судьи не видит каталог целиком, только выбранную
-технику.
+Five criteria, each 1–5. **Only the prompt** is scored, regardless of whether a person
+liked it. The judge is an LLM at temperature 0; the judge prompt does not see the whole catalog, only the selected
+technique.
 
-## 1. Fidelity — верность брифу
+## 1. Fidelity — faithfulness to the brief
 
-Сохраняет ли промпт цель, ограничения и формат ответа из брифа.
+Does the prompt keep the goal, constraints and answer format from the brief.
 
-| Балл | Признак |
+| Score | Sign |
 |---|---|
-| 5 | Цель, формат и все существенные ограничения перенесены дословно по смыслу; ничего не потеряно |
-| 3 | Цель есть, но потеряно ограничение (язык, объём, запрет на домыслы) |
-| 1 | Промпт решает другую задачу или теряет половину требований |
+| 5 | The goal, format and all significant constraints are carried over faithfully; nothing is lost |
+| 3 | The goal is there, but a constraint is lost (language, length, no-speculation rule) |
+| 1 | The prompt solves a different task or loses half the requirements |
 
-## 2. Specificity — исполнимость
+## 2. Specificity — executability
 
-Можно ли по этому промпту получить результат без дополнительных вопросов.
+Can this prompt produce a result without follow-up questions.
 
-| Балл | Признак |
+| Score | Sign |
 |---|---|
-| 5 | Есть вход, формат выхода, критерии качества; нет формулировок «сделай хорошо» |
-| 3 | Формат есть, критерии размыты |
-| 1 | «Напиши хороший текст про X» — исполнять нечего |
+| 5 | Input, output format and quality criteria are there; no "do it well" wording |
+| 3 | The format is there, the criteria are vague |
+| 1 | "Write a good text about X" — nothing to execute |
 
-## 3. Technique fit — соответствие технике
+## 3. Technique fit — match with the technique
 
-Узнаётся ли структура выбранной техники: блоки на своих местах, приём не подменён другим.
+Is the selected technique's structure recognisable: the blocks are in place, the method is not swapped for another.
 
-| Балл | Признак |
+| Score | Sign |
 |---|---|
-| 5 | Структура каркаса сохранена, приём читается (CoT — шаги, few-shot — примеры, contextual — «только по материалу») |
-| 3 | Приём угадывается, но половина каркаса потеряна |
-| 1 | Взят CoT, а промпт — обычная просьба; техника не отражена |
+| 5 | The skeleton's structure is kept and the method reads clearly (CoT — steps, few-shot — examples, contextual — "material only") |
+| 3 | The method can be guessed, but half the skeleton is lost |
+| 1 | CoT was picked, but the prompt is a plain request; the technique is not reflected |
 
-## 4. Config sanity — адекватность настроек
+## 4. Config sanity — sensible settings
 
-Соответствуют ли `temperature`, `top_p`, лимит токенов задаче и технике.
+Do `temperature`, `top_p` and the token limit suit the task and the technique.
 
-| Балл | Признак |
+| Score | Sign |
 |---|---|
-| 5 | Числа объяснены и совпадают с типом задачи (извлечение — 0, ансамбль — высокая) |
-| 3 | Значения безопасные, но не объяснены |
-| 1 | Креативная температура для классификации или лимит, обрезающий ответ |
+| 5 | The numbers are explained and match the task type (extraction — 0, ensemble — high) |
+| 3 | The values are safe but not explained |
+| 1 | A creative temperature for classification, or a limit that cuts the answer off |
 
-## 5. Clean output — чистота
+## 5. Clean output — cleanliness
 
-Готов ли промпт к вставке как есть.
+Is the prompt ready to paste as is.
 
-| Балл | Признак |
+| Score | Sign |
 |---|---|
-| 5 | Нет `{{плейсхолдеров}}`, мета-комментариев, обрывков на чужом языке, обрезанных фраз |
-| 3 | Остался один плейсхолдер или служебная фраза |
-| 1 | Половина промпта — `{{...}}` или объяснения модели самой себе |
+| 5 | No `{{placeholders}}`, meta-comments, fragments in another language, or cut-off sentences |
+| 3 | One placeholder or scaffolding sentence is left |
+| 1 | Half the prompt is `{{...}}` or the model explaining things to itself |
 
-## Вердикт
+## Verdict
 
-Средний балл: **≥ 4.0 — accept**, **2.5–3.9 — revise**, **< 2.5 — reject**.
-Судья обязан объяснить каждый балл одной фразой; без объяснения балл не принимается.
+Mean score: **≥ 4.0 — accept**, **2.5–3.9 — revise**, **< 2.5 — reject**.
+The judge must explain each score in one sentence; a score without an explanation is not accepted.
 
-## Что рубрика намеренно не измеряет
+## What the rubric deliberately does not measure
 
-- Правильность выбора техники — это отдельная метрика (`expectedHit` в отчёте), её нельзя
-  спрашивать у того же судьи, который оценивает промпт: получится самоподтверждение.
-- Качество работы модели по готовому промпту — для этого нужен прогон на реальных данных.
+- Whether the technique choice was right: that is a separate metric (`expectedHit` in the report), and it cannot
+  be asked of the same judge that scores the prompt — that would be self-confirmation.
+- How well a model performs with the finished prompt: that needs a run on real data (`eval/execute.ts`).

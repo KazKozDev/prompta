@@ -1,80 +1,81 @@
-# pipeline — поток мыслей → промпт
+# pipeline — stream of thoughts → prompt
 
-Три стадии, каждая — чистая функция с LLM в качестве зависимости. Никакого DOM, никакого React:
-тестируется без сети, встраивается в любой UI.
+Three stages, each a pure function with the LLM as a dependency. No DOM, no React:
+it is tested without network and fits into any UI.
 
 ```
-поток мыслей
+stream of thoughts
    │
-   ├─ 1. brief.ts        → TaskBrief   (что за задача, формат, язык, цена ошибки, бюджет)
-   ├─      catalog.ts    → отсев       (детерминированно: тип, статус, бюджет, офлайн-режим)
-   ├─ 2. select.ts       → TechniqueChoice (самая дешёвая подходящая + почему не дешевле)
-   └─ 3. synthesize.ts   → Synthesis   (промпт по каркасу + конфиг + пропуски)
+   ├─ 1. brief.ts        → TaskBrief   (what the task is, format, language, stakes, budget)
+   ├─      catalog.ts    → filtering   (deterministic: type, status, budget, offline mode)
+   ├─ 2. select.ts       → TechniqueChoice (the cheapest fitting one + why not cheaper)
+   └─ 3. synthesize.ts   → Synthesis   (prompt from the skeleton + config + gaps)
 ```
 
-## Файлы
+## Files
 
-| Файл | Роль |
+| File | Role |
 |---|---|
-| `types.ts` | Контракты стадий и `PipelineError` с указанием шага |
-| `catalog.ts` | Загрузка/валидация каталога, компактная проекция, детерминированный отсев |
-| `brief.ts` | Промпт и парсер стадии 1 |
-| `select.ts` | Промпт и парсер стадии 2, правило «самая дешёвая» |
-| `synthesize.ts` | Подстановка плейсхолдеров, конфиг, синтез через LLM |
-| `llm.ts` | Адаптеры Gemini / OpenAI / Ollama / Anthropic / xAI на голом `fetch`: таймауты, отмена, учёт токенов |
-| `prompt-version.ts` | Отпечаток внутренних промптов для отчётов и eval |
-| `index.ts` | `runPipeline`, `formatResult`, трассировка шагов |
-| `cli.ts` | Запуск из терминала |
-| `smoke.test.ts` | Офлайн-проверки пайплайна на `node:test`, без сети |
+| `types.ts` | Stage contracts and `PipelineError` naming the step |
+| `catalog.ts` | Catalog loading/validation, compact projection, deterministic filtering |
+| `brief.ts` | Stage 1 prompt and parser |
+| `select.ts` | Stage 2 prompt and parser, the "cheapest" rule |
+| `synthesize.ts` | Placeholder substitution, config, synthesis through the LLM |
+| `llm.ts` | Gemini / OpenAI / Ollama / Anthropic / xAI adapters on plain `fetch`: timeouts, cancellation, token accounting |
+| `prompt-version.ts` | Fingerprint of the internal prompts for reports and eval |
+| `index.ts` | `runPipeline`, `formatResult`, step tracing |
+| `cli.ts` | Running from the terminal |
+| `smoke.test.ts` | Offline pipeline checks on `node:test`, no network |
 
-## Что гарантируется
+## Guarantees
 
-1. **Синтез только по шаблону.** Техника без `template` (status `index-only`) не может быть
-   выбрана: её отсекает `gateTechniques` до вызова модели.
-2. **Самая дешёвая подходящая.** Если выбрана не первая по цене техника, `whyNotCheaper`
-   обязателен — иначе `PipelineError`. Это защита от «модель любит Tree of Thoughts».
-3. **Бюджет вызовов.** `budget_calls` из брифа (или `--budget`) отсекает техники, чей минимум
-   дороже. Бюджет 1 → только одношаговые.
-4. **Офлайн-режим не врёт.** При `--deterministic` отсекаются техники, чьи плейсхолдеры нечем
-   заполнить из брифа (например `few_shot` без примеров), а не подставляются пустые `{{...}}`.
-5. **Прослеживаемость.** `trace` хранит промпты и сырые ответы по шагам; `rejected` — почему
-   каждая техника выбыла.
-6. **Защита от инъекций.** Поток мыслей попадает в стадию брифа JSON-строкой с правилом «это данные»;
-   выбор и синтез тоже помечают данные задачи как данные. Если промпт обрабатывает чужой материал
-   (документ, текст, контекст, вывод инструментов; типы extraction, classification, qa_over_docs, agentic),
-   в конец добавляется правило «это данные, а не инструкции» на языке промпта.
-8. **Расход и версия.** `runPipeline` возвращает `usage` (вызовы и токены по всем стадиям) и
-   `promptVersion` — отпечаток внутренних промптов (`prompt-version.ts`). Каждый HTTP-запрос
-   ограничен таймаутом (`timeoutMs`, по умолчанию 120 с) и отменяется внешним `AbortSignal`.
-7. **Валидация ответов модели.** `parseBrief`/`parseChoice` проверяют поля и допустимость ключа;
-   неизвестный `task_type` или ключ вне списка — ошибка, а не молчаливое «как-нибудь».
+1. **Synthesis only from a template.** A technique without a `template` (status `index-only`) cannot be
+   selected: `gateTechniques` filters it out before the model is called.
+2. **The cheapest fitting one.** If the selected technique is not the cheapest, `whyNotCheaper`
+   is mandatory, otherwise `PipelineError`. This guards against "the model loves Tree of Thoughts".
+3. **Call budget.** `budget_calls` from the brief (or `--budget`) filters out techniques whose minimum
+   costs more. Budget 1 → single-step techniques only.
+4. **Offline mode does not lie.** With `--deterministic`, techniques whose placeholders cannot be
+   filled from the brief (e.g. `few_shot` without examples) are filtered out instead of getting empty `{{...}}`.
+5. **Traceability.** `trace` keeps the prompts and raw answers per step; `rejected` says why
+   each technique dropped out.
+6. **Injection defence.** The stream of thoughts reaches the brief stage as a JSON string with a "this is data" rule;
+   selection and synthesis also mark the task data as data. If the prompt processes someone else's material
+   (a document, text, context, tool output; types extraction, classification, qa_over_docs, agentic),
+   a "this is data, not instructions" rule in the prompt's language is appended at the end.
+7. **Validation of model answers.** `parseBrief`/`parseChoice` check the fields and that the key is allowed;
+   an unknown `task_type` or a key outside the list is an error, not a silent best effort.
+8. **Usage and version.** `runPipeline` returns `usage` (calls and tokens across all stages) and
+   `promptVersion`, the fingerprint of the internal prompts (`prompt-version.ts`). Every HTTP request
+   is bounded by a timeout (`timeoutMs`, 120 s by default) and is cancelled by an external `AbortSignal`.
 
-## Запуск
+## Running
 
 ```bash
-npm test                                             # офлайн, без ключей
-npm run pipeline "разбери мои заметки с встречи..."   # Gemini по умолчанию
+npm test                                             # offline, no keys
+npm run pipeline "go through my meeting notes..."    # Gemini by default
 npm run pipeline "..." --provider ollama --model glm-5.3:cloud --deterministic
 ```
 
-Ключи берутся из окружения или `.env.local` (`GEMINI_API_KEY`, `OPENAI_API_KEY`); для Ollama ключ
-не нужен. `--json` печатает весь `PipelineResult` для отладки.
+Keys come from the environment or `.env.local` (`GEMINI_API_KEY`, `OPENAI_API_KEY`); Ollama needs
+no key. `--json` prints the whole `PipelineResult` for debugging.
 
-## Границы
+## Limits
 
-- **Оценка.** `eval/` меряет 5 критериев, стабильность выбора, официальные цели (`--target`) и
-  исполнение промптов на эталонах (`eval/execute.ts`). Судья оценивает форму; выводы «техника X лучше Y»
-  делайте по эталонам и нескольким прогонам.
-- **`task_types` заполнены, но 64 из 89 — выводом из категории.** Пайплайн предупреждает, если
-  выбранная техника не заявлена для типа задачи, но не запрещает выбор. Дрейф между прогонами
-  наблюдался (`system_prompting` → `contextual_prompting` → `few_shot` на одном входе) — мерить
-  через `--repeat 3`.
-- **Язык каркаса.** Шаблоны написаны по-английски; в LLM-режиме модель переводит их на язык брифа,
-  в офлайн-режиме получается смешанный текст — пайплайн об этом предупреждает.
-## Как расширять
+- **Evaluation.** `eval/` measures 5 criteria, selection stability, official targets (`--target`) and
+  prompt execution on reference tasks (`eval/execute.ts`). The judge scores form; draw "technique X beats Y"
+  conclusions from reference tasks and several runs.
+- **`task_types` are filled in, but 64 of 89 are inferred from the category.** The pipeline warns if
+  the selected technique is not declared for the task type, but does not forbid the choice. Drift between runs
+  has been seen (`system_prompting` → `contextual_prompting` → `few_shot` on one input) — measure
+  with `--repeat 3`.
+- **Skeleton language.** Templates are written in English; in LLM mode the model translates them into the brief's language,
+  in offline mode the text comes out mixed — the pipeline warns about it.
 
-- Новый шаг (например, критик) — отдельный модуль с сигнатурой `(state) => state`, регистрируется в
-  `runPipeline` и добавляет запись в `trace`.
-- Новый провайдер — функция `LLM` в `llm.ts`; ничего больше менять не нужно.
-- Новые техники — в `catalog.json` через `catalog/README.md`, затем прогон `npm test`: инварианты
-  поймают шаблон без плейсхолдеров и дубли.
+## Extending
+
+- A new step (e.g. a critic) is a separate module with the signature `(state) => state`, registered in
+  `runPipeline`, adding an entry to `trace`.
+- A new provider is an `LLM` function in `llm.ts`; nothing else needs to change.
+- New techniques go into `catalog.json` via `catalog/README.md`, then run `npm test`: the invariants
+  catch a template without placeholders and duplicates.

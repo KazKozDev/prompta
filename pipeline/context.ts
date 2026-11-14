@@ -25,8 +25,8 @@ export function redactSecrets(text: string): string {
   );
 }
 
-/** Контекст обрамлён <<< >>>: внутри не должно быть этих маркеров, иначе чужой текст закроет блок
- *  и допишет «задачу» от себя. */
+/** The context is framed by <<< >>>: those markers must not appear inside, or foreign text could close the block
+ *  and append a "task" of its own. */
 export function neutralizeDelimiters(text: string): string {
   return text.replace(/<{3,}/g, '‹‹‹').replace(/>{3,}/g, '›››');
 }

@@ -9,7 +9,7 @@ archive_title: "Prompt Engineering"
 pdf_url: https://archive.org/download/prompt-engineering/prompt%20engineering.pdf
 pdf_local: "../pdf/antor-shah-prompt-engineering.pdf"
 license: "https://creativecommons.org/licenses/by-nc-sa/4.0/"
-extraction: "pdftotext (poppler), без -layout; таблицы и код могут быть искажены"
+extraction: "pdftotext (poppler), without -layout; tables and code may be garbled"
 ---
 # Prompt Engineering
 

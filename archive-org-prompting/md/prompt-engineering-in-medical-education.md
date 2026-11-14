@@ -8,8 +8,8 @@ archive_item: https://archive.org/details/prompt-engineering-medical-education
 archive_title: "2023 Prompt Engineering in Medical Education"
 pdf_url: https://archive.org/download/prompt-engineering-medical-education/ime-02-00019.pdf
 pdf_local: "../pdf/prompt-engineering-in-medical-education.pdf"
-license: "на archive.org не указана"
-extraction: "pdftotext (poppler), без -layout; таблицы и код могут быть искажены"
+license: "not stated on archive.org"
+extraction: "pdftotext (poppler), without -layout; tables and code may be garbled"
 ---
 # Prompt Engineering in Medical Education
 

@@ -1,8 +1,11 @@
-"""Settings tab for the Prompta MCP server: install it into the major MCP clients, pick its model, copy configs."""
+"""Settings tab for the Prompta MCP server: install it into the major MCP clients and copy configs.
+The server follows the app's Model & API tab: the app keeps its choice in generator.json (no key; the key is read
+from Keychain), installs only tell the server to follow it, so a new provider or model needs no reinstall."""
 from __future__ import annotations
 
 import html
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -17,14 +20,16 @@ except ImportError:  # pragma: no cover - the app then simply cannot edit Hermes
     yaml = None
 
 from PyQt6.QtCore import QSettings, QThread, QTimer, Qt, pyqtSignal
-from PyQt6.QtGui import QGuiApplication
+from PyQt6.QtCore import QSize
+from PyQt6.QtGui import QGuiApplication, QIcon
 from PyQt6.QtWidgets import (
-    QComboBox, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget,
+    QGridLayout, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget,
 )
 
 SERVER_NAME = "prompta"
 COPY_LABEL = "Copy JSON for other apps"
-PROVIDERS = [("ollama", "Ollama (local or :cloud)"), ("openai", "OpenAI-compatible"), ("gemini", "Gemini"), ("anthropic", "Anthropic (Claude)"), ("xai", "xAI (Grok)")]
+# (provider, model, api key, base URL, label) — what the app's Model & API tab currently says.
+Generator = tuple[str, str, str, str, str]
 
 
 def find_claude_cli() -> str | None:
@@ -61,6 +66,32 @@ def parse_mcp_get(output: str) -> dict:
     return info
 
 
+FOLLOW_ENV = {"PROMPTA_FOLLOW_APP": "1"}  # what every install writes: follow Model & API, no model or key baked in
+STATE_PATH = Path.home() / "Library" / "Application Support" / "Prompta" / "generator.json"
+
+
+def generator_state(provider: str, account: str, model: str, base_url: str) -> dict[str, str]:
+    """The app's current generator for the MCP server. `account` is the Keychain item holding the key."""
+    return {"provider": provider, "keychain_account": account, "model": model.strip(), "base_url": base_url.strip()}
+
+
+def write_generator_state(state: dict[str, str], path: Path | None = None) -> bool:
+    """Atomic write, readable only by this account; nothing is written when nothing changed."""
+    path = path or Path(os.environ.get("PROMPTA_STATE_FILE") or STATE_PATH)  # the server reads the same override
+    text = json.dumps(state, indent=2, sort_keys=True)
+    try:
+        if path.exists() and path.read_text(encoding="utf-8") == text:
+            return False
+        path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        tmp = path.with_name(path.name + ".tmp")
+        tmp.write_text(text, encoding="utf-8")
+        tmp.chmod(0o600)
+        tmp.replace(path)
+        return True
+    except OSError:
+        return False
+
+
 def server_env(provider: str, model: str, api_key: str = "", base_url: str = "") -> dict[str, str]:
     env = {"PROMPTA_PROVIDER": provider} if provider != "ollama" else {}
     if model.strip():
@@ -94,7 +125,7 @@ class FileClient:
     key: str
     name: str
     path: Path          # config file
-    fmt: str  # "json" (mcpServers), "vscode" (servers + type), "codex" (TOML), "hermes" (YAML), "openclaw" (its CLI)
+    fmt: str  # "json" (mcpServers), "vscode" (servers + type), "codex" (TOML), "hermes" (YAML)
     present: tuple[Path, ...]  # any of these existing means the app is on this Mac
 
 
@@ -113,23 +144,7 @@ def file_clients(home: Path | None = None) -> list[FileClient]:
         FileClient("gemini", "Gemini CLI", home / ".gemini" / "settings.json", "json", (home / ".gemini",)),
         FileClient("codex", "Codex", home / ".codex" / "config.toml", "codex", (home / ".codex",)),
         FileClient("hermes", "Hermes Agent", home / ".hermes" / "config.yaml", "hermes", (home / ".hermes",)),
-        FileClient("openclaw", "OpenClaw (Clawdbot)", home / ".openclaw" / "openclaw.json", "openclaw",
-                   (home / ".openclaw",)),
     ]
-
-
-def find_openclaw_cli() -> str | None:
-    for candidate in (str(Path.home() / ".local/bin/openclaw"), shutil.which("openclaw"), shutil.which("clawdbot")):
-        if candidate and Path(candidate).exists():
-            return candidate
-    return None
-
-
-def openclaw_commands(cli: str, entry: dict | None) -> list[list[str]]:
-    """OpenClaw guards its config with a journal, so changes go through its own CLI."""
-    if entry is None:
-        return [[cli, "mcp", "unset", SERVER_NAME]]
-    return [[cli, "mcp", "set", SERVER_NAME, json.dumps(entry)]]
 
 
 def client_present(client: FileClient) -> bool:
@@ -165,9 +180,6 @@ def read_entry(client: FileClient) -> dict | None:
                 raise ValueError("PyYAML is not installed")
             data = yaml.safe_load(text) or {}
             section = (data.get("mcp_servers") or {}) if isinstance(data, dict) else None
-        elif client.fmt == "openclaw":
-            data = json.loads(text) if text.strip() else {}
-            section = ((data.get("mcp") or {}).get("servers") or {}) if isinstance(data, dict) else None
         else:
             data = json.loads(text) if text.strip() else {}
             section = data.get(_json_section(client), {}) if isinstance(data, dict) else None
@@ -252,8 +264,6 @@ def write_entry(client: FileClient, entry: dict | None) -> None:
     """Install (entry) or remove (None) Prompta. Keeps a .bak copy and never rewrites a file it cannot parse."""
     read_entry(client)  # raises on an unparsable file before anything is touched
     old = client.path.read_text(encoding="utf-8") if client.path.exists() else ""
-    if client.fmt == "openclaw":
-        raise ValueError("OpenClaw is changed through its CLI")
     if client.fmt == "hermes":
         new = _hermes_checked(old, _hermes_text(old, entry), entry)
     elif client.fmt == "codex":
@@ -279,12 +289,22 @@ def write_entry(client: FileClient, entry: dict | None) -> None:
 
 def model_note(env: dict) -> str:
     """The model Prompta itself writes prompts with; the agent keeps its own model."""
-    return f"Prompta writes with {env.get('PROMPTA_MODEL') or 'auto model'}"
+    if env.get("PROMPTA_FOLLOW_APP"):
+        return "follows Model & API"
+    return f"pinned to {env.get('PROMPTA_MODEL') or 'auto model'} · Update to follow Model & API"
 
 
 def prefs() -> QSettings:
     """Ini file in the user's config dir; tests redirect it with QSettings.setPath."""
     return QSettings(QSettings.Format.IniFormat, QSettings.Scope.UserScope, "Prompta", "Prompta")
+
+
+try:
+    from .settings_ui import LABEL_GAP, LIST_GAP, LINK_QSS, PAGE_TOP, add_section, body, card, muted, text_link
+except ImportError:
+    from settings_ui import LABEL_GAP, LIST_GAP, LINK_QSS, PAGE_TOP, add_section, body, card, muted, text_link
+
+TEXT_LINK_QSS = LINK_QSS  # kept for older imports
 
 
 class StateLabel(QLabel):
@@ -322,53 +342,69 @@ class CommandRunner(QThread):
         self.done.emit(code, output)
 
 
+class RemoveCross(QPushButton):
+    """The app's own cross (close.svg, as on assumptions and history rows); shown only while there is something to remove."""
+
+    def __init__(self, name: str) -> None:
+        super().__init__()
+        self.setObjectName("deleteItem")
+        # The same flat cross as #deleteItem in app.py; set here because the dialog styles plain buttons with a border.
+        self.setStyleSheet("QPushButton { background: transparent; border: none; border-radius: 6px; padding: 0; min-height: 0; }"
+                           "QPushButton:hover { background: rgba(216, 197, 147, 90); }")
+        self.setIcon(QIcon(str(Path(__file__).with_name("close.svg"))))
+        self.setIconSize(QSize(10, 10))
+        self.setFixedSize(22, 22)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setToolTip(f"Remove Prompta from {name}")
+        self.setAccessibleName(f"Remove · {name}")
+        policy = self.sizePolicy()
+        policy.setRetainSizeWhenHidden(True)  # the Install column does not shift when it hides
+        self.setSizePolicy(policy)
+
+    def changeEvent(self, event) -> None:  # noqa: N802
+        super().changeEvent(event)
+        if event.type() == event.Type.EnabledChange:
+            self.setVisible(self.isEnabled())
+
+
 class McpSettingsWidget(QWidget):
     def __init__(self, root: Path, node_binary: Callable[[], str], mini_label: Callable[[str], QLabel],
-                 combo: Callable[[], QComboBox] = QComboBox) -> None:
+                 generator: Callable[[], Generator] = lambda: ("ollama", "", "", "", "Ollama"),
+                 needs_keychain: Callable[[], str] = lambda: "") -> None:
         super().__init__()
+        self.generator = generator
+        # The server reads the key from Keychain: names the provider whose key is not remembered there, else "".
+        self.needs_keychain = needs_keychain
         self.server = root / "mcp" / "server.ts"
         self.node_binary = node_binary
         self.runner: CommandRunner | None = None
         self.installed = False
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 18, 12, 0)  # right gap keeps buttons off the scroll bar
-        layout.setSpacing(12)
-        intro = QLabel("Lets coding agents and chat apps that support MCP (Claude Code, Codex, Cursor, VS Code, "
-                       "Claude Desktop, Gemini CLI, Windsurf, Hermes, OpenClaw) call Prompta with their conversation as context: improve a prompt or suggest what to ask next.")
-        intro.setObjectName("muted")
-        intro.setWordWrap(True)
-        layout.addWidget(intro)
-        layout.addSpacing(6)  # air between the intro and the fields
+        layout.setContentsMargins(0, PAGE_TOP, 12, 0)  # right gap keeps the links off the scroll bar
+        layout.setSpacing(0)
+        layout.addWidget(muted("Lets coding agents and chat apps call Prompta with their conversation as context."))
 
         self.status = QLabel("")
-        self.status.hide()  # shown only while it has something to say
+        self.status.hide()  # shown only while it has something to say; hidden, it takes no space
         self.status.setObjectName("section")
         self.status.setWordWrap(True)
+        self.status.setContentsMargins(0, LABEL_GAP, 0, 0)
         layout.addWidget(self.status)
 
-        layout.addWidget(mini_label("Provider"))
-        self.provider = combo()  # the app passes its own list dropdown for a uniform look
-        for key, label in PROVIDERS:
-            self.provider.addItem(label, key)
-        self.provider.currentIndexChanged.connect(self._provider_changed)
-        layout.addWidget(self.provider)
+        # No second provider/model picker: the server uses the generator chosen in Model & API.
+        self.model_summary = body()  # a value, like the fields on Model & API
+        self.key_warning = QLabel("The server reads the API key from Keychain: turn on Remember in Keychain in Model & API.")
+        self.key_warning.setObjectName("warn")
+        self.key_warning.setWordWrap(True)
+        self.key_warning.hide()
+        add_section(layout, "Model", self.model_summary, self.key_warning,
+                    hint="Models ending in :cloud run on ollama.com; local Ollama models keep everything on this Mac.")
+        self.sync_generator()
 
-        layout.addWidget(mini_label("Model"))
-        self.model = combo()
-        self.model.setEditable(True)
-        self.model.lineEdit().setPlaceholderText("e.g. kimi-k3:cloud or qwen3:30b")
-        layout.addWidget(self.model)
-
-        self.key_label = mini_label("API key")
-        layout.addWidget(self.key_label)
-        self.api_key = QLineEdit()
-        self.api_key.setEchoMode(QLineEdit.EchoMode.Password)
-        self.api_key.setPlaceholderText("Only for cloud providers")
-        layout.addWidget(self.api_key)
-
-        layout.addWidget(mini_label("Apps"))
-        grid = QGridLayout()
+        apps = card()  # one block for the app rows
+        grid = QGridLayout(apps)
+        grid.setContentsMargins(0, 0, 0, 0)
         grid.setHorizontalSpacing(10)
         grid.setVerticalSpacing(8)
         grid.setColumnStretch(1, 1)
@@ -383,32 +419,16 @@ class McpSettingsWidget(QWidget):
             install.clicked.connect(lambda _=False, c=client: self.install_file(c))
             remove.clicked.connect(lambda _=False, c=client: self.remove_file(c))
             self.client_rows[client.key] = (install, remove, state)
-        layout.addLayout(grid)
-
-        actions = QHBoxLayout()
-        self.copy_button = QPushButton(COPY_LABEL)  # plain text link: one click copies the JSON
-        self.copy_button.setObjectName("textLink")
-        self.copy_button.setFlat(True)
-        self.copy_button.setStyleSheet(
-            "QPushButton#textLink { background: transparent; border: none; padding: 0; color: #806a3d; font-weight: 500; }"
-            "QPushButton#textLink:hover { color: #4a3d1d; text-decoration: underline; }")
-        self.copy_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.copy_button = text_link(COPY_LABEL)  # one click copies the JSON
         self.copy_button.setToolTip("Copy the mcpServers JSON for any other MCP app")
         self.copy_button.clicked.connect(self.copy_config)
-        actions.addWidget(self.copy_button)
-        actions.addStretch(1)
-        layout.addLayout(actions)
-
-        note = QLabel("The model above is the one Prompta writes prompts with; each agent keeps its own model for its "
-                      "work. Agents send their conversation to Prompta's model. Models ending in :cloud run on ollama.com; "
-                      "local Ollama models keep everything on this Mac. API keys and tokens are redacted from the "
-                      "conversation first. An API key entered here is saved in each app's MCP config. A .bak copy of "
-                      "a config is kept before each change. Restart the app or agent session after changes.")
-        note.setObjectName("muted")
-        note.setWordWrap(True)
-        layout.addWidget(note)
-        layout.addStretch(1)
-        self._provider_changed()
+        # The Settings dialog shows the copy link on its Done row.
+        add_section(layout, "Apps", apps)
+        layout.addSpacing(LIST_GAP)  # at least this much air under the last app row
+        layout.addStretch(1)  # the note sits at the bottom of the tab, apart from the app list
+        layout.addWidget(muted("Each agent keeps its own model for its work and sends its conversation to Prompta's model; "
+                         "API keys and tokens are redacted first. Installed apps follow Model & API: a new provider or model needs no "
+                         "reinstall. Each config change keeps a .bak copy; restart the app or agent session after installing."))
 
     @staticmethod
     def _client_row(grid: QGridLayout, row: int, name: str) -> tuple[QPushButton, QPushButton, QLabel]:
@@ -417,28 +437,30 @@ class McpSettingsWidget(QWidget):
         state = StateLabel("…")
         state.setObjectName("muted")
         state.setTextFormat(Qt.TextFormat.RichText)
-        install = QPushButton("Install")
-        install.setObjectName("primary")
-        remove = QPushButton("Remove")
-        remove.setObjectName("ghost")
-        for button in (install, remove):
-            button.setProperty("compact", True)  # smaller than the dialog's main buttons (QSS in app.py)
-            button.setCursor(Qt.CursorShape.PointingHandCursor)
-            button.setAccessibleName(f"{button.text()} · {name}")
-        grid.addWidget(title, row, 0)
-        grid.addWidget(state, row, 1)
+        install = QPushButton("Install")  # a text link like "Copy config", not a filled button
+        install.setObjectName("textLink")
+        install.setFlat(True)
+        install.setStyleSheet(TEXT_LINK_QSS)
+        install.setProperty("compact", True)
+        install.setCursor(Qt.CursorShape.PointingHandCursor)
+        install.setAccessibleName(f"Install · {name}")
+        remove = RemoveCross(name)
+        for label in (title, state):  # same box height as the links, text centred: one baseline per row
+            label.setFixedHeight(22)
+            label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        grid.addWidget(title, row, 0, Qt.AlignmentFlag.AlignVCenter)
+        grid.addWidget(state, row, 1, Qt.AlignmentFlag.AlignVCenter)
         grid.addWidget(install, row, 2)
-        grid.addWidget(remove, row, 3)
+        grid.addWidget(remove, row, 3, Qt.AlignmentFlag.AlignVCenter)
         return install, remove, state
 
     def showEvent(self, event) -> None:  # noqa: N802
         # The tab is polished on first show and QSS `min-height` then wins over the app's fixed
         # height; re-pin it so the apps list cannot squeeze the inputs.
         super().showEvent(event)
-        for field in (self.provider, self.model, self.api_key):
-            field.setFixedHeight(28)  # CONTROL_HEIGHT in app.py
+        self.sync_generator()  # the Model & API tab may have changed since
         for button in self.findChildren(QPushButton):
-            if button.property("compact"):
+            if button.property("compact") or isinstance(button, RemoveCross):
                 button.setFixedHeight(22)  # the app's dialog setup pins buttons to 28; app rows stay compact
 
     def _restore_claude_state(self) -> None:
@@ -463,20 +485,21 @@ class McpSettingsWidget(QWidget):
         self.status.setVisible(bool(text))
 
     # ── state ─────────────────────────────────────────────────────
-    def set_models(self, names: list[str]) -> None:
-        current = self.model.currentText()
-        self.model.clear()
-        self.model.addItems(names)
-        self.model.setEditText(current)
+    def sync_generator(self) -> None:
+        _, model, _, base_url, label = self.generator()
+        where = label + (" · custom URL" if base_url else "")
+        self.model_summary.setText(f"{model} · {where} — change it in Model & API" if model
+                                   else "No model chosen — choose one in Model & API")
+        self.key_warning.setVisible(bool(self.needs_keychain()))
 
-    def _provider_changed(self, *_: object) -> None:
-        needs_key = self.provider.currentData() != "ollama"
-        self.key_label.setVisible(needs_key)
-        self.api_key.setVisible(needs_key)
+    def _has_model(self) -> bool:
+        if self.generator()[1].strip():
+            return True
+        self._say("Choose a model in Model & API first")
+        return False
 
     def _env(self) -> dict[str, str]:
-        key = self.api_key.text() if self.provider.currentData() != "ollama" else ""
-        return server_env(self.provider.currentData(), self.model.currentText(), key)
+        return dict(FOLLOW_ENV)
 
     def _busy(self, busy: bool, message: str = "") -> None:
         for button in (self.install_button, self.remove_button):
@@ -523,9 +546,6 @@ class McpSettingsWidget(QWidget):
             self._remember_claude_state("○  not installed", False)
             return
         env = info["env"]
-        index = self.provider.findData(env.get("PROMPTA_PROVIDER", "ollama"))
-        self.provider.setCurrentIndex(max(0, index))
-        self.model.setEditText(env.get("PROMPTA_MODEL", ""))
         scope = "all projects" if info["scope"].startswith("User") else (info["scope"] or "unknown scope")
         health = "connected" if info["connected"] else "installed, not connected"
         self._remember_claude_state(f"●  {health} · {scope} · {model_note(env)}", True)
@@ -535,8 +555,7 @@ class McpSettingsWidget(QWidget):
         if claude is None:
             self.refresh()
             return
-        if not self.model.currentText().strip():
-            self._say("Choose a model first")
+        if not self._has_model():
             return
         self._busy(True)
         self.claude_state.setText("installing…")
@@ -582,13 +601,9 @@ class McpSettingsWidget(QWidget):
             remove.setEnabled(entry is not None)
             env = (entry or {}).get("env") or {}
             state.setText(f"●  installed · {model_note(env)}" if entry else "○  not installed")
-            if entry and not self.model.currentText().strip() and env.get("PROMPTA_MODEL"):
-                self.provider.setCurrentIndex(max(0, self.provider.findData(env.get("PROMPTA_PROVIDER", "ollama"))))
-                self.model.setEditText(env["PROMPTA_MODEL"])
 
     def install_file(self, client: FileClient) -> None:
-        if not self.model.currentText().strip():
-            self._say("Choose a model first")
+        if not self._has_model():
             return
         self._change_file(client, server_entry(client, self.node_binary(), self.server, self._env()), "installed in")
 
@@ -596,21 +611,6 @@ class McpSettingsWidget(QWidget):
         self._change_file(client, None, "removed from")
 
     def _change_file(self, client: FileClient, entry: dict | None, verb: str) -> None:
-        if client.fmt == "openclaw":
-            cli = find_openclaw_cli()
-            if cli is None:
-                self._say("OpenClaw CLI not found")
-                return
-            self.client_rows[client.key][2].setText("working…")
-
-            def done(code: int, output: str) -> None:
-                self.runner = None
-                last = next((l.strip() for l in reversed(output.strip().splitlines()) if l.strip()), "")
-                self._say(f"Prompta {verb} {client.name}. Restart its gateway to apply." if code == 0
-                          else f"{client.name}: nothing changed — {last[:160]}")
-                self.refresh_files()
-            self._run(openclaw_commands(cli, entry), done)
-            return
         try:
             write_entry(client, entry)
         except (OSError, ValueError) as exc:

@@ -1,6 +1,6 @@
 import { PipelineError } from './types.ts';
 
-/** Достать JSON из ответа модели: снимает ```-обёртку и берёт первый сбалансированный объект. */
+/** Extract JSON from a model answer: strips the ``` wrapper and takes the first balanced object. */
 export function extractJson(raw: string, step: string): unknown {
   if (!raw || !raw.trim()) throw new PipelineError('Empty model response', step);
 
@@ -38,7 +38,7 @@ export function extractJson(raw: string, step: string): unknown {
   throw new PipelineError('Unclosed JSON object', step);
 }
 
-/** Строковое поле с проверкой на непустоту. */
+/** A string field checked to be non-empty. */
 export function requireString(obj: Record<string, unknown>, field: string, step: string): string {
   const v = obj[field];
   if (typeof v !== 'string' || !v.trim()) {

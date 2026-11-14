@@ -27,6 +27,17 @@ EXTRA = {  # how the Prompt Report itself names techniques whose catalog name di
     "meta_reasoning_cots": ["Meta-Reasoning over Multiple CoTs", "MCR"], "regex_extractor": ["Regex"],
     "injection_defenses": ["Prompt-based Defenses", "Guardrails", "Detectors"],
     "graph_of_thought": ["Graph-of-Thought (GoT) Prompting", "GoT represents the most advanced approach"],
+    "dspy": ["the DSPy framework"],  # page 42 opens with a chart labelled "DSPy Default"; the method is the case-study paragraph
+}
+
+# Where the PDF's two columns interleave around the cited passage, the extracted summary reads as nonsense:
+# a short description written from the passage replaces it (key, source reference) → text.
+WRITTEN_SUMMARIES = {
+    ("dspy", "§6.2.3, p. 42"): (
+        "Case study: after a manual prompt-engineering process, the authors tried DSPy, which automatically "
+        "optimizes LLM prompts for a target metric. Over 16 iterations it bootstrapped LLM-generated "
+        "demonstrations and sampled training exemplars. The authors conclude that automated prompt search is "
+        "promising, but combining it with human prompt engineering worked best."),
 }
 
 
@@ -173,14 +184,16 @@ def write_summaries(catalog: list, docs: dict[str, str]) -> int:
         names = aliases(by_key[key]["name"], key) if key in by_key else [key.replace("_", " ")]
         for source in sources:
             arxiv = re.search(r"arxiv\.org/(?:abs|pdf)/(\d{4}\.\d{4,5})", source.get("url", ""))
-            text = ""
-            if arxiv and "arxiv.org/abs/" in source.get("url", "") and arxiv.group(1) in abstracts:  # abstract: own claim first
+            text = WRITTEN_SUMMARIES.get((key, source.get("reference", "")), "")
+            if text:
+                pass
+            elif arxiv and "arxiv.org/abs/" in source.get("url", "") and arxiv.group(1) in abstracts:  # abstract: own claim first
                 text = summary(abstracts[arxiv.group(1)])
             else:
                 slug = titles.get(source.get("title", "")) or (
                     "the-prompt-report-arxiv-2406.06608" if arxiv else None)
                 ref = source.get("reference", "")
-                numbers = [int(n) for n in re.findall(r"\d+", ref.split("с.", 1)[1])] if "с." in ref else []
+                numbers = [int(n) for n in re.findall(r"\d+", re.split(r"\bp\.", ref, maxsplit=1)[1])] if re.search(r"\bp\.", ref) else []
                 if slug in docs and numbers:
                     pages = pages_of(docs[slug])
                     last = numbers[1] if len(numbers) > 1 else numbers[0]
@@ -208,7 +221,7 @@ def main() -> None:
         for ref in t["source_ref"].split(";"):
             ref = ref.strip()
             slug = next((s for a, s in ABBREV.items() if ref.startswith(a)), None)
-            numbers = [int(n) for n in re.findall(r"\d+", ref.split("с.", 1)[1])] if "с." in ref else []
+            numbers = [int(n) for n in re.findall(r"\d+", re.split(r"\bp\.", ref, maxsplit=1)[1])] if re.search(r"\bp\.", ref) else []
             if slug not in docs or not numbers:
                 continue
             text = passage(pages_of(docs[slug]), numbers[0], numbers[1] if len(numbers) > 1 else numbers[0], names)

@@ -1,8 +1,8 @@
 import type { OfficialGuidance } from './official.ts';
-/** Контракты пайплайна «поток мыслей → промпт».
+/** Contracts of the "stream of thoughts → prompt" pipeline.
  *
- *  Все модули пайплайна — чистые функции: LLM передаётся как зависимость,
- *  поэтому логика тестируется без сети и без UI.
+ *  Every pipeline module is a pure function: the LLM is passed in as a dependency,
+ *  so the logic is tested without network and without UI.
  */
 
 export type Kind = 'technique' | 'setting' | 'prompt_type' | 'risk' | 'procedure';
@@ -30,7 +30,7 @@ export interface Technique {
   name: string;
   kind: Kind;
   category: string;
-  /** Для каких типов задач техника уместна. Пусто — ограничений нет. */
+  /** Which task types the technique suits. Empty — no restriction. */
   task_types?: string[];
   execution: Execution;
   when_to_use: string;
@@ -38,7 +38,7 @@ export interface Technique {
   cost_calls: number | string;
   config: TechniqueConfig;
   template: string | null;
-  /** Шаги выполнения для процедурных техник (KNN, RL-оптимизаторы, ансамбли). */
+  /** Execution steps for procedural techniques (KNN, RL optimisers, ensembles). */
   procedure?: string[] | null;
   example: string;
   source_ref: string;
@@ -59,7 +59,7 @@ export interface BriefQuestion {
   default?: string;
 }
 
-/** Разбор входного потока мыслей. Всё, что модель домыслила, — в `assumptions`. */
+/** The analysis of the input stream of thoughts. Everything the model inferred goes into `assumptions`. */
 export const CAPABILITIES = ['web', 'files', 'code', 'integrations'] as const;
 export type Capability = typeof CAPABILITIES[number];
 export type ExecutionCapabilities = Partial<Record<Capability, 'available' | 'unavailable' | 'unknown'>>;
@@ -76,6 +76,10 @@ export interface TaskBrief {
   task_type: string;
   input: string;
   output_format: string;
+  /** Who reads the answer, only as the user stated it; a guess goes to assumptions, where the user can correct it. */
+  audience?: string;
+  /** The answer's tone, only as the user stated it; a guess goes to assumptions. */
+  tone?: string;
   constraints: string[];
   language: string;
   modality: Modality;
@@ -83,7 +87,7 @@ export interface TaskBrief {
   assumptions: string[];
   /** Up to 3 questions whose answers would change the result materially; empty when nothing important is missing. */
   questions?: BriefQuestion[];
-  /** Сколько вызовов LLM пользователь готов потратить. null — не ограничено. */
+  /** How many LLM calls the user is willing to spend. null — unlimited. */
   budget_calls: number | null;
 }
 
@@ -92,9 +96,9 @@ export interface TechniqueChoice {
   name: string;
   reason: string;
   confidence: number;
-  /** Почему не более дешёвая техника — обязательный ответ на главный вопрос. */
+  /** Why not a cheaper technique: the mandatory answer to the key question. */
   whyNotCheaper: string;
-  /** Модель выбрала не самую дешёвую и не объяснила — выбор принят, но помечен. */
+  /** The model picked a non-cheapest technique without explaining: the choice is accepted but flagged. */
   cheapestOverride?: boolean;
 }
 
@@ -109,7 +113,7 @@ export interface Synthesis {
   techniqueKey: string;
   prompt: string;
   config: PromptConfig;
-  /** Плейсхолдеры, которые нечем было заполнить. Пусто = промпт готов. */
+  /** Placeholders there was nothing to fill with. Empty = the prompt is ready. */
   missing: string[];
   warnings: string[];
 }
@@ -133,14 +137,14 @@ export interface PipelineResult {
   brief: TaskBrief;
   choice: TechniqueChoice;
   synthesis: Synthesis;
-  /** Дополнительные варианты техник с их промптами (если запрошено больше одного). */
+  /** Additional technique variants with their prompts (if more than one was requested). */
   alternatives?: { choice: TechniqueChoice; synthesis: Synthesis }[];
-  /** Техники, которые выбыли до выбора: почему. */
+  /** Techniques that dropped out before selection, and why. */
   rejected: { key: string; reason: string }[];
   trace: PipelineTrace[];
-  /** Расход за весь прогон: все стадии и повторы разбора. Нули — провайдер не сообщил usage. */
+  /** Usage for the whole run: all stages and parse retries. Zeros — the provider did not report usage. */
   usage?: TokenUsage & { calls: number };
-  /** Отпечаток внутренних промптов пайплайна: связывает результат и балл eval с версией промптов. */
+  /** The fingerprint of the pipeline's internal prompts: ties the result and the eval score to a prompt version. */
   promptVersion?: string;
 }
 
@@ -153,7 +157,7 @@ export interface LLMCallOptions {
   temperature?: number;
   json?: boolean;
   maxTokens?: number;
-  /** Адаптер сообщает расход токенов, если провайдер его вернул. */
+  /** The adapter reports token usage if the provider returned it. */
   onUsage?: (usage: TokenUsage) => void;
 }
 
