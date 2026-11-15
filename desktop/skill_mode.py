@@ -19,11 +19,11 @@ PROMPT_MODE = "prompt"
 SKILL_MODE = "skill"
 INSTRUCTIONS_MODE = "instructions"
 AGENT_MODE = "agent"
-MODES = (PROMPT_MODE, SKILL_MODE, INSTRUCTIONS_MODE, AGENT_MODE)
+MODES = (PROMPT_MODE, INSTRUCTIONS_MODE, SKILL_MODE, AGENT_MODE)
 
 
 class ModeSwitch(QFrame):
-    """Four segments in the header: Prompt, Skill, Project and Subagent. `changed(mode)` fires on every switch."""
+    """Four segments in the header: Prompt, Project, Skill and Subagent. `changed(mode)` fires on every switch."""
 
     changed = pyqtSignal(str)
 
@@ -39,8 +39,8 @@ class ModeSwitch(QFrame):
         self._by_mode: dict[str, QPushButton] = {}
         segments = [
             (PROMPT_MODE, "Prompt", "Build a prompt for a model"),
-            (SKILL_MODE, "Skill", "Write a SKILL.md for an Agent Skill"),
             (INSTRUCTIONS_MODE, "Project", "Write project instructions: AGENTS.md, CLAUDE.md, Cursor or Copilot"),
+            (SKILL_MODE, "Skill", "Write a SKILL.md for an Agent Skill"),
             (AGENT_MODE, "Subagent", "Write a subagent: Claude Code, Cursor, Codex or Copilot"),
         ]
         for index, (mode, label, tip) in enumerate(segments):

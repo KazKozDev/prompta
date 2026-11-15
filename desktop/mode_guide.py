@@ -11,8 +11,8 @@ from PyQt6.QtWidgets import QFrame, QGridLayout, QLabel, QSizePolicy, QVBoxLayou
 # mode key (skill_mode.py) → name, what it writes, when it is read
 ROWS = [
     ("prompt", "Prompt", "A prompt for one task", "Once, in a chat"),
-    ("skill", "Skill", "SKILL.md: a repeated procedure", "When a task matches, in any project"),
     ("instructions", "Project", "AGENTS.md: the project's rules", "Every session in this project"),
+    ("skill", "Skill", "SKILL.md: a repeated procedure", "When a task matches, in any project"),
     ("agent", "Subagent", "A specialist with its own tools", "When the main agent hands it a job"),
 ]
 SUMMARY = "Project says how the project works. Skill says how to do a procedure. Subagent is who does it."
