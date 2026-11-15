@@ -33,7 +33,7 @@ def agent_file_name(target: str, text: str, fallback: str) -> str:
 
 
 class AgentView(DocumentView):
-    SLOGAN = "THOUGHTS IN. AGENTS OUT."
+    SLOGAN = "THOUGHTS IN. SUBAGENTS OUT."
 
     def render_agent(self, payload: dict) -> None:
         check = payload.get("check") or {}
@@ -47,7 +47,7 @@ class AgentView(DocumentView):
             text=payload.get("text", ""),
             file_label=Path(file_name).name,
             save_label="Save into project…",
-            save_tip=f"Choose the project folder: the agent is written to {file_name} there",
+            save_tip=f"Choose the project folder: the subagent is written to {file_name} there",
             on_save=self.save,
         )
 
