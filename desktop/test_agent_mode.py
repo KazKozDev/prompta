@@ -79,7 +79,7 @@ class AgentModeTest(unittest.TestCase):
         self.assertTrue(w.instruction_target.isHidden())
         self.assertTrue(w.target_selector.isHidden())
         self.assertTrue(w.result_column.isHidden())
-        self.assertEqual(w.run_button.text(), 'Build agent   ⌘↵')
+        self.assertEqual(w.run_button.text(), 'Build subagent   ⌘↵')
         w.mode_switch.set_mode(INSTRUCTIONS_MODE)
         self.assertTrue(w.agent_target.isHidden())
         self.assertTrue(w.agent_view.isHidden())

@@ -525,7 +525,10 @@ class PromptaWindow(QMainWindow):
                 "Build file",
                 "Describe the project: stack, commands, conventions, what agents get wrong",
             ),
-            AGENT_MODE: ("Build agent", "Describe the agent: its one job, when to use it, what it must not touch"),
+            AGENT_MODE: (
+                "Build subagent",
+                "Describe the subagent: its one job, when to use it, what it must not touch",
+            ),
         }.get(mode, ("Build prompt", "Describe what you need"))
         self.build_label = label + "   ⌘↵"
         self.thoughts.setPlaceholderText(f"{hint}\n\n{MODE_PURPOSE[mode]}" if mode in MODE_PURPOSE else hint)
@@ -539,7 +542,7 @@ class PromptaWindow(QMainWindow):
             status = "Writing SKILL.md from the official skill rules"
         elif self.mode_switch.mode() == AGENT_MODE:
             request = {"agent": self.agent_target.target()}
-            status = "Writing the agent from the official rules"
+            status = "Writing the subagent from the official rules"
         else:
             request = {"instructions": self.instruction_target.target()}
             status = "Writing project instructions from the official rules"
