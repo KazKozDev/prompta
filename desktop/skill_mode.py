@@ -23,7 +23,7 @@ MODES = (PROMPT_MODE, SKILL_MODE, INSTRUCTIONS_MODE, AGENT_MODE)
 
 
 class ModeSwitch(QFrame):
-    """Four segments in the header: Prompt, Skill, Project and Agent. `changed(mode)` fires on every switch."""
+    """Four segments in the header: Prompt, Skill, Project and Subagent. `changed(mode)` fires on every switch."""
 
     changed = pyqtSignal(str)
 
@@ -41,7 +41,7 @@ class ModeSwitch(QFrame):
             (PROMPT_MODE, "Prompt", "Build a prompt for a model"),
             (SKILL_MODE, "Skill", "Write a SKILL.md for an Agent Skill"),
             (INSTRUCTIONS_MODE, "Project", "Write project instructions: AGENTS.md, CLAUDE.md, Cursor or Copilot"),
-            (AGENT_MODE, "Agent", "Write a subagent: Claude Code, Cursor, Codex or Copilot"),
+            (AGENT_MODE, "Subagent", "Write a subagent: Claude Code, Cursor, Codex or Copilot"),
         ]
         for index, (mode, label, tip) in enumerate(segments):
             button = QPushButton(label)
@@ -49,7 +49,7 @@ class ModeSwitch(QFrame):
             button.setProperty("first", index == 0)
             button.setProperty("last", index == len(segments) - 1)
             button.setCheckable(True)
-            button.setFixedSize(64, 24)
+            button.setFixedSize(84 if mode == AGENT_MODE else 64, 24)  # "Subagent" needs more room
             button.setToolTip(tip)
             button.toggled.connect(lambda on, m=mode: self._on_toggled(m, on))
             self.buttons.addButton(button, index)
