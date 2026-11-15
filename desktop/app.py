@@ -48,7 +48,6 @@ from instructions_view import InstructionsView
 from skill_mode import (
     AGENT_MODE,
     INSTRUCTIONS_MODE,
-    MODE_PURPOSE,
     PROMPT_MODE,
     SKILL_MODE,
     ModeSwitch,
@@ -232,7 +231,7 @@ class PromptaWindow(QMainWindow):
         QApplication.instance().aboutToQuit.connect(self.thoughts.stop_dictation)
         self.thoughts.setAccessibleName("Thoughts")
         use_step_scroll(self.thoughts)
-        self.thoughts.setPlaceholderText(f"Describe what you need\n\n{MODE_PURPOSE[PROMPT_MODE]}")
+        self.thoughts.setPlaceholderText("Describe what you need")
         thoughts_palette = self.thoughts.palette()
         thoughts_palette.setColor(QPalette.ColorRole.PlaceholderText, QColor("#9a8c6b"))
         self.thoughts.setPalette(thoughts_palette)
@@ -531,7 +530,7 @@ class PromptaWindow(QMainWindow):
             ),
         }.get(mode, ("Build prompt", "Describe what you need"))
         self.build_label = label + "   ⌘↵"
-        self.thoughts.setPlaceholderText(f"{hint}\n\n{MODE_PURPOSE[mode]}" if mode in MODE_PURPOSE else hint)
+        self.thoughts.setPlaceholderText(hint)
         self._sync_build_label()
         self._fit_input_column()
 

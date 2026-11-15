@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import QFrame, QGridLayout, QLabel, QSizePolicy, QVBoxLayou
 
 # mode key (skill_mode.py) → name, what it writes, when it is read
 ROWS = [
-    ("prompt", "Prompt", "A prompt for one task", "Once: you paste it in"),
+    ("prompt", "Prompt", "A prompt for one task", "Once, in a chat"),
     ("skill", "Skill", "SKILL.md: a repeated procedure", "When a task matches, in any project"),
     ("instructions", "Project", "AGENTS.md: the project's rules", "Every session in this project"),
     ("agent", "Subagent", "A specialist with its own tools", "When the main agent hands it a job"),
@@ -40,7 +40,7 @@ def mode_guide(current: str) -> QWidget:
     grid.setContentsMargins(0, 0, 0, 0)
     grid.setHorizontalSpacing(16)
     grid.setVerticalSpacing(8)
-    for column, head in enumerate(("", "What you get", "When the agent reads it")):
+    for column, head in enumerate(("", "What you get", "When it's used")):
         grid.addWidget(_cell(head, "guideHead", False), 0, column)
     for row, (key, name, what, when) in enumerate(ROWS, start=1):
         on = key == current
