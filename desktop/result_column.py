@@ -27,6 +27,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from mode_guide import mode_guide
 from result_view import (
     BLOCK_GAP,
     Disclosure,
@@ -136,6 +137,7 @@ class ResultColumn(QScrollArea):
         slogan.setAlignment(Qt.AlignmentFlag.AlignCenter)
         slogan.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self.output_layout.addWidget(slogan)
+        self.output_layout.addWidget(mode_guide("prompt"))
         self.output_layout.addStretch(6)
 
     def show_error(self, message: str) -> None:
