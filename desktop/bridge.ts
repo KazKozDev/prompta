@@ -18,6 +18,9 @@ import type { SkillSurface } from '../pipeline/skill-rules.ts';
 import { generateInstructions } from '../pipeline/instructions.ts';
 import { INSTRUCTION_TARGETS } from '../pipeline/instructions-rules.ts';
 import type { InstructionTarget } from '../pipeline/instructions-rules.ts';
+import { generateAgent } from '../pipeline/agent.ts';
+import { AGENT_TARGETS } from '../pipeline/agent-rules.ts';
+import type { AgentTarget } from '../pipeline/agent-rules.ts';
 import type { Provider } from '../pipeline/llm.ts';
 import techniqueSources from '../catalog/source-links.json' with { type: 'json' };
 
@@ -60,6 +63,8 @@ interface BridgeRequest {
   skill?: SkillSurface;
   /** Write a project-instruction file (AGENTS.md, CLAUDE.md, Cursor rule, Copilot) instead of a prompt. */
   instructions?: InstructionTarget;
+  /** Write a subagent definition (Claude Code, Cursor, Codex, Copilot) instead of a prompt. */
+  agent?: AgentTarget;
 }
 
 /** A title when no brief was made: a missing title must not discard completed prompts. */
@@ -112,7 +117,17 @@ async function main() {
   };
   const officialMode = req.claudeOnly || req.chatgptOnly || req.geminiOnly || req.grokOnly || req.hermesOnly || req.openModel;
 
-  if (req.skill !== undefined && req.instructions !== undefined) throw new Error('Choose a skill or project instructions, not both.');
+  if ([req.skill, req.instructions, req.agent].filter((v) => v !== undefined).length > 1) {
+    throw new Error('Choose one of a skill, project instructions or an agent.');
+  }
+  if (req.agent !== undefined) {
+    if (!AGENT_TARGETS.includes(req.agent)) throw new Error(`agent must be one of ${AGENT_TARGETS.join(', ')}.`);
+    if (officialMode || req.manualTechnique || req.manualTechniques) throw new Error('An agent cannot be combined with a prompt target or technique.');
+    onProgress?.(10, 'Writing the agent');
+    const agent = await generateAgent({ thoughts: req.thoughts, llm, target: req.agent });
+    process.stdout.write(JSON.stringify({ ok: true, agent: { ...agent, usage: usage() } }));
+    return;
+  }
   if (req.skill !== undefined) {
     if (!['portable', 'claudeCode'].includes(req.skill)) throw new Error('skill must be "portable" or "claudeCode".');
     if (officialMode || req.manualTechnique || req.manualTechniques) throw new Error('A skill cannot be combined with a prompt target or technique.');

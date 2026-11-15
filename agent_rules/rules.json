@@ -1,0 +1,313 @@
+{
+  "version": "2026-11-15.1",
+  "verified_at": "2026-11-15",
+  "targets": {
+    "claudeCode": "Claude Code subagent: .claude/agents/<name>.md (Cursor and VS Code read this folder too)",
+    "cursor": "Cursor subagent: .cursor/agents/<name>.md",
+    "codex": "Codex custom agent: .codex/agents/<name>.toml",
+    "copilot": "GitHub Copilot custom agent: .github/agents/<name>.agent.md"
+  },
+  "rules": [
+    {
+      "id": "cc-file",
+      "source_id": "claude-code-subagents",
+      "targets": ["claudeCode"],
+      "rule_text": "Write one Markdown file: YAML frontmatter between --- markers, then the subagent's system prompt as the body.",
+      "evidence": "Subagent files use YAML frontmatter for configuration, followed by the system prompt in Markdown:"
+    },
+    {
+      "id": "cc-first-line",
+      "source_id": "claude-code-subagents",
+      "targets": ["claudeCode"],
+      "rule_text": "The opening --- must be the file's first line; otherwise the file is treated as documentation and skipped.",
+      "evidence": "**An opening `---` that isn't the file's first line**"
+    },
+    {
+      "id": "cc-required",
+      "source_id": "claude-code-subagents",
+      "targets": ["claudeCode"],
+      "rule_text": "Only name and description are required; a file without either is skipped.",
+      "evidence": "Only `name` and `description` are required."
+    },
+    {
+      "id": "cc-name",
+      "source_id": "claude-code-subagents",
+      "targets": ["claudeCode"],
+      "rule_text": "name is a short identifier in lowercase letters and hyphens, such as code-reviewer: no colon, not starting with -, at most 256 characters.",
+      "evidence": "Names can't contain `:`"
+    },
+    {
+      "id": "cc-exact-fields",
+      "source_id": "claude-code-subagents",
+      "targets": ["claudeCode"],
+      "rule_text": "Use only the documented field names, spelled exactly (camelCase such as disallowedTools, permissionMode): an unknown field is ignored silently.",
+      "evidence": "must match the table exactly: Claude Code ignores a field it doesn't recognize without reporting an error."
+    },
+    {
+      "id": "cc-self-contained",
+      "source_id": "claude-code-subagents",
+      "targets": ["claudeCode"],
+      "rule_text": "The body is the subagent's whole system prompt: it does not get the main Claude Code prompt, so state its role, steps and output format in full.",
+      "evidence": "Subagents receive only this system prompt plus basic environment details like the working directory, not the Claude Code system prompt."
+    },
+    {
+      "id": "cc-description-routes",
+      "source_id": "claude-code-subagents",
+      "targets": ["claudeCode"],
+      "rule_text": "description says when to delegate to this subagent; make it specific enough to pick this one over others, and brief.",
+      "evidence": "Make each description specific enough to route to the right subagent"
+    },
+    {
+      "id": "cc-proactive",
+      "source_id": "claude-code-subagents",
+      "targets": ["claudeCode"],
+      "rule_text": "If the subagent should run without being asked, say so in the description, for example \"Use proactively after code changes\".",
+      "evidence": "To encourage proactive delegation, include phrases like \"use proactively\" in your subagent's description field."
+    },
+    {
+      "id": "cc-focused",
+      "source_id": "claude-code-subagents",
+      "targets": ["claudeCode"],
+      "rule_text": "Design the subagent for one specific task.",
+      "evidence": "each subagent should excel at one specific task"
+    },
+    {
+      "id": "cc-limit-tools",
+      "source_id": "claude-code-subagents",
+      "targets": ["claudeCode"],
+      "rule_text": "List only the tools the job needs in tools; a reviewer or researcher leaves out Edit and Write.",
+      "evidence": "grant only necessary permissions for security and focus"
+    },
+    {
+      "id": "cc-tools-format",
+      "source_id": "claude-code-subagents",
+      "targets": ["claudeCode"],
+      "rule_text": "tools is a comma-separated string such as Read, Grep, Glob, Bash (or a YAML list); omitting it inherits every tool.",
+      "evidence": "as a comma-separated string such as `Read, Grep, Bash` or a YAML list. Inherits every tool available to subagents if omitted."
+    },
+    {
+      "id": "cc-model",
+      "source_id": "claude-code-subagents",
+      "targets": ["claudeCode"],
+      "rule_text": "model, if set, is sonnet, opus, haiku, fable, a full model ID, or inherit; leave it out unless the task asks for a model.",
+      "evidence": "`sonnet`, `opus`, `haiku`, `fable`, a full model ID such as `claude-opus-5-5`, or `inherit`"
+    },
+    {
+      "id": "cc-permission-mode",
+      "source_id": "claude-code-subagents",
+      "targets": ["claudeCode"],
+      "rule_text": "permissionMode, if set, is default, acceptEdits, auto, dontAsk, bypassPermissions or plan; leave it out unless the task asks for one.",
+      "evidence": "`default`, `acceptEdits`, `auto`, `dontAsk`, `bypassPermissions`, `plan`, or `manual` as an alias for `default`"
+    },
+    {
+      "id": "cc-prompt-shape",
+      "source_id": "claude-code-subagents",
+      "targets": ["claudeCode"],
+      "rule_text": "In the body, say exactly what to look for or do, in order, and how to format the result returned to the main conversation.",
+      "evidence": "a detailed prompt that specifies exactly what to look for and how to format output"
+    },
+    {
+      "id": "cc-no-questions",
+      "source_id": "claude-code-subagents",
+      "targets": ["claudeCode"],
+      "rule_text": "A subagent cannot ask the user questions (AskUserQuestion is removed): tell it what to do when something is unclear, such as stating the assumption in its report.",
+      "evidence": "The first filter removes these tools, even when listed in the `tools` field:"
+    },
+    {
+      "id": "cursor-file",
+      "source_id": "cursor-subagents",
+      "targets": ["cursor"],
+      "rule_text": "Write one Markdown file with YAML frontmatter, then the subagent's prompt as the body.",
+      "evidence": "Each subagent is a markdown file with YAML frontmatter:"
+    },
+    {
+      "id": "cursor-fields",
+      "source_id": "cursor-subagents",
+      "targets": ["cursor"],
+      "rule_text": "Frontmatter fields are name, description, model, readonly and is_background; readonly: true blocks file edits and state-changing shell commands, which suits reviewers and researchers.",
+      "evidence": "If `true`, the subagent runs with restricted write permissions (no file edits, no state-changing shell commands)."
+    },
+    {
+      "id": "cursor-name",
+      "source_id": "cursor-subagents",
+      "targets": ["cursor"],
+      "rule_text": "name uses lowercase letters and hyphens.",
+      "evidence": "Use lowercase letters and hyphens."
+    },
+    {
+      "id": "cursor-description",
+      "source_id": "cursor-subagents",
+      "targets": ["cursor"],
+      "rule_text": "Spend the most care on description: it decides when the agent delegates to this subagent.",
+      "evidence": "The `description` field determines when Agent delegates to your subagent."
+    },
+    {
+      "id": "cursor-specific",
+      "source_id": "cursor-subagents",
+      "targets": ["cursor"],
+      "rule_text": "Name the concrete situation in the description, not a vague one like \"general tasks\".",
+      "evidence": "Be specific: \"Use when implementing authentication flows with OAuth providers.\""
+    },
+    {
+      "id": "cursor-proactive",
+      "source_id": "cursor-subagents",
+      "targets": ["cursor"],
+      "rule_text": "If the subagent should run without being asked, write \"use proactively\" or \"always use for\" in the description.",
+      "evidence": "Include phrases like \"use proactively\" or \"always use for\" in your description field to encourage automatic delegation."
+    },
+    {
+      "id": "cursor-focused",
+      "source_id": "cursor-subagents",
+      "targets": ["cursor"],
+      "rule_text": "Give the subagent one clear responsibility; no generic helper.",
+      "evidence": "Each subagent should have a single, clear responsibility. Avoid generic \"helper\" agents."
+    },
+    {
+      "id": "cursor-concise",
+      "source_id": "cursor-subagents",
+      "targets": ["cursor"],
+      "rule_text": "Keep the prompt short, specific and direct; a long prompt makes it slower, not smarter.",
+      "evidence": "Long, rambling prompts dilute focus. Be specific and direct."
+    },
+    {
+      "id": "cursor-model",
+      "source_id": "cursor-subagents",
+      "targets": ["cursor"],
+      "rule_text": "model defaults to inherit; set a specific model ID only if the task asks for one.",
+      "evidence": "Uses the same model as the parent agent. This is the default."
+    },
+    {
+      "id": "codex-toml",
+      "source_id": "codex-subagents",
+      "targets": ["codex"],
+      "rule_text": "A Codex custom agent is a TOML file, one agent per file, not Markdown.",
+      "evidence": "Each file defines one custom agent."
+    },
+    {
+      "id": "codex-required",
+      "source_id": "codex-subagents",
+      "targets": ["codex"],
+      "rule_text": "The file must define name, description and developer_instructions.",
+      "evidence": "Every standalone custom agent file must define:"
+    },
+    {
+      "id": "codex-instructions",
+      "source_id": "codex-subagents",
+      "targets": ["codex"],
+      "rule_text": "Put the agent's prompt in developer_instructions as a TOML multi-line string between triple quotes.",
+      "evidence": "developer_instructions = \"\"\""
+    },
+    {
+      "id": "codex-name",
+      "source_id": "codex-subagents",
+      "targets": ["codex"],
+      "rule_text": "name identifies the agent; match the file name to it.",
+      "evidence": "Codex identifies the custom agent by its `name` field."
+    },
+    {
+      "id": "codex-builtin-names",
+      "source_id": "codex-subagents",
+      "targets": ["codex"],
+      "rule_text": "Do not name the agent default, worker or explorer unless the task asks to replace that built-in agent.",
+      "evidence": "If a custom agent name matches a built-in agent such as `explorer`, your custom agent takes precedence."
+    },
+    {
+      "id": "codex-no-override",
+      "source_id": "codex-subagents",
+      "targets": ["codex"],
+      "rule_text": "Leave out sandbox_mode, approval_policy, model_provider and mcp_servers: in an agent file they do not override the parent session.",
+      "evidence": "Other session settings, including `sandbox_mode`, `approval_policy`,"
+    },
+    {
+      "id": "codex-inherits",
+      "source_id": "codex-subagents",
+      "targets": ["codex"],
+      "rule_text": "The agent inherits the parent's permissions, so a reviewer must say \"Do not edit files.\" in developer_instructions.",
+      "evidence": "They inherit the parent's"
+    },
+    {
+      "id": "codex-reduce",
+      "source_id": "codex-subagents",
+      "targets": ["codex"],
+      "rule_text": "To take capabilities away, set feature keys such as features.shell_tool to false.",
+      "evidence": "To reduce a custom agent's capabilities, set supported feature keys to `false`:"
+    },
+    {
+      "id": "codex-narrow",
+      "source_id": "codex-subagents",
+      "targets": ["codex"],
+      "rule_text": "Make the agent narrow and opinionated: one job, and instructions that keep it from drifting into adjacent work.",
+      "evidence": "The best custom agents are narrow and opinionated."
+    },
+    {
+      "id": "codex-explicit",
+      "source_id": "codex-subagents",
+      "targets": ["codex"],
+      "rule_text": "Codex spawns subagents when asked, so description should say what the agent is for in words a request would use.",
+      "evidence": "Ask for subagents or parallel agent work directly."
+    },
+    {
+      "id": "copilot-location",
+      "source_id": "vscode-custom-agent-file-reference",
+      "targets": ["copilot"],
+      "rule_text": "Repository custom agents live in .github/agents as <name>.agent.md: Markdown with YAML frontmatter, then the prompt.",
+      "evidence": "`.github/agents` folder"
+    },
+    {
+      "id": "copilot-description",
+      "source_id": "copilot-create-custom-agents",
+      "targets": ["copilot"],
+      "rule_text": "description is required: say briefly what the agent does and its domain.",
+      "evidence": "Write a brief `description` (required)"
+    },
+    {
+      "id": "copilot-name",
+      "source_id": "copilot-create-custom-agents",
+      "targets": ["copilot"],
+      "rule_text": "name is optional and defaults to the file name.",
+      "evidence": "If unset, the name will default to the filename"
+    },
+    {
+      "id": "copilot-filename",
+      "source_id": "copilot-create-custom-agents",
+      "targets": ["copilot"],
+      "rule_text": "The file name may use only letters, digits, dot, hyphen and underscore.",
+      "evidence": "Note that the filename may only contain the following characters:"
+    },
+    {
+      "id": "copilot-tools",
+      "source_id": "copilot-custom-agents-configuration",
+      "targets": ["copilot"],
+      "rule_text": "tools lists tool names or aliases, such as [\"read\", \"search\"]; omitting it gives every tool, so list only what the job needs.",
+      "evidence": "Provide a list of specific tool names or aliases"
+    },
+    {
+      "id": "copilot-aliases",
+      "source_id": "copilot-custom-agents-configuration",
+      "targets": ["copilot"],
+      "rule_text": "Use the aliases execute, read, edit, search, agent, web and todo; unrecognized tool names are ignored.",
+      "evidence": "All unrecognized tool names are ignored"
+    },
+    {
+      "id": "copilot-max",
+      "source_id": "copilot-custom-agents-configuration",
+      "targets": ["copilot"],
+      "rule_text": "The prompt below the frontmatter is at most 30,000 characters.",
+      "evidence": "The prompt can be a maximum of 30,000 characters."
+    },
+    {
+      "id": "copilot-target",
+      "source_id": "copilot-create-custom-agents",
+      "targets": ["copilot"],
+      "rule_text": "Leave target out so the agent works in both VS Code and GitHub; set vscode or github-copilot only if the task limits it.",
+      "evidence": "Optionally, set the `target` property to either `vscode` or `github-copilot`"
+    },
+    {
+      "id": "copilot-boundaries",
+      "source_id": "copilot-create-custom-agents",
+      "targets": ["copilot"],
+      "rule_text": "State in the prompt what the agent must not touch, as the official testing example does with production code.",
+      "evidence": "Focus only on test files and avoid modifying production code unless specifically requested"
+    }
+  ]
+}

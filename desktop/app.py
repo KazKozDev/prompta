@@ -41,9 +41,11 @@ from history_view import HistoryView
 from target_selector import TargetSelector
 from technique_panel import TechniquePanel
 from result_column import ResultColumn
+from agent_mode import AgentTargetSelector
+from agent_view import AgentView
 from instructions_mode import InstructionTargetSelector
 from instructions_view import InstructionsView
-from skill_mode import INSTRUCTIONS_MODE, PROMPT_MODE, SKILL_MODE, ModeSwitch, SurfaceSelector
+from skill_mode import AGENT_MODE, INSTRUCTIONS_MODE, PROMPT_MODE, SKILL_MODE, ModeSwitch, SurfaceSelector
 from skill_view import SkillView
 from about_page import AboutPage
 from dictation import DictationPage
@@ -251,6 +253,9 @@ class PromptaWindow(QMainWindow):
         self.instruction_target = InstructionTargetSelector()  # Project mode only
         self.instruction_target.hide()
         box.addWidget(self.instruction_target)
+        self.agent_target = AgentTargetSelector()  # Agent mode only
+        self.agent_target.hide()
+        box.addWidget(self.agent_target)
         # Where the prompt goes and where it runs belong together: right under the target switch.
         # Where it runs decides which tool steps the prompt may rely on.
         runs_in = QVBoxLayout()
@@ -345,10 +350,15 @@ class PromptaWindow(QMainWindow):
         self.instructions_view.textEdited.connect(lambda text: self.history.prompt_edited(0, text))
         self.instructions_view.hide()
         box.addWidget(self.instructions_view, 1)
+        self.agent_view = AgentView()
+        self.agent_view.textEdited.connect(lambda text: self.history.prompt_edited(0, text))
+        self.agent_view.hide()
+        box.addWidget(self.agent_view, 1)
 
         self.result_column.show_placeholder()
         self.skill_view.show_placeholder()
         self.instructions_view.show_placeholder()
+        self.agent_view.show_placeholder()
         return card
 
     # ── settings ──────────────────────────────────────────────────
@@ -419,6 +429,7 @@ class PromptaWindow(QMainWindow):
         self.result_column.show_placeholder()
         self.skill_view.show_placeholder()
         self.instructions_view.show_placeholder()
+        self.agent_view.show_placeholder()
         self.generation_progress.hide()
         self.generation_progress.setValue(0)
         self._set_running(running)
@@ -483,12 +494,11 @@ class PromptaWindow(QMainWindow):
 
     def _mode_view(self):
         """The result area of the current mode."""
-        return {SKILL_MODE: self.skill_view, INSTRUCTIONS_MODE: self.instructions_view}.get(
-            self.mode_switch.mode(), self.result_column
-        )
+        views = {SKILL_MODE: self.skill_view, INSTRUCTIONS_MODE: self.instructions_view, AGENT_MODE: self.agent_view}
+        return views.get(self.mode_switch.mode(), self.result_column)
 
     def _apply_mode(self, mode: str) -> None:
-        """Skill and Project modes swap the prompt controls and result for their own; every mode keeps its state."""
+        """File modes (Skill, Project, Agent) swap the prompt controls and result; each keeps its state."""
         prompt = mode == PROMPT_MODE
         for widget in (self.target_selector, self.runs_in_label, self.execution_profile, self.technique_panel):
             widget.setVisible(prompt)
@@ -496,15 +506,18 @@ class PromptaWindow(QMainWindow):
             self.assumptions_card.setVisible(prompt)
         self.surface_selector.setVisible(mode == SKILL_MODE)
         self.instruction_target.setVisible(mode == INSTRUCTIONS_MODE)
+        self.agent_target.setVisible(mode == AGENT_MODE)
         self.result_column.setVisible(prompt)
         self.skill_view.setVisible(mode == SKILL_MODE)
         self.instructions_view.setVisible(mode == INSTRUCTIONS_MODE)
+        self.agent_view.setVisible(mode == AGENT_MODE)
         label, hint = {
             SKILL_MODE: ("Build skill", "Describe the skill: what it does and when to use it"),
             INSTRUCTIONS_MODE: (
                 "Build file",
                 "Describe the project: stack, commands, conventions, what agents get wrong",
             ),
+            AGENT_MODE: ("Build agent", "Describe the agent: its one job, when to use it, what it must not touch"),
         }.get(mode, ("Build prompt", "Describe what you need"))
         self.build_label = label + "   ⌘↵"
         self.thoughts.setPlaceholderText(hint)
@@ -512,10 +525,13 @@ class PromptaWindow(QMainWindow):
         self._fit_input_column()
 
     def _run_document(self, thoughts: str, generator: dict) -> None:
-        """Skill or Project mode: one bridge request that writes a file instead of a prompt."""
+        """Skill, Project or Agent mode: one bridge request that writes a file instead of a prompt."""
         if self.mode_switch.mode() == SKILL_MODE:
             request = {"skill": self.surface_selector.surface()}
             status = "Writing SKILL.md from the official skill rules"
+        elif self.mode_switch.mode() == AGENT_MODE:
+            request = {"agent": self.agent_target.target()}
+            status = "Writing the agent from the official rules"
         else:
             request = {"instructions": self.instruction_target.target()}
             status = "Writing project instructions from the official rules"
@@ -645,6 +661,18 @@ class PromptaWindow(QMainWindow):
             )
             return
 
+        if data.get("agent"):
+            agent = data["agent"]
+            self.agent_view.render_agent(agent)
+            file_name = agent.get("fileName") or "agent"
+            self._save_result(agent.get("name") or file_name, "agent", agent)
+            check = agent.get("check") or {}
+            problems = len(check.get("errors") or [])
+            self.status.setText(
+                f"{file_name} · ready" if check.get("valid") else f"{file_name} · {problems} problem(s) left"
+            )
+            return
+
         if data.get("procedure"):
             self.result_column.render_procedure(data["procedure"])
             self._save_result(data["procedure"]["technique"]["name"], "procedure", data["procedure"])
@@ -680,13 +708,17 @@ class PromptaWindow(QMainWindow):
         """Show a saved result; raises KeyError, TypeError or ValueError for data it cannot show."""
         kind, payload = entry["kind"], entry["payload"]
         self.thoughts.setPlainText(entry["thoughts"])
-        self.mode_switch.set_mode({"skill": SKILL_MODE, "instructions": INSTRUCTIONS_MODE}.get(kind, PROMPT_MODE))
+        modes = {"skill": SKILL_MODE, "instructions": INSTRUCTIONS_MODE, "agent": AGENT_MODE}
+        self.mode_switch.set_mode(modes.get(kind, PROMPT_MODE))
         if kind == "skill":
             self.surface_selector.set_surface(payload.get("surface", "portable"))
             self.skill_view.render_skill(payload)
         elif kind == "instructions":
             self.instruction_target.set_target(payload.get("target", "agentsMd"))
             self.instructions_view.render_instructions(payload)
+        elif kind == "agent":
+            self.agent_target.set_target(payload.get("target", "claudeCode"))
+            self.agent_view.render_agent(payload)
         elif kind == "manual":
             self.result_column.render_manual(payload)
         elif kind == "procedure":
@@ -695,7 +727,7 @@ class PromptaWindow(QMainWindow):
             self.result_column.render_result(payload)
 
     def _on_history_opened(self, entry: dict) -> None:
-        if entry.get("kind") in ("skill", "instructions"):
+        if entry.get("kind") in ("skill", "instructions", "agent"):
             return  # a file has no prompt version or target: leave the prompt side as it was
         payload = entry["payload"]
         self.thoughts.setPlainText(entry["thoughts"])

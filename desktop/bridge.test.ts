@@ -158,3 +158,16 @@ test('bridge: instruction requests reject unknown targets, prompt targets and sk
     assert.match(String(data.error), /instructions/i);
   }
 });
+
+test('bridge: agent requests reject unknown targets, prompt targets and other file modes before calling a model', () => {
+  for (const payload of [
+    { thoughts: 'x', model: 'dummy', agent: 'vim' },
+    { thoughts: 'x', model: 'dummy', agent: 'codex', claudeOnly: true },
+    { thoughts: 'x', model: 'dummy', agent: 'cursor', manualTechnique: 'few_shot' },
+    { thoughts: 'x', model: 'dummy', agent: 'claudeCode', instructions: 'agentsMd' },
+  ]) {
+    const { data } = call(payload);
+    assert.equal(data.ok, false);
+    assert.match(String(data.error), /agent/i);
+  }
+});

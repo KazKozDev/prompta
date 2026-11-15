@@ -1,0 +1,53 @@
+{
+  "verified_at": "2026-11-15",
+  "sources": [
+    {
+      "id": "claude-code-subagents",
+      "title": "Claude Code: Create custom subagents",
+      "url": "https://code.claude.com/docs/en/sub-agents",
+      "snapshot": "snapshots/claude-code-subagents.md",
+      "sha256": "00bda45456b22baae5d1a3f953f1d84b2fb8c191871d7e8753d13a24d9b74cf5",
+      "retrieved_at": "2026-11-15"
+    },
+    {
+      "id": "cursor-subagents",
+      "title": "Cursor: Subagents",
+      "url": "https://cursor.com/docs/subagents",
+      "snapshot": "snapshots/cursor-subagents.md",
+      "sha256": "414149d065130579de2f1ba51a0623c0ccd56799e52d19f3afb1992467cabfbb",
+      "retrieved_at": "2026-11-15"
+    },
+    {
+      "id": "codex-subagents",
+      "title": "Codex: Subagents",
+      "url": "https://developers.openai.com/codex/subagents",
+      "snapshot": "snapshots/codex-subagents.md",
+      "sha256": "e7469d41c5a18a4ee66ee40ca4a9a2617a697e42554a0198ac4481e1e597357f",
+      "retrieved_at": "2026-11-15"
+    },
+    {
+      "id": "copilot-custom-agents-configuration",
+      "title": "GitHub Copilot: Custom agents configuration",
+      "url": "https://docs.github.com/en/copilot/reference/custom-agents-configuration",
+      "snapshot": "snapshots/github-copilot-custom-agents-configuration.md",
+      "sha256": "60bec6cc8ff6b0a857cd98dccc9e300526f1d6e20de8763b3bf5cf548f64bdda",
+      "retrieved_at": "2026-11-15"
+    },
+    {
+      "id": "copilot-create-custom-agents",
+      "title": "GitHub Copilot: Creating custom agents for Copilot cloud agent",
+      "url": "https://docs.github.com/en/copilot/how-tos/copilot-on-github/customize-copilot/customize-cloud-agent/create-custom-agents",
+      "snapshot": "snapshots/github-copilot-create-custom-agents.md",
+      "sha256": "3e4dae1e1acfdb493cebc3f661265001846478df10f57076079438b680d2d132",
+      "retrieved_at": "2026-11-15"
+    },
+    {
+      "id": "vscode-custom-agent-file-reference",
+      "title": "VS Code: Custom agent file reference",
+      "url": "https://code.visualstudio.com/docs/agents/reference/custom-agent-file-reference",
+      "snapshot": "snapshots/vscode-custom-agent-file-reference.md",
+      "sha256": "040edd8b5825dc4558849009aa65717599b539f250a1e30635cdc90989a760bd",
+      "retrieved_at": "2026-11-15"
+    }
+  ]
+}

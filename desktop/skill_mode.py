@@ -1,7 +1,8 @@
-"""Prompt / Skill / Project switch and the "Works in" picker shown in Skill mode.
+"""Prompt / Skill / Project / Agent switch and the "Works in" picker shown in Skill mode.
 
-Skill mode writes a SKILL.md (pipeline/skill.ts) and Project mode an agent instruction file
-(pipeline/instructions.ts, picker in instructions_mode.py) instead of a prompt; the prompt controls
+Skill mode writes a SKILL.md (pipeline/skill.ts), Project mode an agent instruction file
+(pipeline/instructions.ts, picker in instructions_mode.py) and Agent mode a subagent
+(pipeline/agent.ts, picker in agent_mode.py) instead of a prompt; the prompt controls
 (Written for, Runs in, Technique) do not apply to them and are hidden by the window.
 """
 
@@ -17,11 +18,12 @@ from settings_ui import field_label
 PROMPT_MODE = "prompt"
 SKILL_MODE = "skill"
 INSTRUCTIONS_MODE = "instructions"
-MODES = (PROMPT_MODE, SKILL_MODE, INSTRUCTIONS_MODE)
+AGENT_MODE = "agent"
+MODES = (PROMPT_MODE, SKILL_MODE, INSTRUCTIONS_MODE, AGENT_MODE)
 
 
 class ModeSwitch(QFrame):
-    """Three segments in the header: Prompt, Skill and Project. `changed(mode)` fires on every switch."""
+    """Four segments in the header: Prompt, Skill, Project and Agent. `changed(mode)` fires on every switch."""
 
     changed = pyqtSignal(str)
 
@@ -39,6 +41,7 @@ class ModeSwitch(QFrame):
             (PROMPT_MODE, "Prompt", "Build a prompt for a model"),
             (SKILL_MODE, "Skill", "Write a SKILL.md for an Agent Skill"),
             (INSTRUCTIONS_MODE, "Project", "Write project instructions: AGENTS.md, CLAUDE.md, Cursor or Copilot"),
+            (AGENT_MODE, "Agent", "Write a subagent: Claude Code, Cursor, Codex or Copilot"),
         ]
         for index, (mode, label, tip) in enumerate(segments):
             button = QPushButton(label)

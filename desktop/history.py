@@ -17,7 +17,7 @@ from pathlib import Path
 
 HISTORY_PATH = Path.home() / 'Library' / 'Application Support' / 'Prompta' / 'history.sqlite3'
 DEFAULT_MAX_ENTRIES = 500
-HISTORY_KINDS = ('pipeline', 'manual', 'procedure', 'skill', 'instructions')
+HISTORY_KINDS = ('pipeline', 'manual', 'procedure', 'skill', 'instructions', 'agent')
 
 
 def _env_int(name: str, default: int) -> int:
