@@ -45,7 +45,15 @@ from agent_mode import AgentTargetSelector
 from agent_view import AgentView
 from instructions_mode import InstructionTargetSelector
 from instructions_view import InstructionsView
-from skill_mode import AGENT_MODE, INSTRUCTIONS_MODE, PROMPT_MODE, SKILL_MODE, ModeSwitch, SurfaceSelector
+from skill_mode import (
+    AGENT_MODE,
+    INSTRUCTIONS_MODE,
+    MODE_PURPOSE,
+    PROMPT_MODE,
+    SKILL_MODE,
+    ModeSwitch,
+    SurfaceSelector,
+)
 from skill_view import SkillView
 from about_page import AboutPage
 from dictation import DictationPage
@@ -224,7 +232,7 @@ class PromptaWindow(QMainWindow):
         QApplication.instance().aboutToQuit.connect(self.thoughts.stop_dictation)
         self.thoughts.setAccessibleName("Thoughts")
         use_step_scroll(self.thoughts)
-        self.thoughts.setPlaceholderText("Describe what you need")
+        self.thoughts.setPlaceholderText(f"Describe what you need\n\n{MODE_PURPOSE[PROMPT_MODE]}")
         thoughts_palette = self.thoughts.palette()
         thoughts_palette.setColor(QPalette.ColorRole.PlaceholderText, QColor("#9a8c6b"))
         self.thoughts.setPalette(thoughts_palette)
@@ -520,7 +528,7 @@ class PromptaWindow(QMainWindow):
             AGENT_MODE: ("Build agent", "Describe the agent: its one job, when to use it, what it must not touch"),
         }.get(mode, ("Build prompt", "Describe what you need"))
         self.build_label = label + "   ⌘↵"
-        self.thoughts.setPlaceholderText(hint)
+        self.thoughts.setPlaceholderText(f"{hint}\n\n{MODE_PURPOSE[mode]}" if mode in MODE_PURPOSE else hint)
         self._sync_build_label()
         self._fit_input_column()
 

@@ -20,6 +20,22 @@ SKILL_MODE = "skill"
 INSTRUCTIONS_MODE = "instructions"
 AGENT_MODE = "agent"
 MODES = (PROMPT_MODE, SKILL_MODE, INSTRUCTIONS_MODE, AGENT_MODE)
+# Shown in grey under each mode's "Describe …" hint: what the file is for, in plain words.
+MODE_PURPOSE = {
+    PROMPT_MODE: "A prompt for one task: paste it into a chat, the model does the job, done.",
+    SKILL_MODE: (
+        "A procedure you repeat, such as a release or a review. The agent loads it only when a task matches, "
+        "in any project."
+    ),
+    INSTRUCTIONS_MODE: (
+        "The rules of this project. The agent reads them at the start of every session here, "
+        "so it stops guessing and stops breaking the structure."
+    ),
+    AGENT_MODE: (
+        "A specialist, such as a reviewer, that the main agent hands one job to. It works in its own context "
+        "with only the tools you allow and returns just the result."
+    ),
+}
 
 
 class ModeSwitch(QFrame):

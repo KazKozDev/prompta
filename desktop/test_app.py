@@ -708,7 +708,7 @@ class DesktopSmokeTest(unittest.TestCase):
             window = PromptaWindow()
         labels = {label.text(): label for label in window.findChildren(QLabel)}
         self.assertNotIn('THOUGHTS', labels)
-        self.assertEqual(window.thoughts.placeholderText(), 'Describe what you need')
+        self.assertTrue(window.thoughts.placeholderText().startswith('Describe what you need\n\nA prompt for one task'))
         self.assertEqual(window.thoughts.accessibleName(), 'Thoughts')
         self.assertFalse(window.settings_button.icon().isNull())
         self.assertTrue(window.settings_dialog.isAncestorOf(window.generator.api_key))
