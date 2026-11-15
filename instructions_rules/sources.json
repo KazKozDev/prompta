@@ -1,0 +1,93 @@
+{
+  "verified_at": "2026-11-15",
+  "sources": [
+    {
+      "id": "agents-md-site",
+      "title": "AGENTS.md: the open format (site)",
+      "url": "https://agents.md/",
+      "snapshot": "snapshots/agents-md-site.html",
+      "sha256": "92c01232a53e0cc0b404f5a12c108cf55d21b68529c54d4946d7b750a3dec793",
+      "retrieved_at": "2026-11-15"
+    },
+    {
+      "id": "agents-md-readme",
+      "title": "openai/agents.md README",
+      "url": "https://github.com/openai/agents.md/blob/d001185d792eb6402a58e4cbef1c228b309ec25d/README.md",
+      "snapshot": "snapshots/agents-md-repo/README.md",
+      "sha256": "60ec51c226560aaf2c49a0b8a2452c8cf24459c37a816764979dc917076c7afb",
+      "retrieved_at": "2026-11-15"
+    },
+    {
+      "id": "agents-md-example",
+      "title": "openai/agents.md: its own AGENTS.md",
+      "url": "https://github.com/openai/agents.md/blob/d001185d792eb6402a58e4cbef1c228b309ec25d/AGENTS.md",
+      "snapshot": "snapshots/agents-md-repo/AGENTS.md",
+      "sha256": "7f8ae31d13502bb23b1629151405fa40637da8d3b0dd7545eb295c1ec45ab2c9",
+      "retrieved_at": "2026-11-15"
+    },
+    {
+      "id": "agents-md-license",
+      "title": "openai/agents.md LICENSE (MIT)",
+      "url": "https://github.com/openai/agents.md/blob/d001185d792eb6402a58e4cbef1c228b309ec25d/LICENSE",
+      "snapshot": "snapshots/agents-md-repo/LICENSE",
+      "sha256": "13df7812ca53ecaae1cb4a868844bb598373047ae1d580e4debfbef1dd5b6915",
+      "retrieved_at": "2026-11-15"
+    },
+    {
+      "id": "claude-code-memory",
+      "title": "Claude Code: How Claude remembers your project",
+      "url": "https://code.claude.com/docs/en/memory",
+      "snapshot": "snapshots/claude-code-memory.md",
+      "sha256": "524cff77043d4b230e427dfcebce29a5284fcd2e3f4678abb2ef9b6e856c5ff8",
+      "retrieved_at": "2026-11-15"
+    },
+    {
+      "id": "claude-code-best-practices",
+      "title": "Best practices for Claude Code",
+      "url": "https://code.claude.com/docs/en/best-practices",
+      "snapshot": "snapshots/claude-code-best-practices.md",
+      "sha256": "ee235042febdd1f76cf07228240140239638a3c464b6bc39bd3014830d02a9bf",
+      "retrieved_at": "2026-11-15"
+    },
+    {
+      "id": "codex-agents-md",
+      "title": "Codex: Custom instructions with AGENTS.md",
+      "url": "https://developers.openai.com/codex/guides/agents-md",
+      "snapshot": "snapshots/codex-agents-md.md",
+      "sha256": "9d1f87a2d1cb55b4782b95abe710692b35b9659789c2db31a22c7074a3383e8e",
+      "retrieved_at": "2026-11-15"
+    },
+    {
+      "id": "cursor-rules",
+      "title": "Cursor: Rules",
+      "url": "https://cursor.com/docs/rules",
+      "snapshot": "snapshots/cursor-rules.md",
+      "sha256": "dae9d3ecd7e389fc94ee57d87911fe8d54bae1f00ce451d44303616648247ce0",
+      "retrieved_at": "2026-11-15"
+    },
+    {
+      "id": "copilot-repo-instructions",
+      "title": "Adding repository custom instructions for GitHub Copilot",
+      "url": "https://docs.github.com/en/copilot/how-tos/configure-custom-instructions/add-repository-instructions",
+      "snapshot": "snapshots/github-copilot-repo-instructions.md",
+      "sha256": "a7f25f9ffa4c37166add506ada0a4925dc31ebf2fcf7752e211f115ee799e0ee",
+      "retrieved_at": "2026-11-15"
+    },
+    {
+      "id": "vscode-custom-instructions",
+      "title": "Use custom instructions in VS Code",
+      "url": "https://code.visualstudio.com/docs/agent-customization/custom-instructions",
+      "snapshot": "snapshots/vscode-custom-instructions.md",
+      "sha256": "196a9deab0c6cc8d321b588fe8970a5cf4efd446e626531a15c48263f25cc95b",
+      "retrieved_at": "2026-11-15"
+    },
+    {
+      "id": "github-blog-instructions-files",
+      "title": "Unlocking the full power of Copilot code review: Master your instructions files (The GitHub Blog)",
+      "url": "https://github.blog/ai-and-ml/github-copilot/unlocking-the-full-power-of-copilot-code-review-master-your-instructions-files/",
+      "snapshot": "snapshots/github-blog-instructions-files.html",
+      "sha256": "14df94bd2194b15d418121674382c89164cf63917320c65d3f951532203c991c",
+      "retrieved_at": "2026-11-15"
+    }
+  ]
+}

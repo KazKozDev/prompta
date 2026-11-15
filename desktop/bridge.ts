@@ -15,6 +15,9 @@ import { generateBrief, parseBrief } from '../pipeline/brief.ts';
 import { settleWithLimit } from '../pipeline/limit.ts';
 import { generateSkill } from '../pipeline/skill.ts';
 import type { SkillSurface } from '../pipeline/skill-rules.ts';
+import { generateInstructions } from '../pipeline/instructions.ts';
+import { INSTRUCTION_TARGETS } from '../pipeline/instructions-rules.ts';
+import type { InstructionTarget } from '../pipeline/instructions-rules.ts';
 import type { Provider } from '../pipeline/llm.ts';
 import techniqueSources from '../catalog/source-links.json' with { type: 'json' };
 
@@ -55,6 +58,8 @@ interface BridgeRequest {
   variants?: number;
   /** Write a SKILL.md instead of a prompt, for this surface. */
   skill?: SkillSurface;
+  /** Write a project-instruction file (AGENTS.md, CLAUDE.md, Cursor rule, Copilot) instead of a prompt. */
+  instructions?: InstructionTarget;
 }
 
 /** A title when no brief was made: a missing title must not discard completed prompts. */
@@ -107,12 +112,22 @@ async function main() {
   };
   const officialMode = req.claudeOnly || req.chatgptOnly || req.geminiOnly || req.grokOnly || req.hermesOnly || req.openModel;
 
+  if (req.skill !== undefined && req.instructions !== undefined) throw new Error('Choose a skill or project instructions, not both.');
   if (req.skill !== undefined) {
     if (!['portable', 'claudeCode'].includes(req.skill)) throw new Error('skill must be "portable" or "claudeCode".');
     if (officialMode || req.manualTechnique || req.manualTechniques) throw new Error('A skill cannot be combined with a prompt target or technique.');
     onProgress?.(10, 'Writing SKILL.md');
     const skill = await generateSkill({ thoughts: req.thoughts, llm, surface: req.skill });
     process.stdout.write(JSON.stringify({ ok: true, skill: { ...skill, usage: usage() } }));
+    return;
+  }
+
+  if (req.instructions !== undefined) {
+    if (!INSTRUCTION_TARGETS.includes(req.instructions)) throw new Error(`instructions must be one of ${INSTRUCTION_TARGETS.join(', ')}.`);
+    if (officialMode || req.manualTechnique || req.manualTechniques) throw new Error('Project instructions cannot be combined with a prompt target or technique.');
+    onProgress?.(10, 'Writing project instructions');
+    const instructions = await generateInstructions({ thoughts: req.thoughts, llm, target: req.instructions });
+    process.stdout.write(JSON.stringify({ ok: true, instructions: { ...instructions, usage: usage() } }));
     return;
   }
 

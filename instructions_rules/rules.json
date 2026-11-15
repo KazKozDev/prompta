@@ -1,0 +1,325 @@
+{
+  "version": "2026-11-15.1",
+  "verified_at": "2026-11-15",
+  "targets": {
+    "agentsMd": "AGENTS.md: the open format (Codex, Cursor, Copilot, Claude Code and others read it)",
+    "claudeMd": "CLAUDE.md: Claude Code project instructions",
+    "cursor": "Cursor project rule: .cursor/rules/<name>.mdc",
+    "copilot": "GitHub Copilot: .github/copilot-instructions.md"
+  },
+  "rules": [
+    {
+      "id": "agents-plain-markdown",
+      "source_id": "agents-md-site",
+      "targets": [
+        "agentsMd"
+      ],
+      "rule_text": "AGENTS.md is plain Markdown with no required fields and no frontmatter; use any headings.",
+      "evidence": "No. AGENTS.md is just standard Markdown. Use any headings you like"
+    },
+    {
+      "id": "agents-root",
+      "source_id": "agents-md-site",
+      "targets": [
+        "agentsMd"
+      ],
+      "rule_text": "Place AGENTS.md at the repository root; in a monorepo add nested AGENTS.md files per package, and the closest one to the edited file wins.",
+      "evidence": "Create an AGENTS.md file at the root of the repository."
+    },
+    {
+      "id": "agents-for-agents-not-humans",
+      "source_id": "agents-md-site",
+      "targets": [
+        "agentsMd"
+      ],
+      "rule_text": "AGENTS.md complements the README: put the agent-facing details (build steps, tests, conventions) here and keep the README for humans.",
+      "evidence": "AGENTS.md complements this by containing the extra, sometimes detailed context coding agents need"
+    },
+    {
+      "id": "agents-popular-sections",
+      "source_id": "agents-md-site",
+      "targets": [
+        "agentsMd"
+      ],
+      "rule_text": "Cover what matters to an agent; common sections are project overview, build and test commands, code style, testing instructions, security considerations, commit or PR guidelines.",
+      "evidence": "Add sections that help an agent work effectively with your project."
+    },
+    {
+      "id": "agents-commands-run",
+      "source_id": "agents-md-site",
+      "targets": [
+        "agentsMd",
+        "claudeMd"
+      ],
+      "rule_text": "List the exact build, test and lint commands: the agent runs the checks it finds and fixes failures before finishing.",
+      "evidence": "Yes—if you list them."
+    },
+    {
+      "id": "codex-size-limit",
+      "source_id": "codex-agents-md",
+      "targets": [
+        "agentsMd"
+      ],
+      "rule_text": "Codex stops adding AGENTS.md files once their combined size reaches project_doc_max_bytes, 32 KiB by default; keep the file well under it.",
+      "evidence": "(32 KiB by default)"
+    },
+    {
+      "id": "codex-nearest-overrides",
+      "source_id": "codex-agents-md",
+      "targets": [
+        "agentsMd"
+      ],
+      "rule_text": "Codex concatenates files from the root down, so guidance in a nested directory overrides the root file; put team-specific rules in the nested file.",
+      "evidence": "Files closer to your current directory override earlier guidance"
+    },
+    {
+      "id": "claude-locations",
+      "source_id": "claude-code-memory",
+      "targets": [
+        "claudeMd"
+      ],
+      "rule_text": "A project CLAUDE.md lives at ./CLAUDE.md or ./.claude/CLAUDE.md and is shared through version control; personal preferences go in CLAUDE.local.md, added to .gitignore.",
+      "evidence": "A project CLAUDE.md can be stored in either `./CLAUDE.md` or `./.claude/CLAUDE.md`."
+    },
+    {
+      "id": "claude-agents-md-import",
+      "source_id": "claude-code-memory",
+      "targets": [
+        "claudeMd"
+      ],
+      "rule_text": "If the repository already has an AGENTS.md, start CLAUDE.md with an @AGENTS.md import and add only Claude-specific instructions below it, instead of copying the content.",
+      "evidence": "putting an `@AGENTS.md` import in a `CLAUDE.md` next to it"
+    },
+    {
+      "id": "claude-path-rules",
+      "source_id": "claude-code-memory",
+      "targets": [
+        "claudeMd"
+      ],
+      "rule_text": "Instructions for one part of the codebase go in .claude/rules/<topic>.md with a paths: frontmatter list of globs; paths is the only field Claude Code reads there.",
+      "evidence": "`paths` is the only field Claude Code reads from a rule"
+    },
+    {
+      "id": "cursor-mdc",
+      "source_id": "cursor-rules",
+      "targets": [
+        "cursor"
+      ],
+      "rule_text": "A Cursor project rule is an .mdc file in .cursor/rules/; a plain .md file there is ignored.",
+      "evidence": "Project rules must use the `.mdc` extension."
+    },
+    {
+      "id": "cursor-frontmatter",
+      "source_id": "cursor-rules",
+      "targets": [
+        "cursor"
+      ],
+      "rule_text": "Cursor rule frontmatter has three fields: alwaysApply (true: always included), globs (auto-attached to matching files), description (the agent decides when it is relevant). With none of them and alwaysApply false, the rule loads only when @-mentioned.",
+      "evidence": "the three frontmatter fields interact to determine when a rule is included"
+    },
+    {
+      "id": "cursor-one-topic",
+      "source_id": "cursor-rules",
+      "targets": [
+        "cursor"
+      ],
+      "rule_text": "Keep each Cursor rule under 500 lines and split large rules into several focused, composable rules.",
+      "evidence": "Keep rules under 500 lines"
+    },
+    {
+      "id": "copilot-location",
+      "source_id": "copilot-repo-instructions",
+      "targets": [
+        "copilot"
+      ],
+      "rule_text": "Repository-wide Copilot instructions go in .github/copilot-instructions.md as natural-language Markdown.",
+      "evidence": "create a file named `.github/copilot-instructions.md`"
+    },
+    {
+      "id": "copilot-path-specific",
+      "source_id": "copilot-repo-instructions",
+      "targets": [
+        "copilot"
+      ],
+      "rule_text": "Path-specific Copilot instructions go in .github/instructions/NAME.instructions.md with an applyTo frontmatter glob (several patterns separated by commas); excludeAgent: \"code-review\" or \"cloud-agent\" hides the file from one of them.",
+      "evidence": "The file name must end with `.instructions.md`."
+    },
+    {
+      "id": "copilot-short",
+      "source_id": "github-blog-instructions-files",
+      "targets": [
+        "copilot"
+      ],
+      "rule_text": "Keep Copilot instructions focused and short: files over about 1,000 lines lead to inconsistent behaviour.",
+      "evidence": "long instructions files (over ~1,000 lines) can lead to inconsistent behavior"
+    },
+    {
+      "id": "copilot-no-vague-improvement",
+      "source_id": "github-blog-instructions-files",
+      "targets": [
+        "copilot"
+      ],
+      "rule_text": "Do not add generic requests such as \"Be more accurate\" or \"Identify all issues\": they add noise.",
+      "evidence": "requests meant to generally and non-specifically improve behavior"
+    },
+    {
+      "id": "copilot-no-external-links",
+      "source_id": "github-blog-instructions-files",
+      "targets": [
+        "copilot"
+      ],
+      "rule_text": "Copilot code review does not follow links: copy the relevant information into the instructions file instead.",
+      "evidence": "Copilot won’t follow them. You should copy relevant info into your instructions files instead."
+    },
+    {
+      "id": "size-claude",
+      "source_id": "claude-code-memory",
+      "targets": [
+        "claudeMd"
+      ],
+      "rule_text": "Target under 200 lines per CLAUDE.md: longer files consume more context and reduce adherence.",
+      "evidence": "target under 200 lines per CLAUDE.md file"
+    },
+    {
+      "id": "concrete-verifiable",
+      "source_id": "claude-code-memory",
+      "targets": [
+        "agentsMd",
+        "claudeMd",
+        "cursor",
+        "copilot"
+      ],
+      "rule_text": "Write instructions concrete enough to verify: \"Use 2-space indentation\", not \"Format code properly\"; \"Run npm test before committing\", not \"Test your changes\".",
+      "evidence": "Write instructions that are concrete enough to verify"
+    },
+    {
+      "id": "name-the-thing",
+      "source_id": "vscode-custom-instructions",
+      "targets": [
+        "agentsMd",
+        "claudeMd",
+        "cursor",
+        "copilot"
+      ],
+      "rule_text": "Prefer actionable details: name the command, directory, library or existing example the agent should use.",
+      "evidence": "Name the command, directory, library, or existing example the agent should use."
+    },
+    {
+      "id": "only-what-code-cannot-tell",
+      "source_id": "claude-code-best-practices",
+      "targets": [
+        "agentsMd",
+        "claudeMd",
+        "cursor",
+        "copilot"
+      ],
+      "rule_text": "Keep only what the agent could not work out from the code: how to verify work (exact test, typecheck, lint commands), misleading places in the code, decisions that are not in the repo, corrections already made twice.",
+      "evidence": "it only holds what Claude couldn't work out from the code itself"
+    },
+    {
+      "id": "no-linter-duplication",
+      "source_id": "vscode-custom-instructions",
+      "targets": [
+        "agentsMd",
+        "claudeMd",
+        "cursor",
+        "copilot"
+      ],
+      "rule_text": "Do not duplicate rules enforced by formatters or linters, and do not copy whole style guides: the agent already knows common conventions.",
+      "evidence": "Don't duplicate rules enforced by formatters or linters."
+    },
+    {
+      "id": "no-common-commands",
+      "source_id": "cursor-rules",
+      "targets": [
+        "agentsMd",
+        "claudeMd",
+        "cursor",
+        "copilot"
+      ],
+      "rule_text": "Do not document every possible command or rare edge cases: the agent knows npm, git and pytest; keep to patterns used often.",
+      "evidence": "**Documenting every possible command**"
+    },
+    {
+      "id": "reference-not-copy",
+      "source_id": "cursor-rules",
+      "targets": [
+        "agentsMd",
+        "claudeMd",
+        "cursor",
+        "copilot"
+      ],
+      "rule_text": "Reference files instead of copying their contents, and say what to look for there; this keeps instructions short and current.",
+      "evidence": "Reference files instead of copying their contents."
+    },
+    {
+      "id": "structure",
+      "source_id": "claude-code-memory",
+      "targets": [
+        "agentsMd",
+        "claudeMd",
+        "cursor",
+        "copilot"
+      ],
+      "rule_text": "Group related instructions under Markdown headings and bullets; short imperative bullets beat dense paragraphs.",
+      "evidence": "group related instructions under markdown headers and bullets"
+    },
+    {
+      "id": "no-contradictions",
+      "source_id": "claude-code-memory",
+      "targets": [
+        "agentsMd",
+        "claudeMd",
+        "cursor",
+        "copilot"
+      ],
+      "rule_text": "No two instructions may contradict each other: the agent may pick one arbitrarily.",
+      "evidence": "if two instructions contradict each other, Claude may pick one arbitrarily"
+    },
+    {
+      "id": "scope-out-partial",
+      "source_id": "claude-code-memory",
+      "targets": [
+        "agentsMd",
+        "claudeMd",
+        "cursor",
+        "copilot"
+      ],
+      "rule_text": "A rule that matters for only one part of the codebase belongs in a path-scoped file (Claude .claude/rules with paths, Cursor .mdc with globs, Copilot .instructions.md with applyTo), not the project-wide file.",
+      "evidence": "Move instructions that matter for only part of the codebase into"
+    },
+    {
+      "id": "procedures-to-skills",
+      "source_id": "claude-code-memory",
+      "targets": [
+        "agentsMd",
+        "claudeMd",
+        "copilot"
+      ],
+      "rule_text": "A multi-step procedure is not a project instruction: move it to a skill and keep only facts needed in every session.",
+      "evidence": "If an entry is a multi-step procedure or only matters for one part of the codebase"
+    },
+    {
+      "id": "no-shouting",
+      "source_id": "claude-code-best-practices",
+      "targets": [
+        "agentsMd",
+        "claudeMd"
+      ],
+      "rule_text": "Do not compensate with IMPORTANT or capitals: a rule that can never have exceptions belongs in a hook, deny rule or CI check, not in the instruction file.",
+      "evidence": "adding IMPORTANT probably won't fix it"
+    },
+    {
+      "id": "personal-out",
+      "source_id": "vscode-custom-instructions",
+      "targets": [
+        "agentsMd",
+        "claudeMd",
+        "cursor",
+        "copilot"
+      ],
+      "rule_text": "Keep personal preferences out of the shared project file; they belong in user-scope instructions.",
+      "evidence": "Don't put your individual response preferences in a shared project file"
+    }
+  ]
+}

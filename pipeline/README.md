@@ -28,6 +28,9 @@ stream of thoughts
 | `skill.ts` | Skill mode: thoughts → SKILL.md from `skill_rules/`, one repair pass if the check fails |
 | `skill-rules.ts` | Loads `skill_rules/rules.json` with its sources, per surface (portable / Claude Code) |
 | `skill-validate.ts` | Deterministic SKILL.md check: port of skill-creator's `quick_validate.py` plus documented rules |
+| `instructions.ts` | Project mode: thoughts → AGENTS.md, CLAUDE.md, Cursor rule or Copilot instructions from `instructions_rules/`, one repair pass |
+| `instructions-rules.ts` | Loads `instructions_rules/rules.json` with its sources, per target file |
+| `instructions-validate.ts` | Deterministic instruction-file check: frontmatter per target, size limits, headings, commands, emphasis |
 | `smoke.test.ts` | Offline pipeline checks on `node:test`, no network |
 
 ## Guarantees

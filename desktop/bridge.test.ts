@@ -145,3 +145,16 @@ test('bridge: skill requests reject unknown surfaces and prompt targets before c
     assert.match(String(data.error), /skill/i);
   }
 });
+
+test('bridge: instruction requests reject unknown targets, prompt targets and skills before calling a model', () => {
+  for (const payload of [
+    { thoughts: 'x', model: 'dummy', instructions: 'vim' },
+    { thoughts: 'x', model: 'dummy', instructions: 'agentsMd', chatgptOnly: true },
+    { thoughts: 'x', model: 'dummy', instructions: 'cursor', manualTechnique: 'few_shot' },
+    { thoughts: 'x', model: 'dummy', instructions: 'claudeMd', skill: 'portable' },
+  ]) {
+    const { data } = call(payload);
+    assert.equal(data.ok, false);
+    assert.match(String(data.error), /instructions/i);
+  }
+});

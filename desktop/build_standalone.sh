@@ -48,11 +48,12 @@ STAGE="$WORK/prompta"
 mkdir -p "$STAGE"
 (cd "$ROOT" && git ls-files package.json pipeline mcp catalog '*_prompt_rules/*' hermes_agent_prompt_guides \
    open_model_prompt_guides skill_rules/rules.json skill_rules/sources.json skill_rules/SKILL-template.md \
+   instructions_rules/rules.json instructions_rules/sources.json instructions_rules/INSTRUCTIONS-template.md \
    desktop/bridge.ts desktop/app.qss 'desktop/*.svg' 'desktop/*.png' \
    | grep -vE '\.test\.ts$|\.py$' > "$WORK/files")
 rsync -a --files-from="$WORK/files" "$ROOT" "$STAGE"
 # Every target's rules must ride along: a pathspec that matched nothing once shipped an app without them.
-for rules in "$ROOT"/*_prompt_rules/rules.json "$ROOT"/skill_rules/rules.json; do
+for rules in "$ROOT"/*_prompt_rules/rules.json "$ROOT"/skill_rules/rules.json "$ROOT"/instructions_rules/rules.json; do
   [ -f "$STAGE/${rules#"$ROOT"/}" ] || { echo "missing from the bundle: ${rules#"$ROOT"/}" >&2; exit 1; }
 done
 

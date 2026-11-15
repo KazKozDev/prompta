@@ -458,6 +458,8 @@ class HistoryView(QObject):
     def _prompt_at(kind: str, payload: dict, variant: int) -> str:
         if kind == "skill":  # one editable text: the SKILL.md
             return payload.get("skill", "")
+        if kind == "instructions":  # one editable text: the instruction file
+            return payload.get("text", "")
         if variant == 0:
             return payload.get("zeroShotPrompt", "")
         if kind == "manual":
@@ -480,6 +482,8 @@ class HistoryView(QObject):
             del payload["originalPrompts"]
         if kind == "skill":
             payload["skill"] = text
+        elif kind == "instructions":
+            payload["text"] = text
         elif variant == 0:
             payload["zeroShotPrompt"] = text
         elif kind == "manual":

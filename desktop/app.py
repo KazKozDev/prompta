@@ -41,7 +41,9 @@ from history_view import HistoryView
 from target_selector import TargetSelector
 from technique_panel import TechniquePanel
 from result_column import ResultColumn
-from skill_mode import SKILL_MODE, ModeSwitch, SurfaceSelector
+from instructions_mode import InstructionTargetSelector
+from instructions_view import InstructionsView
+from skill_mode import INSTRUCTIONS_MODE, PROMPT_MODE, SKILL_MODE, ModeSwitch, SurfaceSelector
 from skill_view import SkillView
 from about_page import AboutPage
 from dictation import DictationPage
@@ -246,6 +248,9 @@ class PromptaWindow(QMainWindow):
         self.surface_selector = SurfaceSelector()  # Skill mode only: replaces the prompt controls
         self.surface_selector.hide()
         box.addWidget(self.surface_selector)
+        self.instruction_target = InstructionTargetSelector()  # Project mode only
+        self.instruction_target.hide()
+        box.addWidget(self.instruction_target)
         # Where the prompt goes and where it runs belong together: right under the target switch.
         # Where it runs decides which tool steps the prompt may rely on.
         runs_in = QVBoxLayout()
@@ -333,12 +338,17 @@ class PromptaWindow(QMainWindow):
         self.result_column.promptEdited.connect(self.history.prompt_edited)  # edits go into the saved result
         box.addWidget(self.result_column, 1)
         self.skill_view = SkillView()
-        self.skill_view.skillEdited.connect(lambda text: self.history.prompt_edited(0, text))
+        self.skill_view.textEdited.connect(lambda text: self.history.prompt_edited(0, text))
         self.skill_view.hide()
         box.addWidget(self.skill_view, 1)
+        self.instructions_view = InstructionsView()
+        self.instructions_view.textEdited.connect(lambda text: self.history.prompt_edited(0, text))
+        self.instructions_view.hide()
+        box.addWidget(self.instructions_view, 1)
 
         self.result_column.show_placeholder()
         self.skill_view.show_placeholder()
+        self.instructions_view.show_placeholder()
         return card
 
     # ── settings ──────────────────────────────────────────────────
@@ -408,6 +418,7 @@ class PromptaWindow(QMainWindow):
         self.history.deselect()
         self.result_column.show_placeholder()
         self.skill_view.show_placeholder()
+        self.instructions_view.show_placeholder()
         self.generation_progress.hide()
         self.generation_progress.setValue(0)
         self._set_running(running)
@@ -461,41 +472,61 @@ class PromptaWindow(QMainWindow):
             return
         if not force and self._running():
             return  # the button says Stop until the run ends
-        card = None if self._skill_mode() else self.assumptions_card  # a skill run does not read the brief card
+        card = self.assumptions_card if self._prompt_mode() else None  # skill and project runs do not read the card
         count = card.change_count() if card is not None and hasattr(card, "change_count") else 0
         base = getattr(self, "build_label", "Build prompt")
         shortcut = base[len("Build prompt") :]
         self.run_button.setText(f"Rebuild · {count} change{'s' if count != 1 else ''}{shortcut}" if count else base)
 
-    def _skill_mode(self) -> bool:
-        return self.mode_switch.mode() == SKILL_MODE
+    def _prompt_mode(self) -> bool:
+        return self.mode_switch.mode() == PROMPT_MODE
+
+    def _mode_view(self):
+        """The result area of the current mode."""
+        return {SKILL_MODE: self.skill_view, INSTRUCTIONS_MODE: self.instructions_view}.get(
+            self.mode_switch.mode(), self.result_column
+        )
 
     def _apply_mode(self, mode: str) -> None:
-        """Skill mode swaps the prompt controls and result for the skill ones; both keep their state."""
-        skill = mode == SKILL_MODE
+        """Skill and Project modes swap the prompt controls and result for their own; every mode keeps its state."""
+        prompt = mode == PROMPT_MODE
         for widget in (self.target_selector, self.runs_in_label, self.execution_profile, self.technique_panel):
-            widget.setVisible(not skill)
+            widget.setVisible(prompt)
         if self.assumptions_card is not None:
-            self.assumptions_card.setVisible(not skill)
-        self.surface_selector.setVisible(skill)
-        self.result_column.setVisible(not skill)
-        self.skill_view.setVisible(skill)
-        self.build_label = ("Build skill" if skill else "Build prompt") + "   ⌘↵"
-        self.thoughts.setPlaceholderText(
-            "Describe the skill: what it does and when to use it" if skill else "Describe what you need"
-        )
+            self.assumptions_card.setVisible(prompt)
+        self.surface_selector.setVisible(mode == SKILL_MODE)
+        self.instruction_target.setVisible(mode == INSTRUCTIONS_MODE)
+        self.result_column.setVisible(prompt)
+        self.skill_view.setVisible(mode == SKILL_MODE)
+        self.instructions_view.setVisible(mode == INSTRUCTIONS_MODE)
+        label, hint = {
+            SKILL_MODE: ("Build skill", "Describe the skill: what it does and when to use it"),
+            INSTRUCTIONS_MODE: (
+                "Build file",
+                "Describe the project: stack, commands, conventions, what agents get wrong",
+            ),
+        }.get(mode, ("Build prompt", "Describe what you need"))
+        self.build_label = label + "   ⌘↵"
+        self.thoughts.setPlaceholderText(hint)
         self._sync_build_label()
         self._fit_input_column()
 
-    def _run_skill(self, thoughts: str, generator: dict) -> None:
+    def _run_document(self, thoughts: str, generator: dict) -> None:
+        """Skill or Project mode: one bridge request that writes a file instead of a prompt."""
+        if self.mode_switch.mode() == SKILL_MODE:
+            request = {"skill": self.surface_selector.surface()}
+            status = "Writing SKILL.md from the official skill rules"
+        else:
+            request = {"instructions": self.instruction_target.target()}
+            status = "Writing project instructions from the official rules"
         self._set_running(True)
         self.generation_progress.setValue(0)
         self.generation_progress.show()
-        self.status.setText("Writing SKILL.md from the official skill rules")
+        self.status.setText(status)
         self._rebuilding_brief = False
         self._active_thoughts = thoughts
         self._discard_result = False
-        self.worker = Worker({"thoughts": thoughts, **generator, "skill": self.surface_selector.surface()})
+        self.worker = Worker({"thoughts": thoughts, **generator, **request})
         self.worker.progress.connect(self.on_progress)
         self.worker.finished_ok.connect(self.on_finished)
         self.worker.start()
@@ -515,8 +546,8 @@ class PromptaWindow(QMainWindow):
         if missing:
             self.status.setText(missing)
             return
-        if self._skill_mode():
-            self._run_skill(thoughts, generator)
+        if not self._prompt_mode():
+            self._run_document(thoughts, generator)
             return
 
         technique_keys = self.technique_panel.technique_keys()
@@ -587,8 +618,7 @@ class PromptaWindow(QMainWindow):
             if getattr(self, "_rebuilding_brief", False):
                 self.status.setText(f"Rebuild failed: {data.get('error', 'unknown error')}")
                 return
-            view = self.skill_view if self._skill_mode() else self.result_column
-            view.show_error(data.get("error", "unknown error"))
+            self._mode_view().show_error(data.get("error", "unknown error"))
             self.status.setText("Error")
             return
 
@@ -600,6 +630,18 @@ class PromptaWindow(QMainWindow):
             problems = len(check.get("errors") or [])
             self.status.setText(
                 f"{skill.get('name')} · ready" if check.get("valid") else f"SKILL.md · {problems} problem(s) left"
+            )
+            return
+
+        if data.get("instructions"):
+            instructions = data["instructions"]
+            self.instructions_view.render_instructions(instructions)
+            file_name = instructions.get("fileName") or "AGENTS.md"
+            self._save_result(file_name, "instructions", instructions)
+            check = instructions.get("check") or {}
+            problems = len(check.get("errors") or [])
+            self.status.setText(
+                f"{file_name} · ready" if check.get("valid") else f"{file_name} · {problems} problem(s) left"
             )
             return
 
@@ -638,10 +680,13 @@ class PromptaWindow(QMainWindow):
         """Show a saved result; raises KeyError, TypeError or ValueError for data it cannot show."""
         kind, payload = entry["kind"], entry["payload"]
         self.thoughts.setPlainText(entry["thoughts"])
-        self.mode_switch.set_mode(SKILL_MODE if kind == "skill" else "prompt")
+        self.mode_switch.set_mode({"skill": SKILL_MODE, "instructions": INSTRUCTIONS_MODE}.get(kind, PROMPT_MODE))
         if kind == "skill":
             self.surface_selector.set_surface(payload.get("surface", "portable"))
             self.skill_view.render_skill(payload)
+        elif kind == "instructions":
+            self.instruction_target.set_target(payload.get("target", "agentsMd"))
+            self.instructions_view.render_instructions(payload)
         elif kind == "manual":
             self.result_column.render_manual(payload)
         elif kind == "procedure":
@@ -650,8 +695,8 @@ class PromptaWindow(QMainWindow):
             self.result_column.render_result(payload)
 
     def _on_history_opened(self, entry: dict) -> None:
-        if entry.get("kind") == "skill":
-            return  # a skill has no prompt version or target: leave the prompt side as it was
+        if entry.get("kind") in ("skill", "instructions"):
+            return  # a file has no prompt version or target: leave the prompt side as it was
         payload = entry["payload"]
         self.thoughts.setPlainText(entry["thoughts"])
         self.result_column.flag_outdated(payload, getattr(self, "prompt_version", ""))

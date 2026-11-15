@@ -17,6 +17,7 @@ from pathlib import Path
 
 HISTORY_PATH = Path.home() / 'Library' / 'Application Support' / 'Prompta' / 'history.sqlite3'
 DEFAULT_MAX_ENTRIES = 500
+HISTORY_KINDS = ('pipeline', 'manual', 'procedure', 'skill', 'instructions')
 
 
 def _env_int(name: str, default: int) -> int:
@@ -72,7 +73,7 @@ class HistoryStore:
         entries = []
         for row in rows:
             payload = json.loads(row[4])
-            if row[2] not in ('pipeline', 'manual', 'procedure', 'skill') or not isinstance(payload, dict):
+            if row[2] not in HISTORY_KINDS or not isinstance(payload, dict):
                 raise ValueError('invalid history entry format')
             entries.append(
                 dict(zip(('id', 'label', 'kind', 'thoughts', 'payload', 'created_at'), (*row[:4], payload, row[5])))
