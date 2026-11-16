@@ -49,6 +49,7 @@ from PyQt6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QPlainTextEdit,
+    QProgressBar,
     QPushButton,
     QScrollBar,
     QStyledItemDelegate,
@@ -782,19 +783,19 @@ _DASHED_MOUSE = (
 )
 
 
-class DashedRule(QWidget):
-    """A horizontal line of short dashes, in the colour of the scroll bars' ticks."""
+class DashedProgressBar(QProgressBar):
+    """A progress bar drawn as a row of dashes across its whole width: done ones yellow, the rest pale."""
 
-    def __init__(self) -> None:
-        super().__init__()
-        self.setFixedHeight(1)
+    DASH, GAP = 6, 4
 
     def paintEvent(self, event) -> None:  # noqa: N802
         painter = QPainter(self)
-        pen = QPen(QColor("#d9cba6"))
-        pen.setDashPattern([4, 3])
-        painter.setPen(pen)
-        painter.drawLine(0, 0, self.width(), 0)
+        painter.setPen(Qt.PenStyle.NoPen)
+        span = self.maximum() - self.minimum()
+        done = self.width() * (self.value() - self.minimum()) / span if span > 0 else 0
+        for x in range(0, self.width(), self.DASH + self.GAP):
+            painter.setBrush(QColor("#e1b72c" if x < done else "#e9d8a0"))
+            painter.drawRect(x, 0, min(self.DASH, self.width() - x), self.height())
         painter.end()
 
 

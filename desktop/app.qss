@@ -1,5 +1,6 @@
 /* Prompta's one stylesheet: every widget rule lives here. theme.py loads it and turns @desktop/ into this folder.
    Later rules win over earlier ones of the same specificity, so order matters. */
+/* Type scale: 15 title · 13 text · 12 secondary · 10 uppercase labels (2px tracking). Muted text is #74694f. */
 QWidget { font-family: 'Helvetica Neue'; font-size: 13px; color: #4a4232; }
 QMainWindow { background: #f5f6f8; }
 QWidget#root { background: transparent; }
@@ -24,12 +25,13 @@ QLabel#title { font-family: 'Avenir Next'; font-size: 17px; letter-spacing: -0.2
 QLabel#subtitle { color: #74694f; font-size: 13px; }
 QLabel#section { font-weight: 600; color: #332e24; font-size: 13px; }
 QLabel#fieldLabel { color: #74694f; font-size: 10px; font-weight: 500; letter-spacing: 2px; }
-QLabel#muted { color: #665d49; font-size: 12px; }
+QLabel#muted { color: #74694f; font-size: 12px; }
+QLabel#keyed { color: #4a4232; font-size: 12px; }  /* "Format  Markdown table": the key in the muted colour, the value as text */
 QLabel#goal { font-size: 15px; font-weight: 600; color: #332e24; }
-QLabel#chip { color: #5b6574; background: #f2e6c5; border: 1px solid #dfd0a8; border-radius: 8px; padding: 3px 8px; font-size: 11px; }
+QLabel#chip { color: #4a4232; background: #f2e6c5; border: 1px solid #dfd0a8; border-radius: 8px; padding: 3px 8px; font-size: 12px; }
 QLabel#warn { color: #8a5300; background: #fffaf0; border: 1px solid #f6e2bd; border-radius: 8px; padding: 8px 10px; font-size: 12px; }
 QLabel#error { color: #b03a2e; background: #fff5f5; border: 1px solid #f5c2c2; border-radius: 8px; padding: 8px 10px; }
-QLabel#status { color: #8a7d5c; font-size: 11px; }  /* as the Generator model line */
+QLabel#status { color: #74694f; font-size: 12px; }  /* as the Generator model line */
 QPlainTextEdit { font-size: 13px; background: rgba(255, 248, 226, 232); border: 1px solid #d8c593; border-radius: 10px; padding: 10px; selection-background-color: #f4ca38; selection-color: #352b10; }
 QLineEdit { selection-background-color: #f4ca38; selection-color: #352b10; }
 /* Context menus (Copy, Paste…) in our light style: the system dark menu would get our dark text. */
@@ -73,8 +75,8 @@ QFrame#techniquePopup, QFrame#historyPopup { background: #fff8e7; border: 1px so
 QFrame#techItem { background: #fff9ed; border: 1px solid #e5d9bb; border-radius: 10px; }
 QFrame#techItem:hover { background: #f8edcf; border-color: #c9ae70; }
 QLabel#techName { font-weight: 600; color: #262e3c; font-size: 13px; }
-QLabel#techHint { color: #82745a; font-size: 12px; }
-QLabel#catHeader { color: #74694f; font-size: 10px; font-weight: 500; letter-spacing: 1px; }
+QLabel#techHint { color: #74694f; font-size: 12px; }
+QLabel#catHeader { color: #74694f; font-size: 10px; font-weight: 500; letter-spacing: 2px; }
 QLineEdit:focus, QComboBox:focus { border-color: #c69b12; }
 QPushButton#primary { background: #fff9e5; color: #6f5710; border: 1px solid #d8c593; border-radius: 8px; min-height: 18px; padding: 7px 18px; font-weight: 500; }
 QPushButton#primary:hover { background: #faf6e7; border-color: #e9deb8; }
@@ -93,7 +95,7 @@ QProgressBar#generationProgress::chunk { background: #e1b72c; border-radius: 1px
 QScrollArea { border: none; background: #fff8e7; }
 QScrollArea#inputScroll, QWidget#inputViewport { background: transparent; }
 QWidget#scrollContent { background: #fff8e7; }
-QCheckBox { color: #626d7d; font-size: 12px; spacing: 8px; }
+QCheckBox { color: #4a4232; font-size: 12px; spacing: 8px; }
 QCheckBox::indicator { width: 14px; height: 14px; border: 1px solid #d8c593; border-radius: 4px; background: #fff8e7; }
 QCheckBox::indicator:hover { border-color: #c69b12; background: #fffbec; }
 QCheckBox::indicator:checked { background: #f4ca38; border-color: #c69b12; image: url(@desktop/check-yellow.svg); }
@@ -117,13 +119,13 @@ QPushButton#segment[first="true"] { border-top-left-radius: 9px; border-bottom-l
 QPushButton#segment[last="true"] { border-top-right-radius: 9px; border-bottom-right-radius: 9px; }
 QPushButton#segment:hover { background: #fff0c6; }
 QPushButton#segment:checked { background: #f4ca38; border-color: #e1b72c; color: #352b10; font-weight: 600; }
-QToolButton#disclosure { background: transparent; border: none; color: #665b42; font-size: 12px; font-weight: 600; padding: 4px 0; }
+QToolButton#disclosure { background: transparent; border: none; color: #74694f; font-size: 12px; font-weight: 600; padding: 4px 0; }
 QToolButton#disclosure:hover { color: #332e24; }
 QToolButton#disclosure[field="true"] { color: #74694f; font-size: 10px; font-weight: 500; letter-spacing: 2px; padding: 2px 0; }
 QToolButton#disclosure[field="true"]:hover { color: #4a4232; }
 QPushButton#segment:disabled { color: #b5ab90; background: rgba(250, 241, 214, 160); }
 QPushButton#segment:checked:disabled { background: #efdc9c; color: #8a7a4e; border-color: #dcc583; }
-QLabel#meta { color: #665d49; font-size: 12px; }
+QLabel#meta { color: #74694f; font-size: 12px; }
 QFrame#variantSegments { background: transparent; border: none; }
 QListView#historySuggestions { background: #fff8e7; color: #4a4232; border: 1px solid #d8c593; border-radius: 9px; padding: 4px; outline: none; font-size: 13px; }
 QListView#historySuggestions::item { padding: 7px 10px; border: none; border-radius: 5px; }
@@ -136,7 +138,7 @@ QTabWidget#variantTabs QTabBar { background: transparent; }
 QTabWidget#variantTabs::tab-bar { alignment: left; }
 QTabWidget#settingsTabs::tab-bar { alignment: left; }
 QTabWidget#settingsTabs QTabBar { background: rgba(120, 96, 30, 26); border-radius: 8px; }
-QTabWidget#settingsTabs QTabBar::tab { background: transparent; border: none; border-radius: 6px; margin: 2px; padding: 4px 16px; color: #6b6047; font-size: 12px; }
+QTabWidget#settingsTabs QTabBar::tab { background: transparent; border: none; border-radius: 6px; margin: 2px; padding: 4px 16px; color: #74694f; font-size: 12px; }
 QTabWidget#settingsTabs QTabBar::tab:hover { background: rgba(255, 255, 255, 110); }
 QTabWidget#settingsTabs QTabBar::tab:selected { background: #f4ca38; color: #2f260c; font-weight: 600; }
 QTabWidget#settingsTabs::pane { border: none; top: 6px; }
@@ -174,7 +176,7 @@ QPushButton#picker:disabled { background: rgba(255, 255, 255, 60); color: #b0a78
 
 QWidget#segmentTrack, QFrame#segmentTrack { background: rgba(120, 96, 30, 26); border: none; border-radius: 8px; }
 QPushButton#segment, QPushButton#segment[first="true"], QPushButton#segment[last="true"] {
-  background: transparent; border: none; border-radius: 6px; color: #6b6047; font-size: 12px; padding: 0 4px; }
+  background: transparent; border: none; border-radius: 6px; color: #74694f; font-size: 12px; padding: 0 4px; }
 QPushButton#segment:hover { background: rgba(255, 255, 255, 110); }
 QPushButton#segment:checked { background: #f4ca38; color: #2f260c; font-weight: 600; }
 QPushButton#segment:focus { border: none; }
@@ -182,7 +184,7 @@ QPushButton#segment:disabled { background: transparent; color: #b8ad8f; }
 QPushButton#segment:checked:disabled { background: rgba(244, 202, 56, 110); color: #8a7a4e; }
 
 QFrame#modeTabs { background: transparent; border: none; }
-QPushButton#modeTab { background: transparent; border: none; padding: 0; color: #8a7d5c; font-size: 13px; }
+QPushButton#modeTab { background: transparent; border: none; padding: 0; color: #74694f; font-size: 13px; }
 QPushButton#modeTab:hover { color: #4a3f24; }
 QPushButton#modeTab:checked { color: #2f260c; font-weight: 600; }
 QPushButton#modeTab:focus { border: none; }
@@ -214,7 +216,7 @@ QFrame#techItem:hover { background: rgba(120, 96, 30, 26); }
 QFrame#techItem[selected="true"] { background: #f6e5b3; border: none; }
 QFrame#techItem[selected="true"]:hover { background: #f1dc9f; }
 QLabel#techName { font-size: 13px; font-weight: 400; color: #4a4232; }
-QLabel#techHint { font-size: 12px; color: #82745a; }
+QLabel#techHint { font-size: 12px; color: #74694f; }
 QListWidget#historyList { background: transparent; font-size: 13px; }
 QListWidget#historyList::item { padding: 7px 30px 7px 10px; border: none; border-radius: 6px; color: #4a4232; }
 QListWidget#historyList::item:hover { background: rgba(120, 96, 30, 26); color: #4a4232; }
@@ -224,7 +226,7 @@ QFrame#techniquePopup QScrollArea, QFrame#techniquePopup QWidget#scrollContent {
 QTreeWidget#libraryTree { background: rgba(255, 255, 255, 120); border: none; border-radius: 12px; }
 QListView#historySuggestions { background: transparent; border: none; padding: 5px; }
 QLabel#chip { background: rgba(120, 96, 30, 20); border: none; border-radius: 7px; color: #5f5440; }
-QLabel#attachNote { color: #8a7a55; font-size: 11px; padding: 1px 2px; }
+QLabel#attachNote { color: #74694f; font-size: 12px; padding: 1px 2px; }
 QLabel#warn { background: rgba(244, 170, 40, 36); border: none; border-radius: 10px; }
 QLabel#error { background: rgba(220, 80, 70, 30); border: none; border-radius: 10px; }
 QCheckBox::indicator { border: none; background: rgba(120, 96, 30, 30); border-radius: 4px; }
@@ -246,20 +248,20 @@ QLabel#guideHead { color: rgba(74, 58, 24, 90); font-size: 10px; font-weight: 60
 QLabel#guideMode { color: rgba(74, 58, 24, 120); font-size: 12px; font-weight: 600; background: transparent; }
 QLabel#guideText { color: rgba(74, 58, 24, 110); font-size: 12px; background: transparent; }
 QLabel#guideMode[current="true"], QLabel#guideText[current="true"] { color: rgba(53, 43, 16, 215); }
-QPushButton#modelLine { background: transparent; border: none; color: #8a7d5c; font-size: 11px; padding: 2px 0; text-align: left; }
+QPushButton#modelLine { background: transparent; border: none; color: #74694f; font-size: 12px; padding: 2px 0; text-align: left; }
 QPushButton#modelLine:hover { color: #5c4606; text-decoration: underline; }
-QLabel#variantsCaption { color: #8a7d5c; font-size: 11px; }
-QLabel#question { color: #8a7d5c; font-size: 11px; }  /* as the Variants caption */
+QLabel#variantsCaption { color: #74694f; font-size: 12px; }
+QLabel#question { color: #74694f; font-size: 12px; }  /* as the Variants caption */
 QLabel#briefGoal { color: #3a3121; font-size: 13px; }
-QLabel#briefMeta { color: #9a8d6c; font-size: 11px; padding: 3px 0; }
-QPushButton#restorePrompt { background: transparent; border: none; padding: 0 2px; color: #f4ca38; font-size: 11px; }
+QLabel#briefMeta { color: #74694f; font-size: 12px; padding: 3px 0; }
+QPushButton#restorePrompt { background: transparent; border: none; padding: 0 2px; color: #f4ca38; font-size: 12px; }
 QPushButton#restorePrompt:hover { color: #ffe08a; text-decoration: underline; }
 /* Hover hints in the app's style: warm paper, brown text, thin border, like the dropdown panels. */
 QToolTip { background-color: #fffaee; color: #4a4232; border: 1px solid #e3d5ae; border-radius: 0;  /* opaque: a translucent border shows the black window behind it */
   padding: 6px 9px; font-size: 12px; }
 QLabel#sourceSummary { color: #5f5440; font-size: 12px; line-height: 140%; }
-QLabel#promptSpec { color: rgba(255, 255, 255, 125); font-size: 11px; background: #3f3f3f; padding: 6px 0 0 0; }
-QLabel#rowLabel { color: #8a7d5c; font-size: 10px; font-weight: 500; letter-spacing: 1px; padding-top: 2px; min-width: 84px; }
+QLabel#promptSpec { color: rgba(255, 255, 255, 125); font-size: 12px; background: #3f3f3f; padding: 6px 0 0 0; }
+QLabel#rowLabel { color: #74694f; font-size: 10px; font-weight: 500; letter-spacing: 2px; padding-top: 2px; min-width: 84px; }
 /* Variant tabs look like the Target model switch: one track, the chosen one in our yellow. */
 /* Tabs and prompt are one grey card: the tab row is the card's header, the chosen tab is a yellow pill. */
 QTabWidget#variantTabs { background: #343434; border-radius: 12px; }

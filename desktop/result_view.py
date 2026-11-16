@@ -181,8 +181,8 @@ def muted_label(text: str, name: str = "muted") -> QLabel:
 def keyed_label(key: str, text: str, stacked: bool = False) -> QLabel:
     """Body text led by a quiet key: "Format  Markdown table"; a list goes under its key."""
     body = escape(text).replace("\n", "<br>")
-    label = QLabel(f'<span style="color:#9a8d6c">{escape(key)}</span>' + ("<br>" if stacked else "&nbsp;&nbsp;") + body)
-    label.setObjectName("muted")
+    label = QLabel(f'<span style="color:#74694f">{escape(key)}</span>' + ("<br>" if stacked else "&nbsp;&nbsp;") + body)
+    label.setObjectName("keyed")
     label.setTextFormat(Qt.TextFormat.RichText)
     label.setWordWrap(True)
     label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)

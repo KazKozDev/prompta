@@ -563,7 +563,7 @@ class ResultColumn(QScrollArea):
         checked = escape(str(guidance.get("verified_at", "unknown")))
         label = QLabel(
             f"Official {escape(str(name))} rules: {' · '.join(parts)}"
-            f'<span style="color:#9a8d6c"> · checked {checked}</span>'
+            f'<span style="color:#74694f"> · checked {checked}</span>'
         )
         label.setObjectName("muted")
         label.setTextFormat(Qt.TextFormat.RichText)

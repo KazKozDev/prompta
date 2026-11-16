@@ -26,7 +26,6 @@ from PyQt6.QtWidgets import (
     QLabel,
     QLayout,
     QMainWindow,
-    QProgressBar,
     QPushButton,
     QScrollArea,
     QSplitter,
@@ -65,7 +64,7 @@ from mac_titlebar import paint_all_title_bars
 from controls import BackgroundWidget, Card, ExecutionProfileDropdown
 from result_view import ACTION_HEIGHT, CONTROL_HEIGHT
 from widgets import (
-    DashedRule,
+    DashedProgressBar,
     DashedScrollPainter,
     HintFilter,
     PopupAnimation,
@@ -199,7 +198,6 @@ class PromptaWindow(QMainWindow):
         self.status = QLabel("Thoughts → brief → technique → ready-to-use prompt")
         self.status.setObjectName("status")
         outer.addSpacing(3)  # keep the original 6px above the status line
-        outer.addWidget(DashedRule())  # between the columns and the status under it
         outer.addWidget(self.status)
         self.history.load()
         for button in self.findChildren(QPushButton):
@@ -322,7 +320,7 @@ class PromptaWindow(QMainWindow):
         self.model_line.setToolTip("The model that writes the prompt · click to change it in Settings")
         self.model_line.clicked.connect(self.open_settings)
         build_block.addWidget(self.model_line, 0, Qt.AlignmentFlag.AlignLeft)
-        self.generation_progress = QProgressBar()
+        self.generation_progress = DashedProgressBar()
         self.generation_progress.setObjectName("generationProgress")
         self.generation_progress.setAccessibleName("Prompt generation in progress")
         self.generation_progress.setTextVisible(False)
