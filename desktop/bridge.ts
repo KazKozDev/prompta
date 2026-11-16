@@ -1,3 +1,5 @@
+import { attachedInput, composeFiles, embedFilesInResult, MAX_FILES, MAX_FILES_INPUT } from '../pipeline/context.ts';
+import type { ProjectFile } from '../pipeline/context.ts';
 import { sanitizeBrief } from '../pipeline/injection.ts';
 import { resolveExecutionCapabilities } from '../pipeline/prompt-defaults.ts';
 import { generateZeroShotPrompt } from '../pipeline/zero-shot.ts';
@@ -14,6 +16,8 @@ import { generateManualPrompt } from '../pipeline/manual.ts';
 import { generateBrief, parseBrief } from '../pipeline/brief.ts';
 import { settleWithLimit } from '../pipeline/limit.ts';
 import { generateSkill } from '../pipeline/skill.ts';
+import { generateClarify, parseClarify } from '../pipeline/clarify.ts';
+import type { ClarifyKind } from '../pipeline/clarify.ts';
 import type { SkillSurface } from '../pipeline/skill-rules.ts';
 import { generateInstructions } from '../pipeline/instructions.ts';
 import { INSTRUCTION_TARGETS } from '../pipeline/instructions-rules.ts';
@@ -35,6 +39,8 @@ const MANUAL_CONCURRENCY = 4;
 interface BridgeRequest {
   thoughts: string;
   brief?: unknown;
+  /** Skill, Project, Subagent: the edited questions and assumptions (Rebuild); no new clarify call then. */
+  clarify?: unknown;
   reportProgress?: boolean;
   oneShot?: boolean;
   executionProfile?: string;
@@ -65,6 +71,27 @@ interface BridgeRequest {
   instructions?: InstructionTarget;
   /** Write a subagent definition (Claude Code, Cursor, Codex, Copilot) instead of a prompt. */
   agent?: AgentTarget;
+  /** Project files read by the UI, used as reference next to the request in every mode. */
+  files?: unknown;
+}
+
+/** At most this much text per attached file reaches the bridge; the pipeline keeps less. */
+const MAX_FILE_INPUT = 1_000_000;
+
+function parseFiles(value: unknown): ProjectFile[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > MAX_FILES) throw new Error(`files must list at most ${MAX_FILES} files.`);
+  const files = value.map((file) => {
+    const { path, content } = (file ?? {}) as { path?: unknown; content?: unknown };
+    if (typeof path !== 'string' || !path.trim() || typeof content !== 'string' || content.length > MAX_FILE_INPUT) {
+      throw new Error('Each file needs a path and text content under 1 MB.');
+    }
+    return { path: path.trim(), content };
+  });
+  if (files.reduce((sum, file) => sum + file.content.length, 0) > MAX_FILES_INPUT) {
+    throw new Error(`The attached files hold more than ${MAX_FILES_INPUT / 1_000_000} MB of text together.`);
+  }
+  return files;
 }
 
 /** A title when no brief was made: a missing title must not discard completed prompts. */
@@ -84,6 +111,16 @@ async function main() {
   if (!req.thoughts || !req.thoughts.trim()) {
     throw new Error('Enter your thoughts');
   }
+  // The request alone is checked above: files come next to it, never instead of it.
+  const files = parseFiles(req.files);
+  // A prompt works on the files (a report to check): they are its material and are appended to it in full.
+  // Skill, Project and Subagent read them as project reference.
+  const promptMode = req.skill === undefined && req.instructions === undefined && req.agent === undefined;
+  const { thoughts, uses } = composeFiles(req.thoughts, files, promptMode ? 'material' : 'reference');
+  const withFiles = <T,>(result: T): T => embedFilesInResult(result, files);
+  // Every answer says how each attached file reached the model (whole, outline, only in the tree): the rows show it.
+  const filesUsed = files.length ? Object.fromEntries(files.map((file, i) => [file.path, uses[i] ?? 'tree'])) : undefined;
+  const reply = (payload: Record<string, unknown>) => process.stdout.write(JSON.stringify(filesUsed ? { ...payload, filesUsed } : payload));
 
   for (const key of ['claudeOnly', 'chatgptOnly', 'geminiOnly', 'grokOnly', 'hermesOnly'] as const) {
     if (req[key] !== undefined && typeof req[key] !== 'boolean') throw new Error(`${key} must be a boolean.`);
@@ -112,10 +149,22 @@ async function main() {
   const meter = meterLLM(createLLM({ provider, model, apiKey: req.apiKey, baseUrl }));
   const { llm, usage } = meter;
   const getManualBrief = async () => {
-    const brief = revisedBrief ?? await generateBrief(req.thoughts, llm);
-    return brief && sanitizeBrief(brief, req.thoughts).brief;
+    const brief = revisedBrief ?? await generateBrief(thoughts, llm);
+    const clean = brief && sanitizeBrief(brief, thoughts).brief;
+    return clean && files.length ? { ...clean, input: attachedInput(files, clean.language) } : clean;
   };
   const officialMode = req.claudeOnly || req.chatgptOnly || req.geminiOnly || req.grokOnly || req.hermesOnly || req.openModel;
+
+  // What the request leaves open: asked once, then the window's edited answers come back on Rebuild.
+  const getClarify = async (kind: ClarifyKind) => {
+    if (req.clarify !== undefined) return parseClarify(req.clarify);
+    onProgress?.(5, 'Checking what the request leaves open');
+    const asked = await generateClarify(kind, thoughts, llm);
+    if (!asked) return undefined;
+    // As in a prompt's brief: a question or assumption carried over from a command in attached text is dropped.
+    const { brief } = sanitizeBrief({ constraints: [], ...asked } as unknown as Parameters<typeof sanitizeBrief>[0], thoughts);
+    return { questions: brief.questions ?? [], assumptions: brief.assumptions };
+  };
 
   if ([req.skill, req.instructions, req.agent].filter((v) => v !== undefined).length > 1) {
     throw new Error('Choose one of a skill, project instructions or an agent.');
@@ -123,26 +172,29 @@ async function main() {
   if (req.agent !== undefined) {
     if (!AGENT_TARGETS.includes(req.agent)) throw new Error(`agent must be one of ${AGENT_TARGETS.join(', ')}.`);
     if (officialMode || req.manualTechnique || req.manualTechniques) throw new Error('An agent cannot be combined with a prompt target or technique.');
-    onProgress?.(10, 'Writing the agent');
-    const agent = await generateAgent({ thoughts: req.thoughts, llm, target: req.agent });
-    process.stdout.write(JSON.stringify({ ok: true, agent: { ...agent, usage: usage() } }));
+    const clarify = await getClarify('agent');
+    onProgress?.(30, 'Writing the agent');
+    const agent = await generateAgent({ thoughts, llm, target: req.agent, clarify });
+    reply({ ok: true, agent: { ...agent, usage: usage() } });
     return;
   }
   if (req.skill !== undefined) {
     if (!['portable', 'claudeCode'].includes(req.skill)) throw new Error('skill must be "portable" or "claudeCode".');
     if (officialMode || req.manualTechnique || req.manualTechniques) throw new Error('A skill cannot be combined with a prompt target or technique.');
-    onProgress?.(10, 'Writing SKILL.md');
-    const skill = await generateSkill({ thoughts: req.thoughts, llm, surface: req.skill });
-    process.stdout.write(JSON.stringify({ ok: true, skill: { ...skill, usage: usage() } }));
+    const clarify = await getClarify('skill');
+    onProgress?.(30, 'Writing SKILL.md');
+    const skill = await generateSkill({ thoughts, llm, surface: req.skill, clarify });
+    reply({ ok: true, skill: { ...skill, usage: usage() } });
     return;
   }
 
   if (req.instructions !== undefined) {
     if (!INSTRUCTION_TARGETS.includes(req.instructions)) throw new Error(`instructions must be one of ${INSTRUCTION_TARGETS.join(', ')}.`);
     if (officialMode || req.manualTechnique || req.manualTechniques) throw new Error('Project instructions cannot be combined with a prompt target or technique.');
-    onProgress?.(10, 'Writing project instructions');
-    const instructions = await generateInstructions({ thoughts: req.thoughts, llm, target: req.instructions });
-    process.stdout.write(JSON.stringify({ ok: true, instructions: { ...instructions, usage: usage() } }));
+    const clarify = await getClarify('instructions');
+    onProgress?.(30, 'Writing project instructions');
+    const instructions = await generateInstructions({ thoughts, llm, target: req.instructions, clarify });
+    reply({ ok: true, instructions: { ...instructions, usage: usage() } });
     return;
   }
 
@@ -190,11 +242,11 @@ async function main() {
     // The same brief as automatic choice: format, constraints, assumptions and questions for every prompt.
     const brief = await getManualBrief();
     onProgress?.(15, 'Brief ready');
-    const zeroShot = generateZeroShotPrompt(req.thoughts, brief, llm, executionCapabilities);  // Variant 0, by the model too
+    const zeroShot = generateZeroShotPrompt(thoughts, brief, llm, executionCapabilities);  // Variant 0, by the model too
     let finished = 0;
     const settled = await settleWithLimit(techniques, MANUAL_CONCURRENCY, async (technique) => {
       try {
-        return await generateManualPrompt(req.thoughts, technique, llm, oneShot, brief, executionCapabilities);
+        return await generateManualPrompt(thoughts, technique, llm, oneShot, brief, executionCapabilities);
       } finally {
         finished += 1;
         onProgress?.(15 + Math.round(75 * finished / techniques.length), `Prompts ready: ${finished}/${techniques.length}`);
@@ -213,12 +265,12 @@ async function main() {
     const topic = brief?.topic ?? await topicFor(req.thoughts, llm);
     onProgress?.(95, 'Topic ready');
     const first = variants[0];
-    process.stdout.write(JSON.stringify({ ok: true, manual: {
+    reply({ ok: true, manual: withFiles({
       zeroShotPrompt: (await zeroShot).prompt, topic, brief, usage: usage(), promptVersion: promptVersion(),
       // First variant at the top level keeps older readers (and saved history) working.
       technique: first.technique, prompt: first.prompt, config: first.config, source_ref: first.source_ref,
       variants, failed,
-    } }));
+    }) });
     return;
   }
 
@@ -234,11 +286,10 @@ async function main() {
 
     if (technique.status === 'procedure') {
       const brief = await getManualBrief();
-      process.stdout.write(
-        JSON.stringify({
+      reply({
           ok: true,
-          procedure: {
-            zeroShotPrompt: (await generateZeroShotPrompt(req.thoughts, brief, llm, executionCapabilities)).prompt,
+          procedure: withFiles({
+            zeroShotPrompt: (await generateZeroShotPrompt(thoughts, brief, llm, executionCapabilities)).prompt,
             technique: { key: technique.key, name: technique.name, category: technique.category },
             steps: technique.procedure ?? [],
             when_to_use: technique.when_to_use,
@@ -246,9 +297,8 @@ async function main() {
             topic: technique.name,
             usage: usage(),
             promptVersion: promptVersion(),
-          },
-        }),
-      );
+          }),
+        });
       return;
     }
 
@@ -257,16 +307,15 @@ async function main() {
     if (req.deterministic) throw new Error('Manual technique selection requires LLM synthesis. Disable Skip LLM synthesis.');
     const brief = await getManualBrief();
     onProgress?.(30, 'Brief ready');
-    const [prompt, zeroShot] = await Promise.all([generateManualPrompt(req.thoughts, technique, llm, oneShot, brief, executionCapabilities),
-      generateZeroShotPrompt(req.thoughts, brief, llm, executionCapabilities)]);
+    const [prompt, zeroShot] = await Promise.all([generateManualPrompt(thoughts, technique, llm, oneShot, brief, executionCapabilities),
+      generateZeroShotPrompt(thoughts, brief, llm, executionCapabilities)]);
     onProgress?.(85, 'Prompt ready');
     const topic = brief?.topic ?? await topicFor(req.thoughts, llm);
     onProgress?.(95, 'Topic ready');
 
-    process.stdout.write(
-      JSON.stringify({
+    reply({
         ok: true,
-        manual: {
+        manual: withFiles({
           zeroShotPrompt: zeroShot.prompt,
           topic,
           brief,
@@ -277,9 +326,8 @@ async function main() {
           config: technique.config,
           source_ref: technique.source_ref,
           why: technique.when_to_use,
-        },
-      }),
-    );
+        }),
+      });
     return;
   }
 
@@ -288,7 +336,7 @@ async function main() {
     oneShot,
     executionCapabilities,
     brief: revisedBrief,
-    thoughts: req.thoughts,
+    thoughts,
     claudeOnly: req.claudeOnly === true,
     chatgptOnly: req.chatgptOnly === true,
     geminiOnly: req.geminiOnly === true,
@@ -300,9 +348,10 @@ async function main() {
     mode: req.deterministic ? 'deterministic' : 'llm',
     budgetCalls: req.budgetCalls ?? null,
     variants: req.variants ?? 3,
+    attachedFiles: files,
   });
 
-  process.stdout.write(JSON.stringify({ ok: true, result }));
+  reply({ ok: true, result: withFiles(result) });
 }
 
 main().catch((e) => {

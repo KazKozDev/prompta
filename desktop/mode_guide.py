@@ -31,7 +31,7 @@ def mode_guide(current: str) -> QWidget:
     """Four rows, one per mode, centred under the slogan; `current` is a mode key such as "skill"."""
     holder = QWidget()
     outer = QVBoxLayout(holder)
-    outer.setContentsMargins(0, 18, 0, 0)
+    outer.setContentsMargins(0, 36, 0, 0)  # a little apart from the slogan above
     outer.setAlignment(Qt.AlignmentFlag.AlignHCenter)
     table = QFrame()
     table.setObjectName("modeGuide")

@@ -74,6 +74,156 @@ class AssumptionsCard(QFrame):
 
     change_count: Callable[[], int]
     revised_brief: Callable[[], dict | None]
+    question_answers: list
+    assumption_rows: list
+    add_assumption_button: QPushButton
+
+
+def brief_card(
+    brief: dict | None,
+    original_request: str,
+    request_text: Callable[[], str],
+    on_edit: Callable[[], None],
+    on_apply: Callable[[], None],
+    built: str = "prompt",
+) -> AssumptionsCard | None:
+    """ "What I assumed" for a result: its questions (with the answer assumed meanwhile) and assumptions as rows
+    the user can change. Prompt results and Skill, Project and Subagent files share it; None when there is nothing
+    to show. `on_edit` fires on every change, `on_apply` on Enter; the card's `revised_brief` is the edited set
+    while `request_text()` is still `original_request` (a changed request is a fresh build)."""
+    if not brief:
+        return None
+    questions = ResultColumn._brief_questions(brief)
+    assumptions = [
+        item.strip() for item in brief.get("assumptions") or [] if isinstance(item, str) and item.strip()
+    ]
+    if not questions and not assumptions:
+        return None
+
+    box = AssumptionsCard()
+    box.setObjectName("questionsCard")
+    layout = QVBoxLayout(box)
+    layout.setContentsMargins(14, 10, 12, 12)
+    layout.setSpacing(0)
+    title = QLabel("What I assumed")
+    title.setObjectName("cardTitle")
+    layout.addWidget(title)
+    layout.addSpacing(6)
+
+    body_layout = QVBoxLayout()
+    body_layout.setContentsMargins(0, 0, 0, 0)
+    body_layout.setSpacing(0)
+    layout.addLayout(body_layout)
+
+    # One list, one kind of row: an editable value, the question it answers (if any) above it, × to drop it.
+    rows_layout = QVBoxLayout()
+    rows_layout.setSpacing(6)
+    body_layout.addLayout(rows_layout)
+    rows: list[dict] = []  # {"question": str | None, "original": str | None, "field", "removed": bool, "widget"}
+    assumption_rows: list[dict] = []
+
+    def changes() -> int:
+        count = 0
+        for row in rows:
+            text = row["field"].text().strip()
+            if row["original"] is None:  # added by the user
+                count += bool(text) and not row["removed"]
+            else:
+                count += row["removed"] or text != row["original"]
+        return count
+
+    def sync() -> None:
+        on_edit()
+
+    def add_row(question: str | None, text: str | None) -> WrappingField:
+        line = QWidget()
+        line_layout = QVBoxLayout(line)
+        line_layout.setContentsMargins(0, 0, 0, 0)
+        line_layout.setSpacing(2)
+        if question:
+            line_layout.addWidget(muted_label(question, "question"))
+        value_row = QHBoxLayout()
+        value_row.setSpacing(6)
+        field = WrappingField(text or "", max_lines=8)  # the whole assumption is visible; the card scrolls
+        field.setObjectName("answer")
+        field.setPlaceholderText("Your answer (optional)" if question else "Your assumption")
+        field.setAccessibleName(question or "Assumption")
+        remove = QPushButton()
+        remove.setObjectName("removeAssumption")
+        remove.setIcon(QIcon(str(ROOT / "desktop" / "close.svg")))
+        remove.setIconSize(QSize(10, 10))
+        remove.setFixedSize(22, 22)
+        remove.setCursor(Qt.CursorShape.PointingHandCursor)
+        remove.setToolTip("Drop this assumption" + (" (the question stays open)" if question else ""))
+        remove.setAccessibleName("Remove assumption")
+        value_row.addWidget(field, 1)
+        value_row.addWidget(remove, 0, Qt.AlignmentFlag.AlignTop)
+        line_layout.addLayout(value_row)
+        row = {"question": question, "original": text, "field": field, "removed": False, "widget": line}
+
+        def drop() -> None:
+            row["removed"] = True
+            line.hide()
+            sync()
+
+        remove.clicked.connect(drop)
+        field.textChanged.connect(sync)
+        field.returnPressed.connect(apply)
+        rows.append(row)
+        if question is None:
+            assumption_rows.append(row)
+        rows_layout.addWidget(line)
+        return field
+
+    def add_new() -> None:
+        add_row(None, None).setFocus()
+
+    def request_unchanged() -> bool:
+        return request_text() == original_request
+
+    def change_count() -> int:
+        return changes() if request_unchanged() else 0
+
+    def revised_brief() -> dict | None:
+        if not change_count():
+            return None
+        revised_questions = []
+        for row in rows:
+            if row["question"] is None:
+                continue
+            value = "" if row["removed"] else row["field"].text().strip()
+            revised_questions.append(
+                {"question": row["question"], "default": value} if value else {"question": row["question"]}
+            )
+        revised_assumptions = [
+            row["field"].text().strip()
+            for row in assumption_rows
+            if not row["removed"] and row["field"].text().strip()
+        ]
+        return {**brief, "assumptions": revised_assumptions, "questions": revised_questions}
+
+    def apply() -> None:  # Enter in a card field does what the Build button does
+        on_apply()
+
+    for question, default in questions:
+        add_row(question, default)
+    for item in assumptions:
+        add_row(None, item)
+    add = QPushButton("+ Add assumption")
+    add.setObjectName("addAssumption")
+    add.setCursor(Qt.CursorShape.PointingHandCursor)
+    add.clicked.connect(add_new)
+    body_layout.addSpacing(2)
+    body_layout.addWidget(add, 0, Qt.AlignmentFlag.AlignLeft)
+
+    title.setToolTip(f"The {built} is built on these. Change any of them, then Rebuild: the request is not re-read.")
+
+    box.change_count = change_count
+    box.revised_brief = revised_brief
+    box.question_answers = [(row["question"], row["field"]) for row in rows if row["question"]]
+    box.assumption_rows = assumption_rows
+    box.add_assumption_button = add
+    return box
 
 
 class ResultColumn(QScrollArea):
@@ -375,139 +525,13 @@ class ResultColumn(QScrollArea):
     def _add_brief_refinement(self, brief: dict | None, source_thoughts: str | None) -> None:
         """One card under the request: what the brief assumed, as answers and items the user can change.
         Rebuilding sends the edited brief back, so nothing is re-guessed and no edit is lost."""
-        if not brief:
-            return
         original_request = source_thoughts if source_thoughts is not None else self._request_text()
-        questions = self._brief_questions(brief)
-        assumptions = [
-            item.strip() for item in brief.get("assumptions") or [] if isinstance(item, str) and item.strip()
-        ]
-        if not questions and not assumptions:
+        box = brief_card(brief, original_request, self._request_text, self.briefEdited.emit, self.rebuildRequested.emit)
+        if box is None:
             return
-
-        box = AssumptionsCard()
-        box.setObjectName("questionsCard")
-        layout = QVBoxLayout(box)
-        layout.setContentsMargins(14, 10, 12, 12)
-        layout.setSpacing(0)
-        title = QLabel("What I assumed")
-        title.setObjectName("cardTitle")
-        layout.addWidget(title)
-        layout.addSpacing(6)
-
-        body_layout = QVBoxLayout()
-        body_layout.setContentsMargins(0, 0, 0, 0)
-        body_layout.setSpacing(0)
-        layout.addLayout(body_layout)
-
-        # One list, one kind of row: an editable value, the question it answers (if any) above it, × to drop it.
-        rows_layout = QVBoxLayout()
-        rows_layout.setSpacing(6)
-        body_layout.addLayout(rows_layout)
-        rows: list[dict] = []  # {"question": str | None, "original": str | None, "field", "removed": bool, "widget"}
-        assumption_rows: list[dict] = []
-
-        def changes() -> int:
-            count = 0
-            for row in rows:
-                text = row["field"].text().strip()
-                if row["original"] is None:  # added by the user
-                    count += bool(text) and not row["removed"]
-                else:
-                    count += row["removed"] or text != row["original"]
-            return count
-
-        def sync() -> None:
-            self.briefEdited.emit()
-
-        def add_row(question: str | None, text: str | None) -> WrappingField:
-            line = QWidget()
-            line_layout = QVBoxLayout(line)
-            line_layout.setContentsMargins(0, 0, 0, 0)
-            line_layout.setSpacing(2)
-            if question:
-                line_layout.addWidget(muted_label(question, "question"))
-            value_row = QHBoxLayout()
-            value_row.setSpacing(6)
-            field = WrappingField(text or "", max_lines=8)  # the whole assumption is visible; the card scrolls
-            field.setObjectName("answer")
-            field.setPlaceholderText("Your answer (optional)" if question else "Your assumption")
-            field.setAccessibleName(question or "Assumption")
-            remove = QPushButton()
-            remove.setObjectName("removeAssumption")
-            remove.setIcon(QIcon(str(ROOT / "desktop" / "close.svg")))
-            remove.setIconSize(QSize(10, 10))
-            remove.setFixedSize(22, 22)
-            remove.setCursor(Qt.CursorShape.PointingHandCursor)
-            remove.setToolTip("Drop this assumption" + (" (the question stays open)" if question else ""))
-            remove.setAccessibleName("Remove assumption")
-            value_row.addWidget(field, 1)
-            value_row.addWidget(remove, 0, Qt.AlignmentFlag.AlignTop)
-            line_layout.addLayout(value_row)
-            row = {"question": question, "original": text, "field": field, "removed": False, "widget": line}
-
-            def drop() -> None:
-                row["removed"] = True
-                line.hide()
-                sync()
-
-            remove.clicked.connect(drop)
-            field.textChanged.connect(sync)
-            field.returnPressed.connect(apply)
-            rows.append(row)
-            if question is None:
-                assumption_rows.append(row)
-            rows_layout.addWidget(line)
-            return field
-
-        def add_new() -> None:
-            add_row(None, None).setFocus()
-
-        def request_unchanged() -> bool:
-            return self._request_text() == original_request
-
-        def change_count() -> int:
-            return changes() if request_unchanged() else 0
-
-        def revised_brief() -> dict | None:
-            if not change_count():
-                return None
-            revised_questions = []
-            for row in rows:
-                if row["question"] is None:
-                    continue
-                value = "" if row["removed"] else row["field"].text().strip()
-                revised_questions.append(
-                    {"question": row["question"], "default": value} if value else {"question": row["question"]}
-                )
-            revised_assumptions = [
-                row["field"].text().strip()
-                for row in assumption_rows
-                if not row["removed"] and row["field"].text().strip()
-            ]
-            return {**brief, "assumptions": revised_assumptions, "questions": revised_questions}
-
-        def apply() -> None:  # Enter in a card field does what the Build button does
-            self.rebuildRequested.emit()
-
-        for question, default in questions:
-            add_row(question, default)
-        for item in assumptions:
-            add_row(None, item)
-        add = QPushButton("+ Add assumption")
-        add.setObjectName("addAssumption")
-        add.setCursor(Qt.CursorShape.PointingHandCursor)
-        add.clicked.connect(add_new)
-        body_layout.addSpacing(2)
-        body_layout.addWidget(add, 0, Qt.AlignmentFlag.AlignLeft)
-
-        title.setToolTip("The prompt is built on these. Change any of them, then Rebuild: the request is not re-read.")
-
-        box.change_count = change_count
-        box.revised_brief = revised_brief
-        self.question_answers = [(row["question"], row["field"]) for row in rows if row["question"]]
-        self.assumption_rows = assumption_rows
-        self.add_assumption_button = add
+        self.question_answers = box.question_answers
+        self.assumption_rows = box.assumption_rows
+        self.add_assumption_button = box.add_assumption_button
         self.assumptionsCard.emit(box)
 
     @staticmethod

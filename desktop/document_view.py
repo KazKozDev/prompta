@@ -1,5 +1,6 @@
-"""The result area for modes that write one file instead of a prompt (Skill, Project): the file in an
-editable block, its check, the official rules it was written from, a save link and the usage line."""
+"""The result area for modes that write one file instead of a prompt (Skill, Project, Subagent): the file in an
+editable block, its check, the official rules it was written from, a save link and the usage line. What the
+request left open goes to the window as the same "What I assumed" card a prompt has."""
 
 from __future__ import annotations
 
@@ -10,21 +11,26 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QFrame, QLabel, QLayout, QScrollArea, QSizePolicy, QVBoxLayout, QWidget
 
 from mode_guide import mode_guide
-from result_column import Wordmark
+from result_column import Wordmark, brief_card
 from result_view import Disclosure, muted_label
 from settings_ui import text_link
 from widgets import DashedScrollBar, PromptEdit, use_step_scroll
 
 
 class DocumentView(QScrollArea):
-    """Same frame as ResultColumn. `textEdited(text)` fires when the user edits the file."""
+    """Same frame as ResultColumn. `textEdited(text)` fires when the user edits the file; `assumptionsCard`,
+    `briefEdited` and `rebuildRequested` work as ResultColumn's do, for the file's questions and assumptions."""
 
     textEdited = pyqtSignal(str)
+    assumptionsCard = pyqtSignal(object)
+    briefEdited = pyqtSignal()
+    rebuildRequested = pyqtSignal()
     SLOGAN = "THOUGHTS IN. FILES OUT."
     MODE = ""  # its row in the mode table (mode_guide.py)
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, request_text: Callable[[], str] = lambda: "", parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self._request_text = request_text
         self.payload: dict = {}
         self.editor: PromptEdit | None = None
         self.setObjectName("outputScroll")
@@ -50,6 +56,7 @@ class DocumentView(QScrollArea):
             if widget := item.widget():
                 widget.hide()
                 widget.deleteLater()
+        self.assumptionsCard.emit(None)  # the questions belong to the file being replaced
 
     def show_placeholder(self) -> None:
         self.clear()
@@ -84,10 +91,23 @@ class DocumentView(QScrollArea):
         save_label: str,
         save_tip: str,
         on_save: Callable[[], None],
+        source_thoughts: str | None = None,
     ) -> None:
-        """Title, status line, check notes, the editable file, the save link, the rules and the usage."""
+        """Title, status line, check notes, the editable file, the save link, the rules and the usage;
+        the questions and assumptions it was written on go to the window as a card."""
         self.clear()
         self.payload = payload
+        clarify = payload.get("clarify") if isinstance(payload.get("clarify"), dict) else None
+        card = brief_card(
+            clarify,
+            source_thoughts if source_thoughts is not None else self._request_text(),
+            self._request_text,
+            self.briefEdited.emit,
+            self.rebuildRequested.emit,
+            built="file",
+        )
+        if card is not None:
+            self.assumptionsCard.emit(card)
         check = payload.get("check") or {}
         heading = QLabel(title)
         heading.setObjectName("goal")

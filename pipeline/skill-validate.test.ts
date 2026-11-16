@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { readFrontmatter, validateSkill } from './skill-validate.ts';
+import { fenceErrors, readFrontmatter, validateSkill } from './skill-validate.ts';
 
 const ok = `---
 name: processing-invoices
@@ -58,4 +58,11 @@ test('files the body mentions are listed so they ship with the skill', () => {
   const md = ok.replace('Run the extractor.', 'Run scripts/extract.py, then see references/schema.md and scripts/extract.py.');
   assert.match(validateSkill(md, 'portable').warnings.join(), /scripts\/extract\.py, references\/schema\.md\./);
   assert.ok(!validateSkill(ok, 'portable').warnings.some((w) => w.includes('Ship')));
+});
+
+test('a code block nested without more backticks, or left open, is an error; four backticks around three pass', () => {
+  assert.deepEqual(fenceErrors('````\nquick start:\n```\nmake\n```\n````\n'), []);
+  assert.match(fenceErrors('```\nquick start:\n```bash\nmake\n```\n```\n')[0], /inside the one opened by "```"/);
+  assert.match(fenceErrors('```\nnever closed\n')[0], /never closed/);
+  assert.equal(validateSkill(ok + '\n```\nopen\n', 'portable').valid, false);
 });

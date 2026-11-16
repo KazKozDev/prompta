@@ -23,11 +23,11 @@ Copy this checklist and track progress:
 
 ## Output format
 
-ALWAYS use this exact structure:
+Use this structure; leave out a part the input gives no facts for:
 
-```
+````
 ...
-```
+````
 
 ## Rules
 

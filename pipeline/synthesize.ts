@@ -265,6 +265,7 @@ Requirements:
 1. Keep the applicable parts of the technique. The brief's goal, sources and answer format are mandatory. If the task requires collecting sources, explicitly assign the search. Apply the "only from the supplied material" restriction only to tasks where the user set such a corpus. Do not change the final format to JSON if JSON is needed only for intermediate processing.
 2. No {{placeholders}}. Fill in everything the task data contains as content. If the material itself is needed
    (note text, a document, code), write an explicit marker: INSERT HERE: <what exactly>.
+   When the input says files are attached after the prompt, that material is already there: refer to it by file name and write no marker for it.
 3. The technique must be recognisable: CoT — where and how to reason step by step; few-shot — 2–3 concrete examples
    for this task; contextual — reliance on relevant material and source references; ToT — branching and evaluation.
 4. The prompt is self-contained: paste it into a model and get the result, nothing to add.

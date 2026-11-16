@@ -329,6 +329,32 @@ test('резервный отсев не показывает принятую �
   assert.ok(!gated.rejected.some((item) => item.key === 'relaxed'));
 });
 
+test('модель выбрала одну технику из четырёх: недостающие добираются среди остальных', async () => {
+  const selections: string[] = [];
+  const keys = ['a', 'b', 'c', 'd', 'e'];
+  const result = await runPipeline({
+    thoughts: 'синтетическая классификация',
+    catalog: { version: 'test', techniques: keys.map((key) => tech(key)) },
+    variants: 4,
+    llm: async (prompt) => {
+      if (prompt.includes('Stream of thoughts:')) return BRIEF_JSON;
+      if (prompt.includes('Available techniques')) {
+        selections.push(prompt);
+        // First answer: one object only, the way weak models answer; the second asks for the rest.
+        if (selections.length === 1) return JSON.stringify({ key: 'a', reason: 'a', confidence: 0.8, whyNotCheaper: 'тест' });
+        return JSON.stringify({ choices: ['b', 'c', 'd'].map((key) => ({ key, reason: key, confidence: 0.7, whyNotCheaper: 'тест' })) });
+      }
+      if (prompt.includes('Write a zero-shot prompt')) return 'Классифицируй входные данные напрямую и верни метку для каждого элемента.';
+      return 'Классифицируй входные данные и верни только JSON с фиксированными метками.';
+    },
+  });
+  assert.equal(selections.length, 2);
+  assert.ok(selections[0].startsWith('You pick 4 different prompting techniques'));
+  assert.ok(selections[1].includes('3 variants are needed'));
+  assert.ok(!selections[1].includes('\n- a ('), 'the technique already taken is not offered again');
+  assert.deepEqual([result.choice.key, ...(result.alternatives ?? []).map((alt) => alt.choice.key)], ['a', 'b', 'c', 'd']);
+});
+
 test('полный цикл: повтор битого JSON, пять уникальных вариантов и синтез каждого', async () => {
   let briefCalls = 0;
   let synthCalls = 0;

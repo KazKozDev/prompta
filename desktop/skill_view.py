@@ -23,7 +23,7 @@ class SkillView(DocumentView):
     SLOGAN = "THOUGHTS IN. SKILLS OUT."
     MODE = "skill"
 
-    def render_skill(self, payload: dict) -> None:
+    def render_skill(self, payload: dict, source_thoughts: str | None = None) -> None:
         check = payload.get("check") or {}
         surface = SURFACE_LABELS.get(payload.get("surface", ""), "")
         state = "Valid" if check.get("valid") else "Not valid"
@@ -37,6 +37,7 @@ class SkillView(DocumentView):
             save_label="Save as folder…",
             save_tip="Creates <folder>/<name>/SKILL.md: the skill folder must be named like the skill",
             on_save=self.save,
+            source_thoughts=source_thoughts,
         )
 
     def save(self) -> None:

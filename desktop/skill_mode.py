@@ -8,7 +8,8 @@ Skill mode writes a SKILL.md (pipeline/skill.ts), Project mode an agent instruct
 
 from __future__ import annotations
 
-from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QFont, QFontMetrics
 from PyQt6.QtWidgets import QButtonGroup, QFrame, QHBoxLayout, QPushButton, QVBoxLayout, QWidget
 
 from controls import Dropdown
@@ -23,17 +24,18 @@ MODES = (PROMPT_MODE, INSTRUCTIONS_MODE, SKILL_MODE, AGENT_MODE)
 
 
 class ModeSwitch(QFrame):
-    """Four segments in the header: Prompt, Project, Skill and Subagent. `changed(mode)` fires on every switch."""
+    """Four tabs in the header: Prompt, Project, Skill and Subagent, drawn as plain words (the
+    chosen one dark and bold). `changed(mode)` fires on every switch."""
 
     changed = pyqtSignal(str)
 
     def __init__(self) -> None:
         super().__init__()
-        self.setObjectName("segmentTrack")  # the variant switch's look (app.qss)
+        self.setObjectName("modeTabs")  # plain words, not the variant switch's pills (app.qss)
         self.setAccessibleName("What to build")
         row = QHBoxLayout(self)
-        row.setContentsMargins(2, 2, 2, 2)
-        row.setSpacing(2)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(14)
         self.buttons = QButtonGroup(self)
         self.buttons.setExclusive(True)
         self._by_mode: dict[str, QPushButton] = {}
@@ -45,11 +47,15 @@ class ModeSwitch(QFrame):
         ]
         for index, (mode, label, tip) in enumerate(segments):
             button = QPushButton(label)
-            button.setObjectName("segment")
-            button.setProperty("first", index == 0)
-            button.setProperty("last", index == len(segments) - 1)
+            button.setObjectName("modeTab")
             button.setCheckable(True)
-            button.setFixedSize(84 if mode == AGENT_MODE else 64, 24)  # "Subagent" needs more room
+            button.setFixedHeight(24)
+            button.ensurePolished()  # the stylesheet's font size, before it is measured
+            # Wide enough for the bold face, so the row does not shift when a tab is chosen.
+            bold = button.font()
+            bold.setWeight(QFont.Weight.DemiBold)
+            button.setFixedWidth(QFontMetrics(bold).horizontalAdvance(label) + 4)
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
             button.setToolTip(tip)
             button.toggled.connect(lambda on, m=mode: self._on_toggled(m, on))
             self.buttons.addButton(button, index)

@@ -1,3 +1,4 @@
+import { splitFiles } from './context.ts';
 import type { TaskBrief } from './types.ts';
 
 /** A deterministic safety net against injected commands: the brief-stage model may miss them
@@ -93,7 +94,8 @@ export function materialSpans(thoughts: string): string[] {
 export function hasThirdPartyMaterial(thoughts: string): boolean {
   // A structural sign, not an attack dictionary: a quote or HTML in the thoughts is almost always someone else's material.
   // A false positive costs one extra guard sentence in the prompt; a miss costs an executed injection.
-  return MATERIAL_MARKER.test(thoughts) || /[«“"]|<[a-z!/]/i.test(thoughts);
+  const { request, files } = splitFiles(thoughts);
+  return Boolean(files) || MATERIAL_MARKER.test(request) || /[«“"]|<[a-z!/]/i.test(request);
 }
 
 const contextualHit = (span: string): boolean => CONTEXTUAL.some((re) => re.test(span));
@@ -109,8 +111,11 @@ export const UNTRUSTED_MARK = /посторонние инструкции|unrel
 
 /** Fragments of the thoughts with an injected command: quotes «…», "…", “…” or a sentence with an attack sign. */
 export function injectedSegments(thoughts: string): string[] {
-  const spans = materialSpans(thoughts).filter((s) => contextualHit(s) || STRONG.some((re) => re.test(s)));
-  const sentences = thoughts.split(/(?<=[.!?\n])\s+/).filter((s) => STRONG.some((re) => re.test(s)));
+  // Attached project files give no segments: their quotes, comments, "## Instructions" headings and `rm -rf`
+  // would strip real constraints and reject real prompts. hasThirdPartyMaterial still turns the data guard on.
+  const { request } = splitFiles(thoughts);
+  const spans = materialSpans(request).filter((s) => contextualHit(s) || STRONG.some((re) => re.test(s)));
+  const sentences = request.split(/(?<=[.!?\n])\s+/).filter((s) => STRONG.some((re) => re.test(s)));
   return [...new Set([...spans, ...sentences])];
 }
 

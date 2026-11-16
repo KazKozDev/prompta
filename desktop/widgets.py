@@ -62,6 +62,9 @@ from dictation import installed_model, worker_command
 from theme import CHAT_URLS, DARK_SCROLL_QSS, FROZEN, PROMPT_TARGETS, ROOT
 
 
+MAX_CHAT_URL_TEXT = 2_000  # longer prompts reach the chat through the clipboard, not ?q=
+
+
 class HintPopup(QLabel):
     """The app's own hover hint: light, rounded, no black system frame (macOS draws one around QToolTip)."""
 
@@ -412,12 +415,31 @@ def use_step_scroll(area, scroll_target=None) -> None:
 
 class ThoughtsEdit(QPlainTextEdit):
     dictationSetupRequested = pyqtSignal()  # the microphone was clicked but the Whisper model is not downloaded
+    filesDropped = pyqtSignal(list)  # local files dropped on the field: attached, not pasted as paths
+    attachRequested = pyqtSignal()  # the paperclip left of the microphone was clicked
     voice_process: QProcess | None
     _dictation_base: str | None = None
 
+    @staticmethod
+    def _local_files(source) -> list[Path]:
+        urls = source.urls() if source.hasUrls() else []
+        # Files and folders: a folder brings its text files (attachments.folder_files).
+        return [Path(u.toLocalFile()) for u in urls if u.isLocalFile() and Path(u.toLocalFile()).exists()]
+
+    def canInsertFromMimeData(self, source) -> bool:  # noqa: N802 - Qt naming
+        return bool(self._local_files(source)) or super().canInsertFromMimeData(source)
+
+    def insertFromMimeData(self, source) -> None:  # noqa: N802 - Qt naming
+        files = self._local_files(source)
+        if files:
+            self.filesDropped.emit(files)
+            return
+        super().insertFromMimeData(source)
+
     def __init__(self) -> None:
         super().__init__()
-        self.setViewportMargins(0, 0, 52, 0)
+        # The paperclip and the microphone sit in the field's top-right corner. No column is reserved for them (it
+        # would narrow every line); only when the first line reaches them does the text drop below them (_avoid_icons).
         self.microphone_icon = QPushButton(self)
         self.microphone_icon.setIcon(QIcon(str(ROOT / "desktop" / "microphone.svg")))
         self.microphone_icon.setIconSize(QSize(18, 18))
@@ -431,6 +453,21 @@ class ThoughtsEdit(QPlainTextEdit):
         self.voice_buffer = ""
         self.microphone_icon.setObjectName("micIcon")
         self.microphone_icon.raise_()
+        # Left of the microphone: attaches project files every mode reads.
+        self.attach_icon = QPushButton(self)
+        self.attach_icon.setObjectName("micIcon")
+        self.attach_icon.setIcon(QIcon(str(ROOT / "desktop" / "paperclip.svg")))
+        self.attach_icon.setIconSize(QSize(18, 18))
+        self.attach_icon.setFixedSize(24, 24)
+        self.attach_icon.setAccessibleName("Attach project files")
+        self.attach_icon.setToolTip(
+            "Attach project files the model reads next to your description: README, package.json, a config.\n"
+            "Text files only; you can also drop files or a whole folder here."
+        )
+        self.attach_icon.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.attach_icon.clicked.connect(self.attachRequested)
+        self.attach_icon.raise_()
+        self.textChanged.connect(lambda: QTimer.singleShot(0, self._avoid_icons))
         # A press over the icon starts dictation even if a neighbour (the field's text area, an overlay
         # scrollbar) received it; presses near the icon are logged so a miss can be traced.
         self.installEventFilter(self)
@@ -446,6 +483,9 @@ class ThoughtsEdit(QPlainTextEdit):
                 self._voice_log(f"press at {point.x()},{point.y()} on {type(watched).__name__} · icon {hit.getRect()}")
             if hit.contains(point) and self.microphone_icon.isEnabled():
                 self._toggle_dictation()
+                return True
+            if self.attach_icon.geometry().adjusted(-4, -4, 4, 4).contains(point):
+                self.attachRequested.emit()
                 return True
         return super().eventFilter(watched, event)
 
@@ -619,8 +659,33 @@ class ThoughtsEdit(QPlainTextEdit):
     def resizeEvent(self, event) -> None:  # noqa: N802
         super().resizeEvent(event)
         if hasattr(self, "microphone_icon"):
-            self.microphone_icon.move(self.width() - self.verticalScrollBar().sizeHint().width() - 19, 7)
+            x = self.width() - self.verticalScrollBar().sizeHint().width() - 19
+            self.microphone_icon.move(x, 7)
             self.microphone_icon.raise_()
+            self.attach_icon.move(x - 28, 7)
+            self.attach_icon.raise_()
+            QTimer.singleShot(0, self._avoid_icons)
+
+    def setPlaceholderText(self, text: str | None) -> None:  # noqa: N802 - Qt naming
+        super().setPlaceholderText(text)
+        QTimer.singleShot(0, self._avoid_icons)
+
+    def _avoid_icons(self) -> None:
+        """The text drops below the icons only while its first line (or the placeholder) would run under them."""
+        if not hasattr(self, "attach_icon"):
+            return
+        room = self.attach_icon.x() - self.viewport().x() - 2 * self.document().documentMargin() - 4
+        if self.document().isEmpty():
+            width = self.fontMetrics().horizontalAdvance(self.placeholderText())
+        else:
+            layout = self.document().firstBlock().layout()
+            width = layout.lineAt(0).naturalTextWidth() if layout is not None and layout.lineCount() else 0
+        margins = self.viewportMargins()
+        # Just enough for the first line's top to clear the icons' bottom edge, whatever the frame and padding.
+        text_top = self.viewport().y() - margins.top() + self.document().documentMargin()
+        top = max(0, round(self.microphone_icon.geometry().bottom() + 3 - text_top)) if width > room else 0
+        if margins.top() != top:
+            self.setViewportMargins(margins.left(), top, margins.right(), margins.bottom())
 
 
 TICK_PITCH = 7  # px from one tick to the next
@@ -795,6 +860,7 @@ class PromptEdit(QPlainTextEdit):
         # setViewportMargins and while the tab is hidden, which left text wrapped to a narrow column.
         if obj is self.viewport() and event.type() == QEvent.Type.Resize:
             QTimer.singleShot(0, self._rewrap)
+            QTimer.singleShot(0, self._place_overlays)  # the scroll bar came or went
         return super().eventFilter(obj, event)
 
     def _rewrap(self) -> None:
@@ -870,9 +936,13 @@ class PromptEdit(QPlainTextEdit):
         if not self.chat_target:
             return
         url = CHAT_URLS[self.chat_target]
-        if self.chat_target == "chatgpt":
+        # A long prompt (an attached report) does not fit a URL and would land in the browser history:
+        # it is on the clipboard already, the chat opens empty.
+        if self.chat_target == "chatgpt" and len(text) <= MAX_CHAT_URL_TEXT:
             url += "?" + urlencode({"q": text})
         opened = QDesktopServices.openUrl(QUrl(url))
+        if opened and self.chat_target == "chatgpt" and len(text) > MAX_CHAT_URL_TEXT:
+            self.chat_button.setToolTip("Prompt copied. Paste it into the chat.")
         if not opened:
             self.chat_button.setToolTip("Could not open browser. Prompt copied. Paste it into the chat.")
 
@@ -887,13 +957,14 @@ class PromptEdit(QPlainTextEdit):
         self._place_overlays()  # the width may have changed while the tab was hidden
 
     def _place_overlays(self) -> None:
+        # In the upper-right corner; clear of the scroll ticks only while there are any.
+        bar = self.verticalScrollBar()
+        right = self.width() - (bar.sizeHint().width() if bar.isVisibleTo(self) else 0) - 10
         if hasattr(self, "copy_button"):
-            self.copy_button.move(
-                self.width() - self.verticalScrollBar().sizeHint().width() - 42, 7
-            )  # clear of the scroll ticks
+            self.copy_button.move(right - self.copy_button.width(), 7)
             self.copy_button.raise_()
         if hasattr(self, "chat_button"):
-            self.chat_button.move(self.width() - self.verticalScrollBar().sizeHint().width() - 74, 7)
+            self.chat_button.move(right - self.copy_button.width() - 4 - self.chat_button.width(), 7)
             self.chat_button.raise_()
         if getattr(self, "restore", None) is not None and self.restore.isVisible():
             self.restore.adjustSize()

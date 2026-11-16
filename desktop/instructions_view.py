@@ -23,7 +23,7 @@ class InstructionsView(DocumentView):
     SLOGAN = "THOUGHTS IN. PROJECT RULES OUT."
     MODE = "instructions"
 
-    def render_instructions(self, payload: dict) -> None:
+    def render_instructions(self, payload: dict, source_thoughts: str | None = None) -> None:
         check = payload.get("check") or {}
         file_name = payload.get("fileName") or "AGENTS.md"
         state = "Valid" if check.get("valid") else "Not valid"
@@ -39,6 +39,7 @@ class InstructionsView(DocumentView):
             save_label="Save into project…",
             save_tip=f"Choose the project folder: the file is written to {file_name} there",
             on_save=self.save,
+            source_thoughts=source_thoughts,
         )
 
     def save(self) -> None:

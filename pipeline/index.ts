@@ -7,11 +7,15 @@ import { gateTechniques, getTechnique } from './catalog.ts';
 import { buildSelectionPrompt, parseChoices } from './select.ts';
 import { synthesizeDeterministic, synthesizeWithLLM, valuesFromBrief } from './synthesize.ts';
 import { meterLLM } from './llm.ts';
+import { attachedInput } from './context.ts';
+import type { ProjectFile } from './context.ts';
 import { sanitizeBrief } from './injection.ts';
 import { promptVersion } from './prompt-version.ts';
 
 export interface RunOptions {
   oneShot?: boolean;
+  /** Files that are the task's material: the brief says they are attached, the bridge appends them to the prompts. */
+  attachedFiles?: ProjectFile[];
   executionCapabilities?: ExecutionCapabilities;
   /** Completed pipeline stages, not an estimate of elapsed time. */
   onProgress?: (percent: number, stage: string) => void;
@@ -124,6 +128,8 @@ async function dispatch(opts: RunOptions): Promise<PipelineResult> {
 
   const cleaned = sanitizeBrief(brief, opts.thoughts);
   brief = cleaned.brief;
+  // Synthesis and zero-shot read only the brief: without this they ask for the material the user attached.
+  if (opts.attachedFiles?.length) brief = { ...brief, input: attachedInput(opts.attachedFiles, brief.language) };
   const injectionRemoved = cleaned.removed;
   opts.onProgress?.(20, 'Brief ready');
   const gateStart = t0();
@@ -165,6 +171,20 @@ async function dispatch(opts: RunOptions): Promise<PipelineResult> {
     const selectPrompt = buildSelectionPrompt(brief, candidates, variants);
     const parsed = await askJson(selectPrompt, (raw) => parseChoices(raw, candidates));
     choices = parsed.value.slice(0, variants);
+    // Weak models often answer one choice when asked for several: ask once more for the rest
+    // among the techniques not taken yet, so the user gets the number of variants they set.
+    const rest = () => candidates.filter((c) => !choices.some((ch) => ch.key === c.key));
+    if (choices.length < variants && rest().length) {
+      try {
+        const more = await askJson(
+          buildSelectionPrompt(brief, rest(), Math.min(variants - choices.length, rest().length)),
+          (raw) => parseChoices(raw, rest()),
+        );
+        choices = [...choices, ...more.value].slice(0, variants);
+      } catch {
+        // the variants already chosen are still a result
+      }
+    }
     choice = choices[0];
     push('select', t0() - selectStart, { prompt: selectPrompt, raw: parsed.raw });
   }

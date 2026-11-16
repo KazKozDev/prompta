@@ -42,6 +42,7 @@ from target_selector import TargetSelector
 from technique_panel import TechniquePanel
 from result_column import ResultColumn
 from agent_mode import AgentTargetSelector
+from attachments import Attachments
 from agent_view import AgentView
 from instructions_mode import InstructionTargetSelector
 from instructions_view import InstructionsView
@@ -138,7 +139,7 @@ class PromptaWindow(QMainWindow):
         root.setObjectName("root")
         self.setCentralWidget(root)
         outer = QVBoxLayout(root)
-        outer.setContentsMargins(24, 3, 12, 6)  # top equals spacing below the header: title sits centred
+        outer.setContentsMargins(24, 3, 12, 2)  # top equals spacing below the header: title sits centred
         outer.setSpacing(3)
 
         header = QHBoxLayout()
@@ -235,13 +236,22 @@ class PromptaWindow(QMainWindow):
         thoughts_palette = self.thoughts.palette()
         thoughts_palette.setColor(QPalette.ColorRole.PlaceholderText, QColor("#9a8c6b"))
         self.thoughts.setPalette(thoughts_palette)
-        self.thoughts.setMinimumHeight(110)
+        self.thoughts.setMinimumHeight(90)
         box.addWidget(self.thoughts, 1)
+        # Project files every mode reads next to the request; dropping files on the request attaches them too.
+        self.attachments = Attachments()
+        self.attachments.notice.connect(lambda text: self.status.setText(text))
+        self.attachments.changed.connect(self._fit_input_column)
+        self.thoughts.filesDropped.connect(self.attachments.add_paths)
+        self.thoughts.attachRequested.connect(self.attachments.pick)
+        # Which file the model read how depends on the request: an edit makes the last run's labels stale.
+        self.thoughts.textChanged.connect(self.attachments.forget_uses)
+        box.addWidget(self.attachments)
         # What the brief assumed sits under the request as its own block: natural height, no scroll of its own.
         self.assumptions_slot = QVBoxLayout()
         self.assumptions_slot.setContentsMargins(0, 6, 0, 0)
         box.addLayout(self.assumptions_slot)
-        self.assumptions_card: QWidget | None = None
+        self.mode_cards: dict[str, QWidget | None] = {}  # each mode keeps its own card; only the current one shows
 
         box.addSpacing(4)
 
@@ -344,23 +354,33 @@ class PromptaWindow(QMainWindow):
         box.addWidget(self.history.notice)
 
         self.result_column = ResultColumn(lambda: self.thoughts.toPlainText().strip())
-        self.result_column.assumptionsCard.connect(self._on_assumptions_card)
+        self.result_column.assumptionsCard.connect(lambda card: self._on_assumptions_card(card, PROMPT_MODE))
         self.result_column.briefEdited.connect(lambda: self._sync_build_label())
         self.result_column.rebuildRequested.connect(lambda: self.run_pipeline())
         self.result_column.promptEdited.connect(self.history.prompt_edited)  # edits go into the saved result
         box.addWidget(self.result_column, 1)
-        self.skill_view = SkillView()
+        request_text = lambda: self.thoughts.toPlainText().strip()  # noqa: E731
+        self.skill_view = SkillView(request_text)
         self.skill_view.textEdited.connect(lambda text: self.history.prompt_edited(0, text))
         self.skill_view.hide()
         box.addWidget(self.skill_view, 1)
-        self.instructions_view = InstructionsView()
+        self.instructions_view = InstructionsView(request_text)
         self.instructions_view.textEdited.connect(lambda text: self.history.prompt_edited(0, text))
         self.instructions_view.hide()
         box.addWidget(self.instructions_view, 1)
-        self.agent_view = AgentView()
+        self.agent_view = AgentView(request_text)
         self.agent_view.textEdited.connect(lambda text: self.history.prompt_edited(0, text))
         self.agent_view.hide()
         box.addWidget(self.agent_view, 1)
+        file_views = (
+            (SKILL_MODE, self.skill_view),
+            (INSTRUCTIONS_MODE, self.instructions_view),
+            (AGENT_MODE, self.agent_view),
+        )
+        for mode, view in file_views:
+            view.assumptionsCard.connect(lambda card, m=mode: self._on_assumptions_card(card, m))
+            view.briefEdited.connect(lambda: self._sync_build_label())
+            view.rebuildRequested.connect(lambda: self.run_pipeline())
 
         self.result_column.show_placeholder()
         self.skill_view.show_placeholder()
@@ -418,9 +438,22 @@ class PromptaWindow(QMainWindow):
         self.prompt_version = getattr(loader, "prompt_version", "") or getattr(self, "prompt_version", "")
         self.technique_panel.set_techniques(techniques)
 
-    def _on_assumptions_card(self, card: QWidget | None) -> None:
-        self._set_assumptions_card(card)
+    def _on_assumptions_card(self, card: QWidget | None, mode: str = PROMPT_MODE) -> None:
+        self._set_assumptions_card(card, mode)
         self._sync_build_label()
+
+    def _current_mode(self) -> str:
+        switch = getattr(self, "mode_switch", None)
+        return switch.mode() if switch is not None else PROMPT_MODE
+
+    @property
+    def assumptions_card(self) -> QWidget | None:
+        """The card of the mode on screen: Build reads only that one."""
+        return self.mode_cards.get(self._current_mode())
+
+    @assumptions_card.setter
+    def assumptions_card(self, card: QWidget | None) -> None:
+        self.mode_cards[self._current_mode()] = card
 
     # ── run ───────────────────────────────────────────────────────
     def clear_workspace(self) -> None:
@@ -430,6 +463,7 @@ class PromptaWindow(QMainWindow):
             self.worker.cancel()
         self.thoughts.stop_dictation()
         self.thoughts.clear()
+        self.attachments.clear()
         self.thoughts.setToolTip("")
         self._active_thoughts = ""
         self.history.deselect()
@@ -462,13 +496,15 @@ class PromptaWindow(QMainWindow):
             self.worker.cancel()
             self.status.setText("Cancelling")
 
-    def _set_assumptions_card(self, card: QWidget | None) -> None:
-        if self.assumptions_card is not None:
-            self.assumptions_card.hide()
-            self.assumptions_card.deleteLater()
-        self.assumptions_card = card
+    def _set_assumptions_card(self, card: QWidget | None, mode: str = PROMPT_MODE) -> None:
+        old = self.mode_cards.get(mode)
+        if old is not None and old is not card:
+            old.hide()
+            old.deleteLater()
+        self.mode_cards[mode] = card
         if card is not None:
             self.assumptions_slot.addWidget(card)
+            card.setVisible(mode == self._current_mode())
         self._fit_input_column()
 
     def _fit_input_column(self) -> None:
@@ -490,11 +526,12 @@ class PromptaWindow(QMainWindow):
             return
         if not force and self._running():
             return  # the button says Stop until the run ends
-        card = self.assumptions_card if self._prompt_mode() else None  # skill and project runs do not read the card
+        card = self.assumptions_card  # the current mode's card: another mode's edits do not change this button
         count = card.change_count() if card is not None and hasattr(card, "change_count") else 0
         base = getattr(self, "build_label", "Build prompt")
-        shortcut = base[len("Build prompt") :]
-        self.run_button.setText(f"Rebuild · {count} change{'s' if count != 1 else ''}{shortcut}" if count else base)
+        _, gap, shortcut = base.partition("   ")  # "Build skill   ⌘↵": keep the shortcut, whatever the label
+        rebuild = f"Rebuild · {count} change{'s' if count != 1 else ''}{gap}{shortcut}"
+        self.run_button.setText(rebuild if count else base)
 
     def _prompt_mode(self) -> bool:
         return self.mode_switch.mode() == PROMPT_MODE
@@ -509,8 +546,10 @@ class PromptaWindow(QMainWindow):
         prompt = mode == PROMPT_MODE
         for widget in (self.target_selector, self.runs_in_label, self.execution_profile, self.technique_panel):
             widget.setVisible(prompt)
-        if self.assumptions_card is not None:
-            self.assumptions_card.setVisible(prompt)
+        for card_mode, card in self.mode_cards.items():
+            if card is not None:
+                card.setVisible(card_mode == mode)
+        self.attachments.set_material(prompt)
         self.surface_selector.setVisible(mode == SKILL_MODE)
         self.instruction_target.setVisible(mode == INSTRUCTIONS_MODE)
         self.agent_target.setVisible(mode == AGENT_MODE)
@@ -534,8 +573,14 @@ class PromptaWindow(QMainWindow):
         self._sync_build_label()
         self._fit_input_column()
 
-    def _run_document(self, thoughts: str, generator: dict) -> None:
-        """Skill, Project or Agent mode: one bridge request that writes a file instead of a prompt."""
+    def _files_field(self) -> dict:
+        """The attached project files for the bridge; no field at all when none are attached."""
+        files = self.attachments.files()
+        return {"files": files} if files else {}
+
+    def _run_document(self, thoughts: str, generator: dict, revised: dict | None = None) -> None:
+        """Skill, Project or Agent mode: one bridge request that writes a file instead of a prompt.
+        `revised` is the edited card: the file is rewritten on it and the request is not asked about again."""
         if self.mode_switch.mode() == SKILL_MODE:
             request = {"skill": self.surface_selector.surface()}
             status = "Writing SKILL.md from the official skill rules"
@@ -549,10 +594,12 @@ class PromptaWindow(QMainWindow):
         self.generation_progress.setValue(0)
         self.generation_progress.show()
         self.status.setText(status)
-        self._rebuilding_brief = False
+        if revised is not None:
+            request["clarify"] = revised
+        self._rebuilding_brief = revised is not None
         self._active_thoughts = thoughts
         self._discard_result = False
-        self.worker = Worker({"thoughts": thoughts, **generator, **request})
+        self.worker = Worker({"thoughts": thoughts, **generator, **request, **self._files_field()})
         self.worker.progress.connect(self.on_progress)
         self.worker.finished_ok.connect(self.on_finished)
         self.worker.start()
@@ -573,7 +620,7 @@ class PromptaWindow(QMainWindow):
             self.status.setText(missing)
             return
         if not self._prompt_mode():
-            self._run_document(thoughts, generator)
+            self._run_document(thoughts, generator, revised_brief)
             return
 
         technique_keys = self.technique_panel.technique_keys()
@@ -582,6 +629,7 @@ class PromptaWindow(QMainWindow):
             **generator,  # provider, model, key and URL
             **self.target_selector.flags(),
             "variants": self.variants.value(),
+            **self._files_field(),
         }
         profile = self.execution_profile.current_key()
         payload["executionProfile"] = profile
@@ -640,6 +688,8 @@ class PromptaWindow(QMainWindow):
         else:
             self.generation_progress.hide()
         self._set_running(False)
+        if data.get("ok") and "filesUsed" in data and self.thoughts.toPlainText().strip() == self._active_thoughts:
+            self.attachments.set_uses(data["filesUsed"])  # only while the request is still the one the run read
         if not data.get("ok"):
             if getattr(self, "_rebuilding_brief", False):
                 self.status.setText(f"Rebuild failed: {data.get('error', 'unknown error')}")
@@ -650,7 +700,7 @@ class PromptaWindow(QMainWindow):
 
         if data.get("skill"):
             skill = data["skill"]
-            self.skill_view.render_skill(skill)
+            self.skill_view.render_skill(skill, source_thoughts=self._active_thoughts)
             self._save_result(skill.get("name") or "SKILL.md", "skill", skill)
             check = skill.get("check") or {}
             problems = len(check.get("errors") or [])
@@ -661,7 +711,7 @@ class PromptaWindow(QMainWindow):
 
         if data.get("instructions"):
             instructions = data["instructions"]
-            self.instructions_view.render_instructions(instructions)
+            self.instructions_view.render_instructions(instructions, source_thoughts=self._active_thoughts)
             file_name = instructions.get("fileName") or "AGENTS.md"
             self._save_result(file_name, "instructions", instructions)
             check = instructions.get("check") or {}
@@ -673,7 +723,7 @@ class PromptaWindow(QMainWindow):
 
         if data.get("agent"):
             agent = data["agent"]
-            self.agent_view.render_agent(agent)
+            self.agent_view.render_agent(agent, source_thoughts=self._active_thoughts)
             file_name = agent.get("fileName") or "agent"
             self._save_result(agent.get("name") or file_name, "agent", agent)
             check = agent.get("check") or {}
@@ -722,13 +772,13 @@ class PromptaWindow(QMainWindow):
         self.mode_switch.set_mode(modes.get(kind, PROMPT_MODE))
         if kind == "skill":
             self.surface_selector.set_surface(payload.get("surface", "portable"))
-            self.skill_view.render_skill(payload)
+            self.skill_view.render_skill(payload, source_thoughts=entry["thoughts"])
         elif kind == "instructions":
             self.instruction_target.set_target(payload.get("target", "agentsMd"))
-            self.instructions_view.render_instructions(payload)
+            self.instructions_view.render_instructions(payload, source_thoughts=entry["thoughts"])
         elif kind == "agent":
             self.agent_target.set_target(payload.get("target", "claudeCode"))
-            self.agent_view.render_agent(payload)
+            self.agent_view.render_agent(payload, source_thoughts=entry["thoughts"])
         elif kind == "manual":
             self.result_column.render_manual(payload)
         elif kind == "procedure":

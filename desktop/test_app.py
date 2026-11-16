@@ -813,6 +813,23 @@ class DesktopSmokeTest(unittest.TestCase):
         finally:
             editor.close()
 
+    def test_a_long_prompt_reaches_chatgpt_through_the_clipboard_not_the_url(self):
+        from widgets import MAX_CHAT_URL_TEXT, PromptEdit
+
+        text = 'Проверь отчёт.\n<document path="report.md">' + 'x' * MAX_CHAT_URL_TEXT + '</document>'
+        editor = PromptEdit(text, None, "chatgpt")
+        try:
+            with (
+                patch('PyQt6.QtGui.QGuiApplication.clipboard') as clipboard,
+                patch('PyQt6.QtGui.QDesktopServices.openUrl', return_value=True) as browser,
+            ):
+                editor.chat_button.click()
+                clipboard.return_value.setText.assert_called_once_with(text)
+                self.assertEqual(browser.call_args.args[0].toString(), 'https://chatgpt.com/')
+            self.assertIn('Paste it', editor.chat_button.toolTip())
+        finally:
+            editor.close()
+
     def test_browser_button_matches_prompt_target(self):
         from widgets import PromptEdit
 

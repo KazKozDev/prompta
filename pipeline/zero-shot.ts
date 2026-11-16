@@ -32,6 +32,7 @@ ${JSON.stringify(brief ? { goal: brief.goal, input: brief.input, output_format: 
 ${executionContext(capabilities)}
 ${promptRequirements(brief, capabilities)}
 Requirements: the prompt's language is the task's language; no {{placeholders}}; if material is needed that is not there, use the marker «INSERT HERE: <what>»;
+When the input says files are attached after the prompt, that material is already there: refer to it by file name and write no marker for it.
 do not invent facts. Output only the prompt text, no explanations and no markdown wrapper.`;
   try {
     const prompt = unwrapFence(await llm(request, { temperature: 0.2 }));

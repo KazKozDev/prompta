@@ -39,6 +39,22 @@ test('ошибка авторизации не повторяется, пуст�
   await assert.rejects(llm('тест'), /empty response/);
 });
 
+test('meta: low reasoning effort, other OpenAI-compatible addresses send none; thinking out of tokens is named', async (t) => {
+  const bodies: Record<string, any>[] = [];
+  t.mock.method(globalThis, 'fetch', async (_url: unknown, init: RequestInit) => {
+    bodies.push(JSON.parse(String(init.body)));
+    return new Response(JSON.stringify({ choices: [{ message: { content: 'ok' } }] }));
+  });
+  await createLLM({ provider: 'openai', model: 'muse-spark-1.3', apiKey: 'k', baseUrl: 'https://api.meta.ai/v1' })('тест');
+  await createLLM({ provider: 'openai', model: 'synthetic', apiKey: 'k' })('тест');
+  assert.equal(bodies[0].reasoning_effort, 'low');
+  assert.equal(bodies[1].reasoning_effort, undefined);
+  t.mock.restoreAll();
+  t.mock.method(globalThis, 'fetch', async () =>
+    new Response(JSON.stringify({ choices: [{ message: { content: '' }, finish_reason: 'length' }] })));
+  await assert.rejects(createLLM({ provider: 'openai', model: 'm', apiKey: 'k' })('тест'), /whole token limit thinking/);
+});
+
 test('anthropic и xai: адрес, заголовки, без temperature у Claude, учёт токенов', async (t) => {
   const seen: { url: string; headers: Record<string, string>; body: Record<string, any> }[] = [];
   t.mock.method(globalThis, 'fetch', async (url: unknown, init: RequestInit) => {
@@ -119,4 +135,17 @@ test('облачный API Ollama: ключ в заголовке, без суф
   assert.equal(seen[1].model, 'glm-5.3:cloud');
   assert.equal(ollamaCloudModel('gpt-oss:120b-cloud'), 'gpt-oss:120b');
   assert.throws(() => createLLMFromEnv('anthropic', 'm', {}), /ANTHROPIC_API_KEY/);
+});
+
+test('ollama: длинный промпт расширяет окно, и следующие вызовы прогона держат тот же размер', async (t) => {
+  const sizes: (number | undefined)[] = [];
+  t.mock.method(globalThis, 'fetch', async (_url: unknown, init: RequestInit) => {
+    sizes.push(JSON.parse(String(init.body)).options.num_ctx);
+    return new Response(JSON.stringify({ response: 'ok' }));
+  });
+  const llm = createLLM({ provider: 'ollama', model: 'synthetic' });
+  await llm('short');
+  await llm('x'.repeat(12_000), { maxTokens: 2048 });
+  await llm('short again');
+  assert.deepEqual(sizes, [undefined, 8192, 8192]);
 });

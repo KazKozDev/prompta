@@ -23,7 +23,7 @@ from app import PromptaWindow
 from generator_settings import GeneratorSettings
 from history import HistoryStore
 from history_view import HistoryView
-from skill_mode import SKILL_MODE
+from skill_mode import PROMPT_MODE, SKILL_MODE
 from skill_view import save_skill
 
 SKILL = {
@@ -150,6 +150,37 @@ class SkillModeTest(unittest.TestCase):
         w.mode_switch.set_mode(SKILL_MODE)
         self.assertEqual(w.run_button.text(), 'Build skill   ⌘↵')
         w.assumptions_card = None
+
+    def test_skill_questions_show_as_a_card_and_rebuild_sends_the_edited_answers(self):
+        w = self.window
+        w.mode_switch.set_mode(SKILL_MODE)
+        w.thoughts.setPlainText('notes skill')
+        clarify = {'questions': [{'question': 'Which language?', 'default': 'English'}], 'assumptions': ['No badges']}
+        w._active_thoughts = 'notes skill'
+        w.on_finished({'ok': True, 'skill': {**SKILL, 'clarify': clarify}})
+        card = w.assumptions_card
+        self.assertIsNotNone(card, 'the questions the skill was written on are shown')
+        self.assertEqual(w.run_button.text(), 'Build skill   ⌘↵')
+        card.question_answers[0][1].setText('Russian')
+        self.assertEqual(w.run_button.text(), 'Rebuild · 1 change   ⌘↵')
+        model = ({'provider': 'ollama', 'model': 'test-model'}, '')  # other tests leave a provider that needs a key
+        with patch('app.Worker') as worker, patch.object(w.generator, 'request', return_value=model):
+            w.worker = None
+            w.run_pipeline()
+            self.assertIsNotNone(worker.call_args, w.status.text())
+            sent = worker.call_args.args[0]
+            self.assertEqual(sent['skill'], 'portable')
+            self.assertEqual(sent['clarify']['questions'], [{'question': 'Which language?', 'default': 'Russian'}])
+            self.assertEqual(sent['clarify']['assumptions'], ['No badges'])
+            self.assertNotIn('brief', sent)
+            w.worker = None
+        w.mode_switch.set_mode(PROMPT_MODE)
+        self.assertIsNone(w.assumptions_card, 'the skill card stays with Skill mode')
+        self.assertTrue(card.isHidden())
+        w.mode_switch.set_mode(SKILL_MODE)
+        self.assertIs(w.assumptions_card, card, 'and comes back with it')
+        w.on_finished({'ok': True, 'skill': dict(SKILL)})
+        self.assertIsNone(w.assumptions_card, 'a skill without questions drops the old card')
 
     def test_edits_go_into_the_skill_text_not_the_zero_shot_field(self):
         payload = dict(SKILL)

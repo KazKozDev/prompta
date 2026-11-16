@@ -97,9 +97,33 @@ export function validateSkill(markdown: string, surface: SkillSurface): SkillChe
   const files = [...new Set(body.match(/\b(?:scripts|references|reference|assets)\/[\w./-]*\w/g) ?? [])];
   if (files.length) warnings.push(`Ship these files next to SKILL.md or remove the mentions: ${files.join(', ')}.`);
 
+  errors.push(...fenceErrors(body));
+
   const bodyLines = body.trim() ? body.trim().split(/\r?\n/).length : 0;
   if (!bodyLines) errors.push('The body after the frontmatter is empty.');
   if (bodyLines > BODY_LINES) warnings.push(`The body is ${bodyLines} lines; keep it under ${BODY_LINES} and move detail into referenced files.`);
 
   return { valid: errors.length === 0, errors, warnings, name, description, keys, bodyLines };
+}
+
+/** Code blocks that break: one left open, or one that opens inside a block fenced with as many backticks
+ *  (Markdown ends the outer block at the inner one's closing fence, so a template splits in two). */
+export function fenceErrors(body: string): string[] {
+  const errors: string[] = [];
+  let open: { char: string; len: number; line: string } | null = null;
+  for (const line of body.split(/\r?\n/)) {
+    const fence = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
+    if (!fence) continue;
+    const [, marks, rest] = fence;
+    if (!open) {
+      open = { char: marks[0], len: marks.length, line: line.trim() };
+    } else if (marks[0] === open.char && marks.length >= open.len) {
+      if (rest.trim()) {
+        errors.push(`"${line.trim()}" opens a code block inside the one opened by "${open.line}": fence the outer block with more backticks (\`\`\`\`).`);
+      }
+      open = null;
+    }
+  }
+  if (open) errors.push(`The code block opened by "${open.line}" is never closed.`);
+  return errors;
 }

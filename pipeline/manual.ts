@@ -39,6 +39,7 @@ Requirements:
 1. The prompt is self-contained: paste it into a model and get the result, nothing to add.
 2. NO {{placeholders}} and no stubs like "...". Fill in everything the thoughts contain as content.
    If the material itself is needed (note text, a document, code), write an explicit marker: INSERT HERE: <what exactly>.
+   When the input says files are attached after the prompt, that material is already there: refer to it by file name and write no marker for it.
 3. The structure and wording must show this very technique: CoT — a requirement to reason step by step and where exactly;
    few-shot — 2–3 concrete examples for the task; ToT — branching, evaluation and backtracking; ReAct — the Thought/Action/Observation loop;
    contextual — reliance on relevant material and source references. If the task requires finding sources, explicitly assign the search with the available tools. Limit the answer to a supplied corpus only when the task explicitly requires it.

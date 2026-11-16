@@ -157,6 +157,9 @@ export function createLLM(opts: LLMOptions): LLM {
     // xAI is compatible with the chat/completions format; only the address differs.
     const base = (opts.baseUrl || (provider === 'xai' ? 'https://api.x.ai' : 'https://api.openai.com')).replace(/\/+$/, '');
     const apiRoot = base.endsWith('/v1') ? base : `${base}/v1`;
+    // Meta's models think before every answer, and the thinking counts against max_tokens: at their own effort
+    // a SKILL.md spent 4094 of its 4096 tokens thinking and came back empty. At low it thought for 1289.
+    const effort = /(^|\.)meta\.ai$/.test(new URL(apiRoot).hostname) ? { reasoning_effort: 'low' } : {};
     return async (prompt, o = {}) => {
       const data = (await postJson(
         `${apiRoot}/chat/completions`,
@@ -166,15 +169,19 @@ export function createLLM(opts: LLMOptions): LLM {
           temperature: o.temperature ?? 0.2,
           ...(o.maxTokens ? { max_tokens: o.maxTokens } : {}),
           ...(o.json ? { response_format: { type: 'json_object' } } : {}),
+          ...effort,
         },
         apiKey ? { authorization: `Bearer ${apiKey}` } : {},
         http,
       )) as {
-        choices?: { message?: { content?: string } }[];
+        choices?: { message?: { content?: string }; finish_reason?: string }[];
         usage?: { prompt_tokens?: number; completion_tokens?: number };
       };
       report(o.onUsage, data.usage?.prompt_tokens, data.usage?.completion_tokens);
       const out = data.choices?.[0]?.message?.content ?? '';
+      if (!out && data.choices?.[0]?.finish_reason === 'length') {
+        throw new Error(`${provider} returned an empty response: the model spent its whole token limit thinking`);
+      }
       if (!out) throw new Error(`${provider} returned an empty response`);
       return out;
     };
@@ -213,7 +220,9 @@ export function createLLM(opts: LLMOptions): LLM {
   const remote = !isLocalHost(base);
   const ollamaHeaders: Record<string, string> = remote && apiKey ? { authorization: `Bearer ${apiKey}` } : {};
   const ollamaModel = remote && /(^|\.)ollama\.com$/.test(new URL(base).hostname) ? ollamaCloudModel(model) : model;
+  let window = 0;  // grows, never shrinks: the calls of one run share the largest window instead of reloading
   return async (prompt, o = {}) => {
+    window = Math.max(window, ollamaContext(prompt, o.maxTokens).num_ctx ?? 0);
     const data = (await postJson(
       `${base}/api/generate`,
       {
@@ -224,6 +233,7 @@ export function createLLM(opts: LLMOptions): LLM {
         options: {
           temperature: o.temperature ?? 0.2,
           ...(o.maxTokens ? { num_predict: o.maxTokens } : {}),
+          ...(window ? { num_ctx: window } : {}),
         },
       },
       ollamaHeaders,
@@ -234,6 +244,15 @@ export function createLLM(opts: LLMOptions): LLM {
     if (!out) throw new Error('ollama returned an empty response');
     return out;
   };
+}
+
+/** Ollama cuts a prompt longer than its default window (often 4096 tokens) from the start, without an error:
+ *  that start holds the official rules. A long prompt (attached files) asks for a window that fits it. */
+export function ollamaContext(prompt: string, maxTokens?: number): { num_ctx?: number } {
+  const needed = Math.ceil(prompt.length / 3) + (maxTokens ?? 2048) + 256;  // ~3 characters a token, Cyrillic fewer
+  if (needed <= 4096) return {};
+  // Few distinct sizes: Ollama reloads the model whenever num_ctx changes.
+  return { num_ctx: needed <= 8192 ? 8192 : needed <= 16_384 ? 16_384 : 32_768 };
 }
 
 /** A counting wrapper: sums tokens and calls across all stages of one run. */

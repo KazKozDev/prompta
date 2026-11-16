@@ -68,6 +68,20 @@ test('мост: процедура возвращает шаги, а не про
   assert.match(String((data.procedure as { zeroShotPrompt: string }).zeroShotPrompt), /отбери похожие примеры/);
 });
 
+test('bridge: every answer says how each attached file reached the model', () => {
+  const small = [{ path: 'README.md', content: '# Shop' }, { path: 'src/app.py', content: 'def main(): pass' }];
+  const fit = call({ thoughts: 'отбери похожие примеры', provider: 'ollama', model: 'dummy', manualTechnique: 'icl_knn_selection', files: small });
+  assert.equal(fit.data.ok, true, JSON.stringify(fit.data));
+  assert.deepEqual(fit.data.filesUsed, { 'README.md': 'whole', 'src/app.py': 'whole' });
+  const big = (i: number) => ({ path: `notes/n${i}.txt`, content: `note ${i} ${'x'.repeat(20_000)}` });
+  const many = call({ thoughts: 'отбери похожие примеры', provider: 'ollama', model: 'dummy', manualTechnique: 'icl_knn_selection', files: [small[0], ...Array.from({ length: 40 }, (_, i) => big(i))] });
+  const used = many.data.filesUsed as Record<string, string>;
+  assert.equal(used['README.md'], 'whole');
+  assert.equal(used['notes/n0.txt'], 'outline', 'its start');
+  assert.ok(Object.values(used).includes('tree'), 'forty long files do not all fit');
+  assert.equal(call({ thoughts: 'отбери похожие примеры', provider: 'ollama', model: 'dummy', manualTechnique: 'icl_knn_selection' }).data.filesUsed, undefined);
+});
+
 test('мост: ручная техника не игнорирует запрет LLM-синтеза', () => {
   const { data } = call({ thoughts: 'синтетический тест', model: 'dummy', manualTechnique: 'zero_shot', deterministic: true });
   assert.equal(data.ok, false);
@@ -169,5 +183,57 @@ test('bridge: agent requests reject unknown targets, prompt targets and other fi
     const { data } = call(payload);
     assert.equal(data.ok, false);
     assert.match(String(data.error), /agent/i);
+  }
+});
+
+test('мост: файлы проекта без текста или в неверном виде отклоняются', () => {
+  for (const files of ['README.md', [{ path: 'a.md' }], [{ path: '', content: 'x' }], Array.from({ length: 201 }, (_, i) => ({ path: `${i}.md`, content: 'x' })), Array.from({ length: 6 }, (_, i) => ({ path: `${i}.md`, content: 'x'.repeat(900_000) }))]) {
+    const { data } = call({ thoughts: 'опиши проект', model: 'dummy', instructions: 'agentsMd', files });
+    assert.equal(data.ok, false);
+    assert.match(String(data.error), /files|file needs|MB of text/);
+  }
+});
+
+test('bridge: file modes ask what is open first; Rebuild with the edited answers makes no clarify call', async () => {
+  const { createServer } = await import('node:http');
+  const { spawn } = await import('node:child_process');
+  const prompts: string[] = [];
+  const server = createServer((req, res) => {
+    let body = '';
+    req.on('data', (chunk) => { body += chunk; });
+    req.on('end', () => {
+      const prompt = String(JSON.parse(body).prompt);
+      prompts.push(prompt);
+      const answer = prompt.includes('First list what the request leaves open')
+        ? JSON.stringify({ questions: [{ question: 'Which language?', default: 'English' }], assumptions: ['no badges'] })
+        : '---\nname: writing-readmes\ndescription: Writes READMEs. Use when the user asks for a README.\n---\n\n# Writing READMEs\n\nWrite it.\n';
+      res.end(JSON.stringify({ response: answer }));
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const { port } = server.address() as { port: number };
+  const run = (payload: unknown) => new Promise<Record<string, any>>((resolve) => {
+    const child = spawn(process.execPath, [bridge], { cwd: root });
+    let out = '';
+    child.stdout.on('data', (chunk) => { out += chunk; });
+    child.on('close', () => resolve(JSON.parse(out || '{}')));
+    child.stdin.end(JSON.stringify(payload));
+  });
+  try {
+    const base = { thoughts: 'a README skill', provider: 'ollama', model: 'synthetic', baseUrl: `http://127.0.0.1:${port}`, skill: 'portable' };
+    const first = await run(base);
+    assert.equal(first.ok, true, JSON.stringify(first));
+    assert.equal(prompts.length, 2, 'one clarify call, then the file');
+    assert.deepEqual(first.skill.clarify, { questions: [{ question: 'Which language?', default: 'English' }], assumptions: ['no badges'] });
+    assert.match(prompts[1], /"answer":"English"/);
+    prompts.length = 0;
+    const edited = { questions: [{ question: 'Which language?', default: 'Russian' }], assumptions: [] };
+    const rebuilt = await run({ ...base, clarify: edited });
+    assert.equal(rebuilt.ok, true, JSON.stringify(rebuilt));
+    assert.equal(prompts.length, 1, 'Rebuild writes the file only');
+    assert.match(prompts[0], /"answer":"Russian"/);
+    assert.deepEqual(rebuilt.skill.clarify, edited);
+  } finally {
+    server.close();
   }
 });
