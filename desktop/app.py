@@ -65,6 +65,7 @@ from mac_titlebar import paint_all_title_bars
 from controls import BackgroundWidget, Card, ExecutionProfileDropdown
 from result_view import ACTION_HEIGHT, CONTROL_HEIGHT
 from widgets import (
+    DashedRule,
     DashedScrollPainter,
     HintFilter,
     PopupAnimation,
@@ -198,6 +199,7 @@ class PromptaWindow(QMainWindow):
         self.status = QLabel("Thoughts → brief → technique → ready-to-use prompt")
         self.status.setObjectName("status")
         outer.addSpacing(3)  # keep the original 6px above the status line
+        outer.addWidget(DashedRule())  # between the columns and the status under it
         outer.addWidget(self.status)
         self.history.load()
         for button in self.findChildren(QPushButton):

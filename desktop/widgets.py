@@ -782,6 +782,22 @@ _DASHED_MOUSE = (
 )
 
 
+class DashedRule(QWidget):
+    """A horizontal line of short dashes, in the colour of the scroll bars' ticks."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.setFixedHeight(1)
+
+    def paintEvent(self, event) -> None:  # noqa: N802
+        painter = QPainter(self)
+        pen = QPen(QColor("#d9cba6"))
+        pen.setDashPattern([4, 3])
+        painter.setPen(pen)
+        painter.drawLine(0, 0, self.width(), 0)
+        painter.end()
+
+
 class DashedScrollPainter(QObject):
     """App-wide: every other scroll bar (lists, menus, popups, dialogs) is drawn and dragged as ticks too."""
 

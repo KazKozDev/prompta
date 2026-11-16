@@ -103,12 +103,11 @@ def brief_card(
     box = AssumptionsCard()
     box.setObjectName("questionsCard")
     layout = QVBoxLayout(box)
-    layout.setContentsMargins(14, 10, 12, 12)
+    layout.setContentsMargins(0, 0, 0, 0)
     layout.setSpacing(0)
-    title = QLabel("What I assumed")
-    title.setObjectName("cardTitle")
+    title = field_label("What I assumed")
     layout.addWidget(title)
-    layout.addSpacing(6)
+    layout.addSpacing(8)  # as Written for to its picker
 
     body_layout = QVBoxLayout()
     body_layout.setContentsMargins(0, 0, 0, 0)
