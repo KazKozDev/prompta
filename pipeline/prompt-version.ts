@@ -5,7 +5,7 @@ import { buildManualPrompt } from './manual.ts';
 import { runOfficialPipeline } from './official.ts';
 import { CAPABILITY_TEXT, FRESHNESS_CRITERION, FRESHNESS_INSTRUCTIONS, ONE_SHOT_INSTRUCTION, QUALITY_CRITERIA, QUALITY_INSTRUCTIONS, applyPromptDefaults, executionContext, OFFICIAL_REQUIREMENTS, promptDefaultsText, promptRequirements } from './prompt-defaults.ts';
 import { buildSelectionPrompt } from './select.ts';
-import { buildSynthesisPrompt, INJECTION_GUARDS } from './synthesize.ts';
+import { buildSynthesisPrompt, INJECTION_GUARDS, needsInjectionGuard } from './synthesize.ts';
 import { buildZeroShotPrompt, generateZeroShotPrompt } from './zero-shot.ts';
 
 /** A manual label for the prompt set: change it on a deliberate rework so reports stay readable for people. */
@@ -24,7 +24,7 @@ export function fnv1a(text: string): string {
 /** Everything that shapes the text of the pipeline's internal prompts. Added a new prompt? Add it here. */
 const PROMPT_SOURCES: readonly unknown[] = [
   JSON.stringify(HERMES_PROFILE), JSON.stringify(CAPABILITY_TEXT), executionContext, FRESHNESS_CRITERION, JSON.stringify(FRESHNESS_INSTRUCTIONS), QUALITY_CRITERIA, JSON.stringify(QUALITY_INSTRUCTIONS), applyPromptDefaults, promptDefaultsText, promptRequirements, OFFICIAL_REQUIREMENTS,
-  buildBriefPrompt, BRIEF_SCHEMA, buildSelectionPrompt, buildSynthesisPrompt, JSON.stringify(INJECTION_GUARDS),
+  buildBriefPrompt, BRIEF_SCHEMA, buildSelectionPrompt, buildSynthesisPrompt, JSON.stringify(INJECTION_GUARDS), needsInjectionGuard,
   buildZeroShotPrompt, generateZeroShotPrompt, buildManualPrompt, ONE_SHOT_INSTRUCTION, runOfficialPipeline, sanitizeBrief,
 ];
 

@@ -583,6 +583,11 @@ test('защита от инъекций не добавляется, когда
   assert.equal(needsInjectionGuard(coding, technique), false);
   assert.equal(needsInjectionGuard({ ...coding, input: 'Нет.' }, technique), false);
   assert.equal(needsInjectionGuard({ ...coding, input: 'текст письма клиента' }, technique), true);
+  const audit = { ...coding, task_type: 'agentic', input: 'none', required_capabilities: ['files', 'code'] as TaskBrief['required_capabilities'] };
+  assert.equal(needsInjectionGuard(audit, technique), false, 'аудит своего репозитория: свои файлы и код');
+  assert.equal(needsInjectionGuard({ ...audit, required_capabilities: ['web'] }, technique), true, 'агент читает веб');
+  assert.equal(needsInjectionGuard({ ...audit, required_capabilities: ['files', 'integrations'] }, technique), true);
+  assert.equal(needsInjectionGuard({ ...audit, required_capabilities: undefined }, technique), true, 'возможности неизвестны');
 });
 
 test('отбор отсеивает техники, которые пишут промпты вместо задачи или требуют недоступных инструментов', () => {

@@ -178,7 +178,7 @@ export function injectionGuard(language: string): string {
 }
 
 /** Task types where the model by definition processes someone else's text. */
-const MATERIAL_TASK_TYPES = new Set(['qa_over_docs', 'extraction', 'classification', 'agentic']);
+const MATERIAL_TASK_TYPES = new Set(['qa_over_docs', 'extraction', 'classification']);
 /** Brief input that describes external material. */
 const MATERIAL_INPUT = /документ|текст|письм|почт|отзыв|переписк|чат|диалог|истори|вывод|лог|стать|страниц|сайт|файл|резюме|анкет|транскрипт|стенограм|заметк|результат.*инструмент|document|text|e-?mail|review|page|site|file|transcript|note|html|web|chat|history|log|output|resume/i;
 
@@ -186,8 +186,13 @@ const MATERIAL_INPUT = /документ|текст|письм|почт|отзы
  *  tool output), not just because the technique sits in the "context" category. */
 export function needsInjectionGuard(brief: TaskBrief, technique: Technique): boolean {
   const materialSlot = /\{\{\s*(document|text|context|external_text)\s*\}\}/;
+  // An agent reads someone else's material on the web or in integrations; files and code are the user's own.
+  // No capabilities stated means unknown: keep the guard.
+  const capabilities = brief.required_capabilities ?? [];
+  const ownFilesOnly = capabilities.length > 0 && capabilities.every((c) => c === 'files' || c === 'code');
   return materialSlot.test(technique.template ?? '')
     || MATERIAL_TASK_TYPES.has(brief.task_type)
+    || (brief.task_type === 'agentic' && !ownFilesOnly)
     || (!isNoInput(brief.input) && MATERIAL_INPUT.test(brief.input ?? ''))
     || brief.constraints.some((c) => UNTRUSTED_MARK.test(c));
 }
