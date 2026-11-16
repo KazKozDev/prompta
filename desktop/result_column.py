@@ -307,10 +307,19 @@ class ResultColumn(QScrollArea):
         note.setWordWrap(True)
         self.output_layout.insertWidget(0, note)
 
-    def _add_usage(self, payload: dict) -> None:
+    def _add_meta_row(self, meta: QLabel, payload: dict) -> None:
+        """The technique line on the left and, on the same row at the right, the model calls and tokens."""
+        row = QHBoxLayout()
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(12)
+        row.addWidget(meta, 1)
         usage = payload.get("usage")
-        if not isinstance(usage, dict):
-            return
+        if isinstance(usage, dict):
+            row.addWidget(self._usage_label(usage), 0, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
+        self.output_layout.addLayout(row)
+
+    @staticmethod
+    def _usage_label(usage: dict) -> QLabel:
         calls = usage["calls"]
         input_tokens, output_tokens = usage["inputTokens"], usage["outputTokens"]
         tokens = (
@@ -319,11 +328,12 @@ class ResultColumn(QScrollArea):
             else "Token counts unavailable"
         )
         label = muted_label(f"{calls} model {'call' if calls == 1 else 'calls'} · {tokens}")
+        label.setWordWrap(False)
         label.setToolTip(
             "Token counts come from the model provider. Calls count generation attempts, "
             "including format retries. HTTP retries are counted within the same call."
         )
-        self.output_layout.addWidget(label)
+        return label
 
     def _add_zero_shot(self, payload: dict) -> None:
         text = payload.get("zeroShotPrompt")
@@ -379,8 +389,7 @@ class ResultColumn(QScrollArea):
         meta = QLabel(f"Source: {procedure['source_ref']}")
         meta.setObjectName("muted")
         meta.setWordWrap(True)
-        self.output_layout.addWidget(meta)
-        self._add_usage(procedure)
+        self._add_meta_row(meta, procedure)
         self._add_zero_shot(procedure)
 
         explain = QLabel("This is a procedure for data or models. Follow the steps in code or manually.")
@@ -602,8 +611,7 @@ class ResultColumn(QScrollArea):
             meta_for(a["choice"]) for a in alternatives
         ]
         meta_label = muted_label(metas[1], "meta")
-        layout.addWidget(meta_label)
-        self._add_usage(result)
+        self._add_meta_row(meta_label, result)
         layout.addSpacing(10)
         self._add_brief_refinement(brief, source_thoughts)
         prompts = [(choice["name"], synthesis["prompt"])] + [
@@ -687,8 +695,7 @@ class ResultColumn(QScrollArea):
         self.output_layout.addWidget(self._heading(manual.get("topic") or names[0], "goal"))
         metas = ["Zero-shot · baseline without a technique"] + [f"{name} · chosen manually" for name in names]
         meta_label = muted_label(metas[1], "meta")
-        self.output_layout.addWidget(meta_label)
-        self._add_usage(manual)
+        self._add_meta_row(meta_label, manual)
         self.output_layout.addSpacing(10)
         brief = manual.get("brief") if isinstance(manual.get("brief"), dict) else None
         self._add_brief_refinement(brief, source_thoughts)

@@ -1810,7 +1810,7 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
             def shown():
                 return [l.text() for l in details.body.findChildren(QLabel) if l.isVisibleTo(window)]
 
-            meta = next(w for w in widgets if isinstance(w, QLabel) and w.objectName() == 'meta')
+            meta = window.result_column.findChild(QLabel, 'meta')  # in one row with the usage line
             first_reason = [
                 l for l in details.body.findChildren(QLabel) if l.text() == 'because' and l.isVisibleTo(window)
             ]
