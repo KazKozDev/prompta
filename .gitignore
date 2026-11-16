@@ -7,6 +7,7 @@ release/
 __pycache__/
 
 .venv-whisper/
+.venv-build/
 .whisper-models/
 .pytest_cache/
 

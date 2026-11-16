@@ -10,11 +10,18 @@
 # Signed ad hoc, not notarized: on another Mac the first launch needs System Settings → Privacy & Security
 # → Open Anyway. The Whisper model (~490 MB) is not bundled: Settings → Dictation downloads it on demand.
 # DICTATION=0 builds without the runtime (the microphone then says dictation is not included).
+# PyInstaller bundles whatever the Python can import, so build from a clean environment (~400 MB app, not GBs):
+#   python3 -m venv .venv-build && .venv-build/bin/pip install -r desktop/requirements-dev.txt -r desktop/requirements-voice.txt
+# The script uses .venv-build when it exists; PYTHON=… picks another interpreter.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/release/standalone"
+if [ -z "${PYTHON:-}" ] && [ -x "$ROOT/.venv-build/bin/python3" ]; then PYTHON="$ROOT/.venv-build/bin/python3"; fi
 PYTHON="${PYTHON:-$(command -v python3)}"
+# Packages the app never uses but optional imports pull in when installed: they made a 6 GB bundle once.
+HEAVY="$("$PYTHON" -c 'import importlib.util as u; print(" ".join(m for m in ("torch", "tensorflow", "playwright", "cv2", "pyarrow") if u.find_spec(m)))')"
+[ -z "$HEAVY" ] || { echo "$PYTHON has $HEAVY installed: they would end up in the app. Build from a clean venv (see the top of this script)." >&2; exit 1; }
 DICTATION="${DICTATION:-1}"
 NODE="$(command -v node || true)"
 [ -n "$NODE" ] || { echo "node is not on PATH" >&2; exit 1; }
