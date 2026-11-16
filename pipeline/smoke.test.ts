@@ -588,6 +588,12 @@ test('защита от инъекций не добавляется, когда
   assert.equal(needsInjectionGuard({ ...audit, required_capabilities: ['web'] }, technique), true, 'агент читает веб');
   assert.equal(needsInjectionGuard({ ...audit, required_capabilities: ['files', 'integrations'] }, technique), true);
   assert.equal(needsInjectionGuard({ ...audit, required_capabilities: undefined }, technique), true, 'возможности неизвестны');
+  const ownWork = ['мой текст поста', 'файлы проекта и логи сборки', 'каталог товаров', 'хочу начать игру', 'почти готовый код',
+    'история изменений', 'my profile text', 'context of the app', 'log output of my script', 'стать лучше'];
+  for (const input of ownWork) assert.equal(needsInjectionGuard({ ...coding, input }, technique), false, input);
+  const foreign = ['отзывы клиентов', 'письмо от поставщика', 'почта за неделю', 'customer reviews', 'an email from a vendor',
+    'статья из блога', 'HTML страницы', 'транскрипт звонка', 'резюме кандидатов', 'результаты инструментов', 'tool output', 'the document', 'текст от третьих лиц', 'чужой текст', 'third-party text'];
+  for (const input of foreign) assert.equal(needsInjectionGuard({ ...coding, input }, technique), true, input);
 });
 
 test('отбор отсеивает техники, которые пишут промпты вместо задачи или требуют недоступных инструментов', () => {
