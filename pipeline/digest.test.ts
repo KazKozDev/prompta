@@ -144,14 +144,16 @@ test('digest: prompta itself, every source file attached, keeps the facts a skil
     ...readdirSync(new URL('desktop/', root)).filter((n) => n.endsWith('.py')).map((n) => `desktop/${n}`),
   ];
   const files = [...sources.map(read), read('package.json'), read('README.md')];
-  const { text, uses } = digestFiles('write AGENTS.md for this repository', files, BUDGET, PER_FILE);
+  const { text } = digestFiles('write AGENTS.md for this repository', files, BUDGET, PER_FILE);
   assert.ok(text.length <= BUDGET);
   assert.match(text, /"test": "node --test/, 'package.json scripts');
   assert.match(text, /npm run pipeline -- /, 'a README command block');
   assert.match(text, /## Quick start/, 'README headings');
   assert.match(text, /export async function generateInstructions\(/, 'a pipeline signature');
-  const shownTests = files.filter((file, i) => /(\.test\.ts|\/test_[^/]+\.py)$/.test(file.path) && uses[i] !== 'tree');
-  assert.deepEqual(shownTests, [], 'tests come last: no room is left for them here');
+  const isTest = (path: string) => /(\.test\.ts|\/test_[^/]+\.py)$/.test(path);
+  const ranked = rankFiles('write AGENTS.md for this repository', files).map((i) => files[i]!.path);
+  const firstTest = ranked.findIndex(isTest);
+  assert.ok(firstTest > 0 && ranked.slice(firstTest).every(isTest), 'tests come last: they get only the room sources leave');
   assert.match(text, new RegExp(`file tree \\(${files.length} files\\)`));
   const readme = text.slice(text.indexOf('=== README.md'), text.indexOf('\n\n=== ', text.indexOf('=== README.md')));
   assert.ok(readme.length > 5_000, `the README gets its full share, not a brief: ${readme.length}`);

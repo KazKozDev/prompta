@@ -78,10 +78,6 @@ class Disclosure(QWidget):
     def title(self) -> str:
         return self._title
 
-    def set_title(self, title: str) -> None:
-        self._title = title
-        self._toggle(self.button.isChecked())
-
     def _toggle(self, expanded: bool) -> None:
         title = self._title.upper() if self._field_label else self._title
         self.button.setText(f"{'▾' if expanded else '▸'}  {title}" if self._collapsible else title)

@@ -104,17 +104,6 @@ def write_generator_state(state: dict[str, str], path: Path | None = None) -> bo
         return False
 
 
-def server_env(provider: str, model: str, api_key: str = "", base_url: str = "") -> dict[str, str]:
-    env = {"PROMPTA_PROVIDER": provider} if provider != "ollama" else {}
-    if model.strip():
-        env["PROMPTA_MODEL"] = model.strip()
-    if api_key.strip():
-        env["PROMPTA_API_KEY"] = api_key.strip()
-    if base_url.strip():
-        env["PROMPTA_BASE_URL"] = base_url.strip()
-    return env
-
-
 def install_commands(claude: str, node: str, server: Path, env: dict[str, str]) -> list[list[str]]:
     """Remove any previous registration, then add it for all projects (user scope)."""
     add = [claude, "mcp", "add", SERVER_NAME, "-s", "user"]

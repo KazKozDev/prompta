@@ -1,10 +1,8 @@
 import ruleData from '../claude_prompt_rules/rules.json' with { type: 'json' };
 import sourceData from '../claude_prompt_rules/sources.json' with { type: 'json' };
 import { loadOfficialRules, runOfficialPipeline } from './official.ts';
-import type { OfficialGuidance, OfficialProfile, OfficialRule } from './official.ts';
+import type { OfficialProfile } from './official.ts';
 
-export type ClaudeRule = OfficialRule;
-export type ClaudeGuidance = OfficialGuidance;
 const profile: OfficialProfile = {
   target: 'claude', label: 'Claude', organization: 'Anthropic', guidanceKey: 'claudeGuidance',
   briefRules: [

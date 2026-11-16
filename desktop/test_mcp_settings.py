@@ -27,7 +27,6 @@ from mcp_settings import (
     parse_mcp_get,
     read_entry,
     server_entry,
-    server_env,
     write_entry,
 )
 import tempfile
@@ -60,9 +59,6 @@ class McpSettingsTest(unittest.TestCase):
         self.assertFalse(parse_mcp_get('')['installed'])
 
     def test_commands_and_config(self):
-        env = server_env('ollama', ' qwen3:30b ', api_key='ignored-for-ollama-by-widget')
-        self.assertEqual(env['PROMPTA_MODEL'], 'qwen3:30b')
-        self.assertNotIn('PROMPTA_PROVIDER', env)
         remove, add = install_commands('/bin/claude', '/bin/node', Path('/repo/mcp/server.ts'), {'PROMPTA_MODEL': 'm'})
         self.assertEqual(remove, ['/bin/claude', 'mcp', 'remove', 'prompta', '-s', 'user'])
         self.assertEqual(
