@@ -4,11 +4,9 @@ Prompta turns a rough, stream-of-thoughts request into a structured prompt for C
 
 https://github.com/user-attachments/assets/a0e466d1-8abf-4098-8850-2ec7262cec62
 
-The video is a real run of the desktop app on `deepseek-v4.1-flash:cloud` via Ollama, recorded with `docs/demo/record.py`. The wait for the model is cut out; the run itself took 52 seconds. The close-ups are crops of the real window, rendered at 2x.
-
 The desktop app has four tabs. Each one turns the same kind of rough request into a different file:
 
-- Prompt - a prompt for one task, which you paste into a chat. This is what the GIF shows.
+- Prompt - a prompt for one task, which you paste into a chat. This is what the video shows.
 - Project - a project instruction file your coding agent reads every session: `AGENTS.md`, `CLAUDE.md`, a Cursor rule (`.cursor/rules/project.mdc`) or `.github/copilot-instructions.md`.
 - Skill - a `SKILL.md` for a procedure you repeat. It comes in two flavors: portable (Claude apps, API and Claude Code) or Claude Code only.
 - Subagent - a subagent definition for Claude Code (`.claude/agents/<name>.md`), Cursor, Codex (`.codex/agents/<name>.toml`) or GitHub Copilot.

@@ -1,5 +1,4 @@
 node_modules/
-dist/
 release/
 *.log
 .DS_Store
@@ -11,16 +10,14 @@ __pycache__/
 .whisper-models/
 .pytest_cache/
 
-# Local tool config and personal scratch, not part of Prompta
+# Local tool config, not part of Prompta
 .serena/
-.qodo/
-.zencoder/
-.zenflow/
-generated_images/
-speak_siri.py
 
 # Source PDFs: local only, originals are linked from archive-org-prompting/README.md
 archive-org-prompting/pdf/
 
 # Personal model providers and their keys (desktop app), never committed
 desktop/providers.local.json
+
+# The demo video: docs/demo/record.py builds it; the README plays the copy uploaded to GitHub
+docs/demo/demo.mp4
