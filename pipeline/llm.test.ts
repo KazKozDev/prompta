@@ -95,6 +95,10 @@ test('gemini: key in the header, not in the URL', async (t) => {
 });
 
 test('timeout aborts a hung request and retries; external cancellation is not retried', async (t) => {
+  // AbortSignal.timeout's timer does not keep Node alive and the mocked fetch holds no socket:
+  // without this the event loop empties first and Node 22 cancels the test and every one after it.
+  const keepAlive = setInterval(() => {}, 1000);
+  t.after(() => clearInterval(keepAlive));
   let calls = 0;
   t.mock.method(globalThis, 'fetch', (_u: unknown, init: RequestInit) => {
     calls++;
