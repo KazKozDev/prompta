@@ -10,7 +10,6 @@ from html import escape
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QFrame, QLabel, QLayout, QScrollArea, QSizePolicy, QVBoxLayout, QWidget
 
-from mode_guide import mode_guide
 from result_column import Wordmark, brief_card
 from result_view import Disclosure, muted_label
 from settings_ui import text_link
@@ -26,7 +25,6 @@ class DocumentView(QScrollArea):
     briefEdited = pyqtSignal()
     rebuildRequested = pyqtSignal()
     SLOGAN = "THOUGHTS IN. FILES OUT."
-    MODE = ""  # its row in the mode table (mode_guide.py)
 
     def __init__(self, request_text: Callable[[], str] = lambda: "", parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -68,7 +66,6 @@ class DocumentView(QScrollArea):
         slogan.setAlignment(Qt.AlignmentFlag.AlignCenter)
         slogan.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self.output_layout.addWidget(slogan)
-        self.output_layout.addWidget(mode_guide(self.MODE))
         self.output_layout.addStretch(6)
 
     def show_error(self, message: str) -> None:

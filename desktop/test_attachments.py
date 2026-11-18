@@ -113,8 +113,10 @@ class AttachmentsTest(unittest.TestCase):
         self.assertEqual(
             self.labels(box),
             [
-                'big0.md', 'big1.md',
-                'big2.md  · left out: over the total limit', 'long.md  · left out: over the total limit',
+                'big0.md',
+                'big1.md',
+                'big2.md  · left out: over the total limit',
+                'long.md  · left out: over the total limit',
             ],
         )
 
@@ -168,6 +170,7 @@ class AttachmentsTest(unittest.TestCase):
         (folder / 'generated' / 'out.txt').write_text('x', encoding='utf-8')
         (folder / '.gitignore').write_text('generated/\n', encoding='utf-8')
         import subprocess
+
         subprocess.run(['git', 'init', '-q'], cwd=folder, check=True)
         box = Attachments()
         box.add_paths([folder])

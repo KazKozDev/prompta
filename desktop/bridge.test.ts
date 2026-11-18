@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-/** E2E границы процесса: Python/UI зовёт мост именно так — JSON на stdin, JSON на stdout. */
+/** E2E process boundary: Python/UI calls the bridge exactly like this — JSON on stdin, JSON on stdout. */
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const bridge = join(root, 'desktop', 'bridge.ts');
@@ -23,23 +23,23 @@ function call(payload: unknown): { ok: boolean; data: Record<string, unknown>; s
   };
 }
 
-test('мост: Enter your thoughts возвращает ошибку, а не падает', () => {
+test('bridge: Enter your thoughts returns an error instead of crashing', () => {
   const { data } = call({ thoughts: '   ', model: 'dummy' });
   assert.equal(data.ok, false);
   assert.match(String(data.error), /Enter your thoughts/);
 });
 
-test('мост: без модели просит её указать', () => {
+test('bridge: without a model it asks to specify one', () => {
   const { data } = call({ thoughts: 'сделай что-нибудь' });
   assert.equal(data.ok, false);
   assert.match(String(data.error), /model/);
 });
 
-test('мост: список техник содержит и готовые, и процедуры', () => {
+test('bridge: technique list contains both ready and procedure ones', () => {
   const { data } = call({ thoughts: 'x', model: 'dummy', listTechniques: true });
   const techniques = data.techniques as { key: string; status: string; sources: { title: string; url: string; reference: string }[] }[];
   assert.ok(Array.isArray(techniques));
-  assert.ok(techniques.length >= 80, `техник мало: ${techniques.length}`);
+  assert.ok(techniques.length >= 80, `few techniques: ${techniques.length}`);
   for (const technique of techniques) {
     assert.ok(technique.sources.length > 0, technique.key);
     for (const source of technique.sources) {
@@ -53,7 +53,7 @@ test('мост: список техник содержит и готовые, и
   assert.ok(techniques.some((t) => t.status === 'procedure'));
 });
 
-test('мост: процедура возвращает шаги, а не промпт', () => {
+test('bridge: procedure returns steps, not a prompt', () => {
   const { data } = call({
     thoughts: 'отбери похожие примеры',
     provider: 'ollama',
@@ -82,7 +82,7 @@ test('bridge: every answer says how each attached file reached the model', () =>
   assert.equal(call({ thoughts: 'отбери похожие примеры', provider: 'ollama', model: 'dummy', manualTechnique: 'icl_knn_selection' }).data.filesUsed, undefined);
 });
 
-test('мост: ручная техника не игнорирует запрет LLM-синтеза', () => {
+test('bridge: manual technique does not ignore the LLM-synthesis ban', () => {
   const { data } = call({ thoughts: 'синтетический тест', model: 'dummy', manualTechnique: 'zero_shot', deterministic: true });
   assert.equal(data.ok, false);
   assert.match(String(data.error), /Disable Skip/);
@@ -122,7 +122,7 @@ test('bridge: live progress stays on stderr and preserves the final JSON protoco
   assert.equal(update.stage, 'Technique loaded');
 });
 
-test('мост: несколько техник — проверка входа до вызова модели', () => {
+test('bridge: several techniques — input validation before the model call', () => {
   const cases: [Record<string, unknown>, RegExp][] = [
     [{ manualTechniques: ['zero_shot'] }, /2–100 distinct/],
     [{ manualTechniques: ['zero_shot', 'zero_shot'] }, /2–100 distinct/],
@@ -140,7 +140,7 @@ test('мост: несколько техник — проверка входа 
   }
 });
 
-test('мост: «Select all» — больше 10 техник проходит проверку, больше 100 нет', () => {
+test('bridge: "Select all" — more than 10 techniques pass validation, more than 100 do not', () => {
   const many = Array.from({ length: 101 }, (_, i) => `t${i}`);
   assert.match(String(call({ thoughts: 'x', model: 'dummy', manualTechniques: many }).data.error), /2–100 distinct/);
   const twelve = ['zero_shot', 'few_shot', 'system_prompting', 'role_prompting', 'contextual_prompting', 'prompt_chaining',
@@ -186,7 +186,7 @@ test('bridge: agent requests reject unknown targets, prompt targets and other fi
   }
 });
 
-test('мост: файлы проекта без текста или в неверном виде отклоняются', () => {
+test('bridge: project files without text or in invalid shape are rejected', () => {
   for (const files of ['README.md', [{ path: 'a.md' }], [{ path: '', content: 'x' }], Array.from({ length: 201 }, (_, i) => ({ path: `${i}.md`, content: 'x' })), Array.from({ length: 6 }, (_, i) => ({ path: `${i}.md`, content: 'x'.repeat(900_000) }))]) {
     const { data } = call({ thoughts: 'опиши проект', model: 'dummy', instructions: 'agentsMd', files });
     assert.equal(data.ok, false);

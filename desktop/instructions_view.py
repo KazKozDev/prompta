@@ -21,7 +21,6 @@ def save_instructions(project: Path, file_name: str, text: str) -> Path:
 
 class InstructionsView(DocumentView):
     SLOGAN = "THOUGHTS IN. PROJECT RULES OUT."
-    MODE = "instructions"
 
     def render_instructions(self, payload: dict, source_thoughts: str | None = None) -> None:
         check = payload.get("check") or {}

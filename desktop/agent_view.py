@@ -34,7 +34,6 @@ def agent_file_name(target: str, text: str, fallback: str) -> str:
 
 class AgentView(DocumentView):
     SLOGAN = "THOUGHTS IN. SUBAGENTS OUT."
-    MODE = "agent"
 
     def render_agent(self, payload: dict, source_thoughts: str | None = None) -> None:
         check = payload.get("check") or {}

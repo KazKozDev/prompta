@@ -1,4 +1,4 @@
-"""Политика хранения истории: лимит записей, срок, полная очистка, выключение."""
+"""History retention policy: entry limit, age, full wipe, switch-off."""
 
 import sqlite3
 import tempfile

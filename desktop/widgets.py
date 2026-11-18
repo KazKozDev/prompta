@@ -676,8 +676,9 @@ class ThoughtsEdit(QPlainTextEdit):
         if not hasattr(self, "attach_icon"):
             return
         room = self.attach_icon.x() - self.viewport().x() - 2 * self.document().documentMargin() - 4
+        width: float
         if self.document().isEmpty():
-            width = self.fontMetrics().horizontalAdvance(self.placeholderText())
+            width = self.fontMetrics().horizontalAdvance(self.placeholderText().split("\n")[0])
         else:
             layout = self.document().firstBlock().layout()
             width = layout.lineAt(0).naturalTextWidth() if layout is not None and layout.lineCount() else 0

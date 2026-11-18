@@ -27,7 +27,6 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from mode_guide import mode_guide
 from result_view import (
     BLOCK_GAP,
     Disclosure,
@@ -94,9 +93,7 @@ def brief_card(
     if not brief:
         return None
     questions = ResultColumn._brief_questions(brief)
-    assumptions = [
-        item.strip() for item in brief.get("assumptions") or [] if isinstance(item, str) and item.strip()
-    ]
+    assumptions = [item.strip() for item in brief.get("assumptions") or [] if isinstance(item, str) and item.strip()]
     if not questions and not assumptions:
         return None
 
@@ -195,9 +192,7 @@ def brief_card(
                 {"question": row["question"], "default": value} if value else {"question": row["question"]}
             )
         revised_assumptions = [
-            row["field"].text().strip()
-            for row in assumption_rows
-            if not row["removed"] and row["field"].text().strip()
+            row["field"].text().strip() for row in assumption_rows if not row["removed"] and row["field"].text().strip()
         ]
         return {**brief, "assumptions": revised_assumptions, "questions": revised_questions}
 
@@ -286,7 +281,6 @@ class ResultColumn(QScrollArea):
         slogan.setAlignment(Qt.AlignmentFlag.AlignCenter)
         slogan.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self.output_layout.addWidget(slogan)
-        self.output_layout.addWidget(mode_guide("prompt"))
         self.output_layout.addStretch(6)
 
     def show_error(self, message: str) -> None:

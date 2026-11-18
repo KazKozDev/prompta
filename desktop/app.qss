@@ -243,11 +243,6 @@ QPushButton#addAssumption:hover { color: #5c4606; }
 QLineEdit#historySearch, QLineEdit#historySearch:focus, QLineEdit#historySearch:hover { border: none; }
 QLabel#wordmark { color: rgba(74, 58, 24, 46); background: transparent; }
 QLabel#slogan { color: rgba(74, 58, 24, 46); font-size: 12px; font-weight: 500; letter-spacing: 2.5px; background: transparent; }
-/* the mode table under the slogan (mode_guide.py): faint like the slogan, the current mode darker */
-QLabel#guideHead { color: rgba(74, 58, 24, 90); font-size: 10px; font-weight: 600; letter-spacing: 1.2px; background: transparent; }
-QLabel#guideMode { color: rgba(74, 58, 24, 120); font-size: 12px; font-weight: 600; background: transparent; }
-QLabel#guideText { color: rgba(74, 58, 24, 110); font-size: 12px; background: transparent; }
-QLabel#guideMode[current="true"], QLabel#guideText[current="true"] { color: rgba(53, 43, 16, 215); }
 QPushButton#modelLine { background: transparent; border: none; color: #74694f; font-size: 12px; padding: 2px 0; text-align: left; }
 QPushButton#modelLine:hover { color: #5c4606; text-decoration: underline; }
 QLabel#variantsCaption { color: #74694f; font-size: 12px; }

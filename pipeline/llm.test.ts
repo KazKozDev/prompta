@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createLLM, createLLMFromEnv, LLMTimeoutError, meterLLM, ollamaCloudModel } from './llm.ts';
 import type { LLM } from './types.ts';
 
-test('адаптеры провайдеров передают настройки и разбирают ответы', async (t) => {
+test('provider adapters pass settings and parse responses', async (t) => {
   for (const provider of ['ollama', 'openai', 'gemini'] as const) {
     await t.test(provider, async () => {
       let body: Record<string, any> = {};
@@ -28,7 +28,7 @@ test('адаптеры провайдеров передают настройк�
   }
 });
 
-test('ошибка авторизации не повторяется, пустой ответ не принимается', async (t) => {
+test('auth errors are not retried, empty responses are rejected', async (t) => {
   let calls = 0;
   t.mock.method(globalThis, 'fetch', async () => { calls++; return new Response('unauthorized', { status: 401 }); });
   const llm = createLLM({ provider: 'ollama', model: 'synthetic' });
@@ -55,7 +55,7 @@ test('meta: minimal reasoning effort, other OpenAI-compatible addresses send non
   await assert.rejects(createLLM({ provider: 'openai', model: 'm', apiKey: 'k' })('тест'), /whole token limit thinking/);
 });
 
-test('anthropic и xai: адрес, заголовки, без temperature у Claude, учёт токенов', async (t) => {
+test('anthropic and xai: address, headers, no temperature for Claude, token accounting', async (t) => {
   const seen: { url: string; headers: Record<string, string>; body: Record<string, any> }[] = [];
   t.mock.method(globalThis, 'fetch', async (url: unknown, init: RequestInit) => {
     seen.push({ url: String(url), headers: init.headers as Record<string, string>, body: JSON.parse(String(init.body)) });
@@ -70,20 +70,20 @@ test('anthropic и xai: адрес, заголовки, без temperature у Cl
   assert.equal(seen[0].url, 'https://api.anthropic.com/v1/messages');
   assert.equal(seen[0].headers['x-api-key'], 'k');
   assert.ok(seen[0].headers['anthropic-version']);
-  assert.equal('temperature' in seen[0].body, false, 'текущие модели Claude отклоняют temperature');
-  assert.ok(seen[0].body.max_tokens > 0, 'max_tokens обязателен в Messages API');
+  assert.equal('temperature' in seen[0].body, false, 'current Claude models reject temperature');
+  assert.ok(seen[0].body.max_tokens > 0, 'max_tokens is required in the Messages API');
   const grok = createLLM({ provider: 'xai', model: 'synthetic', apiKey: 'k' });
   await grok('тест', { onUsage: (u) => usage.push(u) });
   assert.equal(seen[1].url, 'https://api.x.ai/v1/chat/completions');
   assert.deepEqual(usage, [{ inputTokens: 11, outputTokens: 7 }, { inputTokens: 5, outputTokens: 3 }]);
 });
 
-test('anthropic: отказ модели — ошибка, а не пустой промпт', async (t) => {
+test('anthropic: model refusal is an error, not an empty prompt', async (t) => {
   t.mock.method(globalThis, 'fetch', async () => new Response(JSON.stringify({ content: [], stop_reason: 'refusal' })));
   await assert.rejects(createLLM({ provider: 'anthropic', model: 's', apiKey: 'k' })('тест'), /refusal/);
 });
 
-test('gemini: ключ в заголовке, а не в URL', async (t) => {
+test('gemini: key in the header, not in the URL', async (t) => {
   let url = ''; let headers: Record<string, string> = {};
   t.mock.method(globalThis, 'fetch', async (u: unknown, init: RequestInit) => {
     url = String(u); headers = init.headers as Record<string, string>;
@@ -94,7 +94,7 @@ test('gemini: ключ в заголовке, а не в URL', async (t) => {
   assert.equal(headers['x-goog-api-key'], 'secret-key');
 });
 
-test('таймаут обрывает зависший запрос и повторяется; внешняя отмена — без повторов', async (t) => {
+test('timeout aborts a hung request and retries; external cancellation is not retried', async (t) => {
   let calls = 0;
   t.mock.method(globalThis, 'fetch', (_u: unknown, init: RequestInit) => {
     calls++;
@@ -102,7 +102,7 @@ test('таймаут обрывает зависший запрос и повт�
   });
   const llm = createLLM({ provider: 'ollama', model: 's', timeoutMs: 20 });
   await assert.rejects(llm('тест'), LLMTimeoutError);
-  assert.equal(calls, 3, 'таймаут — сетевой сбой, повторяется');
+  assert.equal(calls, 3, 'timeout is a network failure, retried');
   calls = 0;
   const stop = new AbortController();
   const cancellable = createLLM({ provider: 'ollama', model: 's', signal: stop.signal });
@@ -112,14 +112,14 @@ test('таймаут обрывает зависший запрос и повт�
   assert.equal(calls, 1);
 });
 
-test('meterLLM суммирует вызовы и токены', async () => {
+test('meterLLM sums calls and tokens', async () => {
   const fake: LLM = async (_p, o) => { o?.onUsage?.({ inputTokens: 10, outputTokens: 4 }); return 'x'; };
   const m = meterLLM(fake);
   await m.llm('a'); await m.llm('b');
   assert.deepEqual(m.usage(), { inputTokens: 20, outputTokens: 8, calls: 2 });
 });
 
-test('облачный API Ollama: ключ в заголовке, без суффикса :cloud; локальному демону ключ не уходит', async (t) => {
+test('Ollama cloud API: key in the header, no :cloud suffix; the local daemon gets no key', async (t) => {
   const seen: { url: string; headers: Record<string, string>; model: string }[] = [];
   t.mock.method(globalThis, 'fetch', async (url: unknown, init: RequestInit) => {
     seen.push({ url: String(url), headers: init.headers as Record<string, string>, model: JSON.parse(String(init.body)).model });
@@ -131,13 +131,13 @@ test('облачный API Ollama: ключ в заголовке, без суф
   assert.equal(seen[0].model, 'glm-5.3');
   await createLLMFromEnv('ollama', 'glm-5.3:cloud', { OLLAMA_API_KEY: 'k' })('тест');
   assert.equal(seen[1].url, 'http://localhost:11434/api/generate');
-  assert.equal(seen[1].headers.authorization, undefined, 'локальный демон проксирует облако сам');
+  assert.equal(seen[1].headers.authorization, undefined, 'the local daemon proxies the cloud itself');
   assert.equal(seen[1].model, 'glm-5.3:cloud');
   assert.equal(ollamaCloudModel('gpt-oss:120b-cloud'), 'gpt-oss:120b');
   assert.throws(() => createLLMFromEnv('anthropic', 'm', {}), /ANTHROPIC_API_KEY/);
 });
 
-test('ollama: длинный промпт расширяет окно, и следующие вызовы прогона держат тот же размер', async (t) => {
+test('ollama: a long prompt expands the window, and subsequent run calls keep the same size', async (t) => {
   const sizes: (number | undefined)[] = [];
   t.mock.method(globalThis, 'fetch', async (_url: unknown, init: RequestInit) => {
     sizes.push(JSON.parse(String(init.body)).options.num_ctx);

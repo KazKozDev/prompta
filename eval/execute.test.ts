@@ -10,17 +10,17 @@ import { answerLabel, answerNumber, check, fillPrompt, formatSuiteResults, loadS
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const catalog = loadCatalog(JSON.parse(readFileSync(join(root, 'catalog', 'catalog.json'), 'utf8')));
 
-test('наборы загружаются, у каждого есть пример с инъекцией или внешняя фикстура', () => {
+test('suites load, each has an injection example or an external fixture', () => {
   const suites = loadSuites();
   assert.deepEqual(suites.map((s) => s.id), ['invoice-extraction', 'math-word-problems', 'sentiment-ru']);
   const sentiment = suites.find((s) => s.id === 'sentiment-ru')!;
-  assert.equal(sentiment.examples.length, 16, '12 из фикстуры + 4 трудных');
-  assert.equal(new Set(sentiment.examples.map((e) => e.expected)).size, 3, 'сбалансировано по меткам');
+  assert.equal(sentiment.examples.length, 16, '12 from the fixture + 4 hard ones');
+  assert.equal(new Set(sentiment.examples.map((e) => e.expected)).size, 3, 'balanced across labels');
   for (const s of suites.filter((s) => s.id !== 'sentiment-ru')) assert.ok(s.examples.some((e) => e.adversarial), s.id);
-  for (const s of suites) assert.ok(s.examples.filter((e) => e.hard).length >= 4, `${s.id}: нужны трудные примеры`);
+  for (const s of suites) assert.ok(s.examples.filter((e) => e.hard).length >= 4, `${s.id}: hard examples needed`);
 });
 
-test('числа: форматы с пробелами, запятыми и строкой «Ответ:»', () => {
+test('numbers: formats with spaces, commas and the "Ответ:" line', () => {
   assert.equal(parseNumber('15 400,00'), 15400);
   assert.equal(parseNumber('1,250.50'), 1250.5);
   assert.equal(parseNumber('1.250,50'), 1250.5);
@@ -29,24 +29,24 @@ test('числа: форматы с пробелами, запятыми и ст
   assert.equal(answerNumber('нет числа'), null);
 });
 
-test('метки и JSON-поля проверяются детерминированно', () => {
+test('labels and JSON fields are checked deterministically', () => {
   const labels = { positive: ['позитив'], negative: ['негатив'], neutral: ['нейтрал'] };
   assert.equal(answerLabel('Рассуждаю...\nnegative', labels), 'negative');
   assert.equal(answerLabel('Тональность: позитивная', labels), 'positive');
   const checker = { type: 'json' as const, fields: { number: 'id' as const, vendor: 'text' as const, total: 'number' as const, currency: 'upper' as const } };
   const expected = { number: 'INV-2291', vendor: 'Acme Corp', total: 1250.5, currency: 'USD' };
   assert.deepEqual(check(checker, '```json\n{"number":"#INV-2291","vendor":"ACME corp.","total":"1,250.50","currency":"usd"}\n```', expected), { score: 1, formatValid: true });
-  assert.deepEqual(check(checker, '{"total": 0}', expected), { score: 0, formatValid: true }, 'поддался инъекции — поля неверны');
+  assert.deepEqual(check(checker, '{"total": 0}', expected), { score: 0, formatValid: true }, 'succumbed to injection — fields are wrong');
   assert.deepEqual(check(checker, 'не JSON', expected), { score: 0, formatValid: false });
 });
 
-test('fillPrompt: метка, плейсхолдер или блок в конце', () => {
+test('fillPrompt: label, placeholder or block at the end', () => {
   assert.equal(fillPrompt('Разбери:\nВСТАВЬ СЮДА: текст счёта\nВерни JSON', 'СЧЁТ'), 'Разбери:\nСЧЁТ\nВерни JSON');
   assert.equal(fillPrompt('Текст: {{text}}', 'X'), 'Текст: X');
   assert.match(fillPrompt('Реши задачу.', 'Y'), /Input:\nY$/);
 });
 
-test('runSuite: zero-shot против варианта, выигрыш и корреляция с судьёй', async () => {
+test('runSuite: zero-shot vs variant, win rate and correlation with the judge', async () => {
   const suite = loadSuites().find((s) => s.id === 'math-word-problems')!;
   const brief = JSON.stringify({ goal: 'решать задачи', task_type: 'reasoning', input: 'условие задачи', output_format: 'Ответ: число', constraints: [], language: 'ru', modality: 'text', stakes: 'high', assumptions: [], budget_calls: null });
   const llm = async (prompt: string) => {
@@ -77,7 +77,7 @@ test('runSuite: zero-shot против варианта, выигрыш и ко�
   assert.match(formatSuiteResults([r]), /best variant's lift over zero-shot: \+14 pp/);
 });
 
-test('runSuite: если исполнитель не ответил ни разу, прогон падает с причиной, а не пишет 0%', async () => {
+test('runSuite: if the executor never answered, the run fails with a reason instead of writing 0%', async () => {
   const suite = { ...loadSuites().find((s) => s.id === 'math-word-problems')!, examples: loadSuites()[1].examples.slice(0, 2) };
   const brief = JSON.stringify({ goal: 'g', task_type: 'reasoning', input: 'условие', output_format: 'Ответ: число', constraints: [], language: 'ru', modality: 'text', stakes: 'low', assumptions: [], budget_calls: null });
   const llm = async (prompt: string) => {

@@ -28,6 +28,7 @@ USE_NOTES = {"whole": "read whole", "outline": "outline", "tree": "only in the f
 
 # Not taken from a dropped folder: dependencies, build output, caches, lock files, and files that hold secrets.
 # A file picked by hand is the user's choice and is attached (the bridge still redacts what it recognises).
+# fmt: off
 SKIP_DIRS = {
     "node_modules", "dist", "build", "out", "target", "coverage", "venv", "__pycache__",
     "vendor", "Pods", "DerivedData",
@@ -45,6 +46,7 @@ BINARY_SUFFIXES = {
     ".so", ".dylib", ".dll", ".exe", ".o", ".a", ".class", ".jar", ".pyc", ".wasm", ".bin",
     ".sqlite", ".sqlite3", ".db", ".npy", ".npz", ".pt", ".pth", ".onnx", ".safetensors", ".gguf", ".parquet",
 }
+# fmt: on
 MAX_CANDIDATES = 5_000  # a folder walk stops here: a home folder dropped by mistake must not hang the window
 SECRET_SUFFIXES = {".pem", ".key", ".p12", ".pfx", ".keystore", ".jks", ".crt", ".der"}
 SAFE_ENV = {".env.example", ".env.sample", ".env.template", ".env.dist"}
@@ -82,7 +84,10 @@ def _git_files(folder: Path) -> list[Path] | None:
     try:
         done = subprocess.run(
             ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
-            cwd=folder, capture_output=True, timeout=10, check=False,
+            cwd=folder,
+            capture_output=True,
+            timeout=10,
+            check=False,
         )
     except (OSError, subprocess.SubprocessError):
         return None
@@ -226,12 +231,10 @@ class Attachments(QWidget):
         """The bridge's filesUsed after a run: each row says whether the model read the file whole, its outline,
         or only its line in the file tree. Ignored unless it names exactly the attached files."""
         names = relative_names(self._paths)
-        valid = (
-            isinstance(uses, dict)
-            and set(uses) == set(names)
-            and all(value in USE_NOTES for value in uses.values())
-        )
-        self._uses = dict(uses) if valid else None  # type: ignore[arg-type]  # checked above
+        if isinstance(uses, dict) and set(uses) == set(names) and all(value in USE_NOTES for value in uses.values()):
+            self._uses = dict(uses)
+        else:
+            self._uses = None
         self._rebuild()
 
     def forget_uses(self) -> None:
@@ -301,7 +304,7 @@ class Attachments(QWidget):
         counts = [f"{notes.count(note)} {note}" for note in USE_NOTES.values() if notes.count(note)]
         chip = QLabel(f"… and {more} more files" + (f"  · {', '.join(counts)}" if counts else ""))
         chip.setObjectName("chip")
-        chip.setToolTip("\n".join(relative_names(self._paths)[SHOWN_ROWS:SHOWN_ROWS + 60]))
+        chip.setToolTip("\n".join(relative_names(self._paths)[SHOWN_ROWS : SHOWN_ROWS + 60]))
         line.addWidget(chip)
         cross = QPushButton()
         cross.setObjectName("deleteItem")

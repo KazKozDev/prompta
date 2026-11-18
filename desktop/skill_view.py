@@ -21,7 +21,6 @@ def save_skill(folder: Path, name: str, text: str) -> Path:
 
 class SkillView(DocumentView):
     SLOGAN = "THOUGHTS IN. SKILLS OUT."
-    MODE = "skill"
 
     def render_skill(self, payload: dict, source_thoughts: str | None = None) -> None:
         check = payload.get("check") or {}

@@ -110,8 +110,10 @@ class DesktopSmokeTest(unittest.TestCase):
         # A file entry for a built-in name only adds fields: no URL or models needed, the key is kept.
         path.write_text(json.dumps({'providers': [{'key': 'meta', 'api_key': 'file-key'}]}))
         merged = load_local_providers(path)['meta']
-        self.assertEqual((merged['api_key'], merged['base_url'], merged['models']),
-                         ('file-key', 'https://api.meta.ai/v1', bare['meta']['models']))
+        self.assertEqual(
+            (merged['api_key'], merged['base_url'], merged['models']),
+            ('file-key', 'https://api.meta.ai/v1', bare['meta']['models']),
+        )
         with (
             patch('app.load_local_providers', return_value=local),
             patch('keychain.load', return_value=''),
@@ -717,7 +719,10 @@ class DesktopSmokeTest(unittest.TestCase):
             window = PromptaWindow()
         labels = {label.text(): label for label in window.findChildren(QLabel)}
         self.assertNotIn('THOUGHTS', labels)
-        self.assertEqual(window.thoughts.placeholderText(), 'Describe what you need')
+        self.assertEqual(
+            window.thoughts.placeholderText(),
+            'You get a prompt: the text for one task. Paste it into a chat and use it once.\n\nDescribe what you need',
+        )
         self.assertEqual(window.thoughts.accessibleName(), 'Thoughts')
         self.assertFalse(window.settings_button.icon().isNull())
         self.assertTrue(window.settings_dialog.isAncestorOf(window.generator.api_key))

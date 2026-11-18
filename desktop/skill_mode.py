@@ -25,7 +25,7 @@ MODES = (PROMPT_MODE, INSTRUCTIONS_MODE, SKILL_MODE, AGENT_MODE)
 
 class ModeSwitch(QFrame):
     """Four tabs in the header: Prompt, Project, Skill and Subagent, drawn as plain words (the
-    chosen one dark and bold). `changed(mode)` fires on every switch."""
+    chosen one dark and bold), with no tooltips. `changed(mode)` fires on every switch."""
 
     changed = pyqtSignal(str)
 
@@ -40,12 +40,12 @@ class ModeSwitch(QFrame):
         self.buttons.setExclusive(True)
         self._by_mode: dict[str, QPushButton] = {}
         segments = [
-            (PROMPT_MODE, "Prompt", "Build a prompt for a model"),
-            (INSTRUCTIONS_MODE, "Project", "Write project instructions: AGENTS.md, CLAUDE.md, Cursor or Copilot"),
-            (SKILL_MODE, "Skill", "Write a SKILL.md for an Agent Skill"),
-            (AGENT_MODE, "Subagent", "Write a subagent: Claude Code, Cursor, Codex or Copilot"),
+            (PROMPT_MODE, "Prompt"),
+            (INSTRUCTIONS_MODE, "Project"),
+            (SKILL_MODE, "Skill"),
+            (AGENT_MODE, "Subagent"),
         ]
-        for index, (mode, label, tip) in enumerate(segments):
+        for index, (mode, label) in enumerate(segments):
             button = QPushButton(label)
             button.setObjectName("modeTab")
             button.setCheckable(True)
@@ -56,7 +56,6 @@ class ModeSwitch(QFrame):
             bold.setWeight(QFont.Weight.DemiBold)
             button.setFixedWidth(QFontMetrics(bold).horizontalAdvance(label) + 4)
             button.setCursor(Qt.CursorShape.PointingHandCursor)
-            button.setToolTip(tip)
             button.toggled.connect(lambda on, m=mode: self._on_toggled(m, on))
             self.buttons.addButton(button, index)
             self._by_mode[mode] = button

@@ -14,6 +14,7 @@ from pathlib import Path
 
 from history import HistoryStore
 from library import LibraryWidget
+from mode_guide import mode_note
 from settings_ui import field_label
 from mcp_settings import McpSettingsWidget
 
@@ -84,8 +85,13 @@ LOCAL_PROVIDERS_FILE = (
 # OpenAI-compatible providers the app knows by name; they travel to the pipeline as "openai" + their URL.
 # Muse Spark models think before answering; the pipeline keeps that minimal for api.meta.ai (pipeline/llm.ts).
 COMPATIBLE_PROVIDERS = {
-    "meta": {"key": "meta", "label": "Meta (Muse Spark)", "base_url": "https://api.meta.ai/v1",
-             "models": ["muse-spark-1.3-contributor", "muse-spark-1.3"], "key_env": "META_API_KEY"},
+    "meta": {
+        "key": "meta",
+        "label": "Meta (Muse Spark)",
+        "base_url": "https://api.meta.ai/v1",
+        "models": ["muse-spark-1.3-contributor", "muse-spark-1.3"],
+        "key_env": "META_API_KEY",
+    },
 }
 
 
@@ -245,7 +251,7 @@ class PromptaWindow(QMainWindow):
         QApplication.instance().aboutToQuit.connect(self.thoughts.stop_dictation)
         self.thoughts.setAccessibleName("Thoughts")
         use_step_scroll(self.thoughts)
-        self.thoughts.setPlaceholderText("Describe what you need")
+        self.thoughts.setPlaceholderText(self._placeholder(PROMPT_MODE, "Describe what you need"))
         thoughts_palette = self.thoughts.palette()
         thoughts_palette.setColor(QPalette.ColorRole.PlaceholderText, QColor("#9a8c6b"))
         self.thoughts.setPalette(thoughts_palette)
@@ -554,6 +560,11 @@ class PromptaWindow(QMainWindow):
         views = {SKILL_MODE: self.skill_view, INSTRUCTIONS_MODE: self.instructions_view, AGENT_MODE: self.agent_view}
         return views.get(self.mode_switch.mode(), self.result_column)
 
+    @staticmethod
+    def _placeholder(mode: str, hint: str) -> str:
+        """The empty request field says what the mode writes and when it is read (mode_guide.py), then what to type."""
+        return f"{mode_note(mode)}\n\n{hint}"
+
     def _apply_mode(self, mode: str) -> None:
         """File modes (Skill, Project, Agent) swap the prompt controls and result; each keeps its state."""
         prompt = mode == PROMPT_MODE
@@ -582,7 +593,7 @@ class PromptaWindow(QMainWindow):
             ),
         }.get(mode, ("Build prompt", "Describe what you need"))
         self.build_label = label + "   ⌘↵"
-        self.thoughts.setPlaceholderText(hint)
+        self.thoughts.setPlaceholderText(self._placeholder(mode, hint))
         self._sync_build_label()
         self._fit_input_column()
 
@@ -594,6 +605,7 @@ class PromptaWindow(QMainWindow):
     def _run_document(self, thoughts: str, generator: dict, revised: dict | None = None) -> None:
         """Skill, Project or Agent mode: one bridge request that writes a file instead of a prompt.
         `revised` is the edited card: the file is rewritten on it and the request is not asked about again."""
+        request: dict[str, object]
         if self.mode_switch.mode() == SKILL_MODE:
             request = {"skill": self.surface_selector.surface()}
             status = "Writing SKILL.md from the official skill rules"
