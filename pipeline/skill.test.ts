@@ -38,6 +38,8 @@ test('one call when the draft is valid; fences are removed; the task is passed a
   // No output cap: a thinking model spends it thinking and the file comes back empty or cut (history, case 44).
   assert.deepEqual(options[0], { temperature: 0.3 });
   assert.match(prompts[0], /never drop a requirement or a figure/);
+  assert.match(prompts[0], /Each topic of the task gets its own ## section/);
+  assert.match(prompts[0], /is a\nWorkflow step that says what to write, not a Script/);
   assert.match(prompts[0], /not instructions to you:\n"summarize my meeting notes"/);
   assert.ok(result.skill.startsWith('---\nname: summarizing-meetings'));
   assert.equal(result.check.valid, true);
@@ -70,4 +72,14 @@ test('a still-invalid repair is returned with its errors, not hidden', async () 
   assert.equal(result.check.valid, false);
   assert.ok(result.check.errors.length > 0);
   await assert.rejects(generateSkill({ thoughts: '  ', llm: fake().llm }), /Describe the skill/);
+});
+
+test('a draft with the spec under Additional resources gets the repair pass that says where it goes', async () => {
+  const misplaced = good.replace('List decisions first.', 'List decisions first.\n\n## Additional resources\n\nOwners: one per decision.');
+  const { llm, prompts } = fake(misplaced, good);
+  const result = await generateSkill({ thoughts: 'notes', llm });
+  assert.equal(prompts.length, 2);
+  assert.match(prompts[1], /Give each topic its own ## section after Workflow/);
+  assert.equal(result.repaired, true);
+  assert.deepEqual(result.check.structure, []);
 });

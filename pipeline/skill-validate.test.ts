@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { fenceErrors, readFrontmatter, skeletonLeftovers, validateSkill } from './skill-validate.ts';
+import { fenceErrors, readFrontmatter, skeletonLeftovers, structureProblems, validateSkill } from './skill-validate.ts';
 
 const ok = `---
 name: processing-invoices
@@ -78,4 +78,32 @@ test('a code block nested without more backticks, or left open, is an error; fou
   assert.match(fenceErrors('```\nquick start:\n```bash\nmake\n```\n```\n')[0], /inside the one opened by "```"/);
   assert.match(fenceErrors('```\nnever closed\n')[0], /never closed/);
   assert.equal(validateSkill(ok + '\n```\nopen\n', 'portable').valid, false);
+});
+
+test('the spec under Additional resources and a project file under Scripts are flagged; real ones are not', () => {
+  // what a real draft (readme-demo-video) shipped: the whole spec as a paragraph, the user's script as a Script
+  const draft = ok + `
+## Scripts
+
+- **docs/demo/record.py**: capture, render, assemble modes. Run: \`python docs/demo/record.py <mode>\`
+
+## Additional resources
+
+Camera: keyframes as crop rects. Max zoom 1.4. Every move at least 2.8 s.
+`;
+  const problems = structureProblems(draft);
+  assert.equal(problems.length, 2);
+  assert.match(problems.join(' '), /Additional resources" holds the skill's own instructions/);
+  assert.match(problems.join(' '), /lists docs\/demo\/record\.py, which is not shipped/);
+  assert.deepEqual(validateSkill(draft, 'portable').structure, problems);
+  const shipped = ok + `
+## Scripts
+
+- **scripts/build_mp4.sh**: frames to MP4. Run: \`sh scripts/build_mp4.sh <frames.txt> <out.mp4>\`
+
+## Additional resources
+
+- **Camera maths**: see [references/camera.md](references/camera.md)
+`;
+  assert.deepEqual(structureProblems(shipped), []);
 });

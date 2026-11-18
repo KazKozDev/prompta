@@ -23,6 +23,8 @@ export interface SkillCheck {
   bodyLines: number;
   /** Lines of SKILL-template.md left unfilled in the draft: not a format error, but the file is not finished. */
   leftovers: string[];
+  /** Sections used for the wrong thing (the spec under Additional resources, a project file under Scripts). */
+  structure: string[];
 }
 
 /** Top-level frontmatter keys with their scalar text. Indented lines belong to the key above
@@ -59,7 +61,7 @@ export function validateSkill(markdown: string, surface: SkillSurface): SkillChe
   const warnings: string[] = [];
   const parsed = readFrontmatter(markdown.trimStart());
   if (!parsed) {
-    return { valid: false, errors: ['No YAML frontmatter: SKILL.md must start with a "---" block.'], warnings, name: '', description: '', keys: [], bodyLines: 0, leftovers: [] };
+    return { valid: false, errors: ['No YAML frontmatter: SKILL.md must start with a "---" block.'], warnings, name: '', description: '', keys: [], bodyLines: 0, leftovers: [], structure: [] };
   }
   const { fields, body } = parsed;
   const keys = [...fields.keys()];
@@ -107,10 +109,41 @@ export function validateSkill(markdown: string, surface: SkillSurface): SkillChe
 
   const leftovers = skeletonLeftovers(body);
   if (leftovers.length) warnings.push(`Unfilled template lines: ${leftovers.map((l) => `"${l}"`).join(', ')}.`);
+  const structure = structureProblems(body);
+  warnings.push(...structure);
   const placeholders = (body.match(PLACEHOLDER) ?? []).length;
   if (placeholders) warnings.push(`${placeholders} «INSERT HERE» placeholder${placeholders === 1 ? '' : 's'} to fill in.`);
 
-  return { valid: errors.length === 0, errors, warnings, name, description, keys, bodyLines, leftovers };
+  return { valid: errors.length === 0, errors, warnings, name, description, keys, bodyLines, leftovers, structure };
+}
+
+/** The body's ## sections: heading and text, in order. */
+function sections(body: string): { heading: string; text: string }[] {
+  return body.split(/^## /m).slice(1).map((part) => {
+    const end = part.indexOf('\n');
+    return { heading: (end < 0 ? part : part.slice(0, end)).trim(), text: end < 0 ? '' : part.slice(end + 1).trim() };
+  });
+}
+
+/** Template sections filled with the wrong thing: both send the agent looking in the wrong place.
+ *  Additional resources only links reference files shipped with the skill; the skill's own instructions there
+ *  read as optional. Scripts only lists scripts/ shipped with the skill; a file the skill writes in the user's
+ *  project is a workflow step, and listing it here makes the agent look for a file that does not exist. */
+export function structureProblems(body: string): string[] {
+  const problems: string[] = [];
+  for (const { heading, text } of sections(body)) {
+    if (/^additional resources$/i.test(heading) && text && !/\]\([^)]+\)|\b(?:references?|assets)\//.test(text)) {
+      problems.push('"## Additional resources" holds the skill\'s own instructions; it is only for links to reference files shipped with the skill. Give each topic its own ## section after Workflow, or drop the section.');
+    }
+    if (/^scripts$/i.test(heading)) {
+      const listed = [...text.matchAll(/^\s*[-*]\s+\**`?([\w./-]+\.\w+)/gm)].map((m) => m[1]);
+      const foreign = listed.filter((path) => !/^scripts\//.test(path));
+      if (foreign.length) {
+        problems.push(`"## Scripts" lists ${foreign.join(', ')}, which is not shipped in the skill's scripts/ folder. A file the skill writes in the user's project is a Workflow step ("Write ${foreign[0]} that ..."); drop it from Scripts, and drop the section if nothing is left.`);
+      }
+    }
+  }
+  return problems;
 }
 
 const PLACEHOLDER = /«INSERT HERE[^»]*»/g;
