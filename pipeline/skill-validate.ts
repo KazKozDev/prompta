@@ -117,6 +117,9 @@ export function validateSkill(markdown: string, surface: SkillSurface): SkillChe
   return { valid: errors.length === 0, errors, warnings, name, description, keys, bodyLines, leftovers, structure };
 }
 
+/** Above this many MUST lines the emphasis stops meaning anything (a real draft had 60 of 75 lines). */
+const MUST_LINES = 8;
+
 /** The body's ## sections: heading and text, in order. */
 function sections(body: string): { heading: string; text: string }[] {
   return body.split(/^## /m).slice(1).map((part) => {
@@ -131,6 +134,10 @@ function sections(body: string): { heading: string; text: string }[] {
  *  project is a workflow step, and listing it here makes the agent look for a file that does not exist. */
 export function structureProblems(body: string): string[] {
   const problems: string[] = [];
+  const musts = body.split(/\r?\n/).filter((line) => /\bMUST\b/.test(line)).length;
+  if (musts > MUST_LINES) {
+    problems.push(`MUST is on ${musts} lines. Keep MUST and Never for the few rules whose breach ruins the result or does harm, at most ${MUST_LINES}; write the rest as plain imperatives ("Use 15 fps.").`);
+  }
   for (const { heading, text } of sections(body)) {
     if (/^additional resources$/i.test(heading) && text && !/\]\([^)]+\)|\b(?:references?|assets)\//.test(text)) {
       problems.push('"## Additional resources" holds the skill\'s own instructions; it is only for links to reference files shipped with the skill. Give each topic its own ## section after Workflow, or drop the section.');

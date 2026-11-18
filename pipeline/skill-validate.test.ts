@@ -107,3 +107,11 @@ Camera: keyframes as crop rects. Max zoom 1.4. Every move at least 2.8 s.
 `;
   assert.deepEqual(structureProblems(shipped), []);
 });
+
+test('MUST on nearly every line is flagged; a handful is fine', () => {
+  const rule = (i: number) => `- MUST keep rule ${i}.`;
+  const shouting = ok + '\n## Rules\n\n' + Array.from({ length: 12 }, (_, i) => rule(i)).join('\n') + '\n';
+  assert.match(structureProblems(shouting).join(' '), /MUST is on 12 lines/);
+  const calm = ok + '\n## Rules\n\n' + Array.from({ length: 4 }, (_, i) => rule(i)).join('\n') + '\n- Use 15 fps.\n';
+  assert.deepEqual(structureProblems(calm), []);
+});

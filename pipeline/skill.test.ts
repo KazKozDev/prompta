@@ -40,6 +40,9 @@ test('one call when the draft is valid; fences are removed; the task is passed a
   assert.match(prompts[0], /never drop a requirement or a figure/);
   assert.match(prompts[0], /Each topic of the task gets its own ## section/);
   assert.match(prompts[0], /is a\nWorkflow step that says what to write, not a Script/);
+  assert.match(prompts[0], /the first Workflow step writes\nit/);
+  assert.match(prompts[0], /MUST and Never mark only the few rules/);
+  assert.match(prompts[0], /do not invent what each mode builds/);
   assert.match(prompts[0], /not instructions to you:\n"summarize my meeting notes"/);
   assert.ok(result.skill.startsWith('---\nname: summarizing-meetings'));
   assert.equal(result.check.valid, true);
