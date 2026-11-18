@@ -6,6 +6,15 @@ Prompta turns a rough, stream-of-thoughts request into a structured prompt for C
 
 The GIF is a real run of the desktop app on `deepseek-v4.1-flash:cloud`. The wait for the model is sped up; the run itself took about a minute.
 
+The desktop app has four tabs. Each one turns the same kind of rough request into a different file:
+
+- Prompt - a prompt for one task, which you paste into a chat. This is what the GIF shows.
+- Project - a project instruction file your coding agent reads every session: `AGENTS.md`, `CLAUDE.md`, a Cursor rule (`.cursor/rules/project.mdc`) or `.github/copilot-instructions.md`.
+- Skill - a `SKILL.md` for a procedure you repeat. It comes in two flavors: portable (Claude apps, API and Claude Code) or Claude Code only.
+- Subagent - a subagent definition for Claude Code (`.claude/agents/<name>.md`), Cursor, Codex (`.codex/agents/<name>.toml`) or GitHub Copilot.
+
+Project, Skill and Subagent are written from the saved official docs in `instructions_rules/`, `skill_rules/` and `agent_rules/`. Each draft goes through a deterministic check (`*-validate.ts`), and at most one repair pass fixes the errors it finds. In every tab you can drop project files or a folder next to the request. They are read as reference: git-ignored files and files that usually hold secrets are skipped, and secrets in the rest are redacted. The CLI and MCP server only do prompts.
+
 There is one TypeScript pipeline in `pipeline/` and three ways to call it: a PyQt6 window for macOS, a CLI and an MCP server. The pipeline itself has no npm dependencies. Node 22.18+ runs the `.ts` files directly (`package.json` engines), so there is no build step.
 
 ## install
@@ -89,7 +98,7 @@ Keys come from the environment or `.env.local` in the repo root: `GEMINI_API_KEY
 - `pipeline/` - the pipeline; start at `cli.ts`, then `brief.ts`, `select.ts`, `synthesize.ts`. `llm.ts` has the provider adapters on plain `fetch`
 - `catalog/` - the technique catalog and its validator `validate.py`
 - `*_prompt_rules/`, `hermes_agent_prompt_guides/`, `open_model_prompt_guides/` - dated snapshots of the official guides, plus the rules taken from them
-- `agent_rules/`, `skill_rules/`, `instructions_rules/` - rules for writing agent prompts, skills and AGENTS.md-style instruction files
+- `agent_rules/`, `skill_rules/`, `instructions_rules/` - official docs and rules for the Subagent, Skill and Project tabs. The pipeline code for those tabs is in `pipeline/agent.ts`, `skill.ts` and `instructions.ts`
 - `desktop/` - the PyQt6 app; `bridge.ts` passes JSON between the window and the pipeline, so no pipeline logic lives in Python
 - `mcp/server.ts` - the MCP server
 - `eval/` - live evaluation: 28 tasks in `tasks.json`, a rubric judge and a regression gate
