@@ -17,7 +17,7 @@ how long the run really took.
 Render: the shots are edited in the order of a short product demo, not in the order they were taken:
   the finished prompt -> the request being typed -> Build -> the result: techniques, zero-shot baseline,
   assumptions.
-The video puts the window on the app's background (desktop/background.png, washed out) with rounded corners and a
+The video puts the window on the app's background (desktop/background.png, washed out) with rounded corners and no
 shadow, runs subtitles along the bottom, and moves a slow camera (sine-eased, at most 1.4x, at least 2.8 s per move,
 still in between). --plain keeps only the window and a camera that cuts instead of moving, for a GIF small enough for
 GitHub. Everything around the window is drawn; the window itself is the real app, untouched.
@@ -305,21 +305,6 @@ def backdrop() -> QImage:
     return stage
 
 
-def soft_shadow() -> QImage:
-    k = 12
-    small = QImage(OW * S // k, OH * S // k, QImage.Format.Format_ARGB32_Premultiplied)
-    small.fill(Qt.GlobalColor.transparent)
-    painter = QPainter(small)
-    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-    painter.setPen(Qt.PenStyle.NoPen)
-    painter.setBrush(QColor(20, 12, 0, 150))
-    painter.drawRoundedRect(
-        QRectF((WX - 6) * S / k, (WY + 14) * S / k, (W + 12) * S / k, (H + 4) * S / k), RADIUS * S / k, RADIUS * S / k
-    )
-    painter.end()
-    return small.scaled(OW * S, OH * S, transformMode=Qt.TransformationMode.SmoothTransformation)
-
-
 def font(px: int, weight: QFont.Weight, tracking: int = 100, family: str = "") -> QFont:
     f = QFont(family) if family else QFont()
     f.setPixelSize(px * S)
@@ -461,7 +446,6 @@ def render() -> int:
 
     # ── drawing ──
     stage_bg = backdrop() if not PLAIN else None
-    shadow = soft_shadow() if not PLAIN else None
     clip = QPainterPath()
     clip.addRoundedRect(QRectF(WX * S, WY * S, W * S, H * S), RADIUS * S, RADIUS * S)
     cache: dict[str, QImage] = {}
@@ -501,8 +485,6 @@ def render() -> int:
             painter.scale(k, k)
             painter.translate(-cx, -cy)
             painter.setOpacity(alpha)
-            if shadow is not None:
-                painter.drawImage(0, 0, shadow)
             painter.setClipPath(clip)
             painter.drawImage(QRectF(WX * S, WY * S, W * S, H * S), window_at(now))
             painter.resetTransform()
