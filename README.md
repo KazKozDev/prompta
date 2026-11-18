@@ -6,7 +6,7 @@ Turn a messy stream of thoughts into a ready prompt, with a zero-shot baseline t
 python3 -m pip install -r desktop/requirements.txt
 ```
 
-![Prompta desktop app turning a rough request into a structured prompt](https://raw.githubusercontent.com/KazKozDev/prompta/master/docs/preview-desktop.png)
+![Prompta desktop app turning a rough request into a structured prompt](https://raw.githubusercontent.com/KazKozDev/prompta/main/docs/preview-desktop.png)
 
 Runs on Ollama, no key · Official guides with source links · MIT
 
@@ -146,7 +146,13 @@ from the app writes the key into that client's MCP config. MCP context is trimme
 ### Development
 
 ```bash
-npm install && npm test && npm run typecheck && python3 catalog/validate.py
+npm ci && npm test && npm run typecheck && python3 catalog/validate.py
+```
+
+The same lint and type gates as CI run before each commit once the hook is on:
+
+```bash
+git config core.hooksPath .githooks
 ```
 
 Live evaluation (28 tasks, 10 with injected commands, rubric judge, regression gate) is in [eval/](eval/README.md).

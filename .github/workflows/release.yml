@@ -35,7 +35,7 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: |
-          npm install --no-audit --no-fund
+          npm ci --no-audit --no-fund
           npx tsc --noEmit
           npm test
           ruff check .

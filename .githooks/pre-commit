@@ -1,0 +1,17 @@
+#!/bin/sh
+# The same lint and type gates as CI, before every commit. Turn on once per clone:
+#   git config core.hooksPath .githooks
+# Skip one commit with `git commit --no-verify`.
+set -e
+cd "$(git rev-parse --show-toplevel)"
+
+# The build venv has the pinned ruff and mypy (desktop/requirements-dev.txt); otherwise whatever is on PATH.
+PY=python3
+[ -x .venv-build/bin/python3 ] && PY="$PWD/.venv-build/bin/python3"
+RUFF="$PY -m ruff"
+$PY -m ruff --version >/dev/null 2>&1 || RUFF=ruff
+
+$RUFF check . || { echo "pre-commit: ruff check failed" >&2; exit 1; }
+$RUFF format --check . || { echo "pre-commit: run \`ruff format .\`" >&2; exit 1; }
+(cd desktop && $PY -m mypy) || { echo "pre-commit: mypy failed" >&2; exit 1; }
+npx --no-install tsc --noEmit || { echo "pre-commit: tsc failed" >&2; exit 1; }
