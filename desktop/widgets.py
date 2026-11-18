@@ -414,6 +414,9 @@ def use_step_scroll(area, scroll_target=None) -> None:
     area.step_scroll = StepScroll(area, scroll_target)
 
 
+ICON_STRIP = 34  # px at the bottom of the request field for the paperclip and the microphone
+
+
 class ThoughtsEdit(QPlainTextEdit):
     dictationSetupRequested = pyqtSignal()  # the microphone was clicked but the Whisper model is not downloaded
     filesDropped = pyqtSignal(list)  # local files dropped on the field: attached, not pasted as paths
@@ -439,8 +442,8 @@ class ThoughtsEdit(QPlainTextEdit):
 
     def __init__(self) -> None:
         super().__init__()
-        # The paperclip and the microphone sit in the field's top-right corner. No column is reserved for them (it
-        # would narrow every line); only when the first line reaches them does the text drop below them (_avoid_icons).
+        # The paperclip and the microphone sit in the field's bottom-right corner, on a strip the text never enters
+        # (ICON_STRIP): no column is reserved for them, so lines keep their full width.
         self.microphone_icon = QPushButton(self)
         self.microphone_icon.setIcon(QIcon(str(ROOT / "desktop" / "microphone.svg")))
         self.microphone_icon.setIconSize(QSize(18, 18))
@@ -468,7 +471,7 @@ class ThoughtsEdit(QPlainTextEdit):
         self.attach_icon.setCursor(Qt.CursorShape.PointingHandCursor)
         self.attach_icon.clicked.connect(self.attachRequested)
         self.attach_icon.raise_()
-        self.textChanged.connect(lambda: QTimer.singleShot(0, self._avoid_icons))
+        self.setViewportMargins(0, 0, 0, ICON_STRIP)
         # A press over the icon starts dictation even if a neighbour (the field's text area, an overlay
         # scrollbar) received it; presses near the icon are logged so a miss can be traced.
         self.installEventFilter(self)
@@ -480,7 +483,7 @@ class ThoughtsEdit(QPlainTextEdit):
                 watched.mapTo(self, event.position().toPoint()) if watched is not self else event.position().toPoint()
             )
             hit = self.microphone_icon.geometry().adjusted(-6, -6, 6, 6)
-            if point.x() > self.width() - 90 and point.y() < 60:
+            if point.x() > self.width() - 90 and point.y() > self.height() - 60:
                 self._voice_log(f"press at {point.x()},{point.y()} on {type(watched).__name__} · icon {hit.getRect()}")
             if hit.contains(point) and self.microphone_icon.isEnabled():
                 self._toggle_dictation()
@@ -661,33 +664,11 @@ class ThoughtsEdit(QPlainTextEdit):
         super().resizeEvent(event)
         if hasattr(self, "microphone_icon"):
             x = self.width() - self.verticalScrollBar().sizeHint().width() - 19
-            self.microphone_icon.move(x, 7)
+            y = self.height() - ICON_STRIP + (ICON_STRIP - self.microphone_icon.height()) // 2 - 2
+            self.microphone_icon.move(x, y)
             self.microphone_icon.raise_()
-            self.attach_icon.move(x - 28, 7)
+            self.attach_icon.move(x - 28, y)
             self.attach_icon.raise_()
-            QTimer.singleShot(0, self._avoid_icons)
-
-    def setPlaceholderText(self, text: str | None) -> None:  # noqa: N802 - Qt naming
-        super().setPlaceholderText(text)
-        QTimer.singleShot(0, self._avoid_icons)
-
-    def _avoid_icons(self) -> None:
-        """The text drops below the icons only while its first line (or the placeholder) would run under them."""
-        if not hasattr(self, "attach_icon"):
-            return
-        room = self.attach_icon.x() - self.viewport().x() - 2 * self.document().documentMargin() - 4
-        width: float
-        if self.document().isEmpty():
-            width = self.fontMetrics().horizontalAdvance(self.placeholderText().split("\n")[0])
-        else:
-            layout = self.document().firstBlock().layout()
-            width = layout.lineAt(0).naturalTextWidth() if layout is not None and layout.lineCount() else 0
-        margins = self.viewportMargins()
-        # Just enough for the first line's top to clear the icons' bottom edge, whatever the frame and padding.
-        text_top = self.viewport().y() - margins.top() + self.document().documentMargin()
-        top = max(0, round(self.microphone_icon.geometry().bottom() + 3 - text_top)) if width > room else 0
-        if margins.top() != top:
-            self.setViewportMargins(margins.left(), top, margins.right(), margins.bottom())
 
 
 TICK_PITCH = 7  # px from one tick to the next
