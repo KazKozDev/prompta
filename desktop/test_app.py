@@ -102,7 +102,16 @@ class DesktopSmokeTest(unittest.TestCase):
         )
         local = load_local_providers(path)
         self.assertEqual(list(local), ['meta'])
-        self.assertEqual(load_local_providers(Path(self.temp.name) / 'missing.json'), {})
+        # Meta is built in: without a file it is still there, with its own URL and Muse Spark models.
+        bare = load_local_providers(Path(self.temp.name) / 'missing.json')
+        self.assertEqual(list(bare), ['meta'])
+        self.assertEqual(bare['meta']['base_url'], 'https://api.meta.ai/v1')
+        self.assertIn('muse-spark-1.3-contributor', bare['meta']['models'])
+        # A file entry for a built-in name only adds fields: no URL or models needed, the key is kept.
+        path.write_text(json.dumps({'providers': [{'key': 'meta', 'api_key': 'file-key'}]}))
+        merged = load_local_providers(path)['meta']
+        self.assertEqual((merged['api_key'], merged['base_url'], merged['models']),
+                         ('file-key', 'https://api.meta.ai/v1', bare['meta']['models']))
         with (
             patch('app.load_local_providers', return_value=local),
             patch('keychain.load', return_value=''),

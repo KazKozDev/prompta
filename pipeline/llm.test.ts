@@ -39,7 +39,7 @@ test('ошибка авторизации не повторяется, пуст�
   await assert.rejects(llm('тест'), /empty response/);
 });
 
-test('meta: low reasoning effort, other OpenAI-compatible addresses send none; thinking out of tokens is named', async (t) => {
+test('meta: minimal reasoning effort, other OpenAI-compatible addresses send none; thinking out of tokens is named', async (t) => {
   const bodies: Record<string, any>[] = [];
   t.mock.method(globalThis, 'fetch', async (_url: unknown, init: RequestInit) => {
     bodies.push(JSON.parse(String(init.body)));
@@ -47,7 +47,7 @@ test('meta: low reasoning effort, other OpenAI-compatible addresses send none; t
   });
   await createLLM({ provider: 'openai', model: 'muse-spark-1.3', apiKey: 'k', baseUrl: 'https://api.meta.ai/v1' })('тест');
   await createLLM({ provider: 'openai', model: 'synthetic', apiKey: 'k' })('тест');
-  assert.equal(bodies[0].reasoning_effort, 'low');
+  assert.equal(bodies[0].reasoning_effort, 'minimal');
   assert.equal(bodies[1].reasoning_effort, undefined);
   t.mock.restoreAll();
   t.mock.method(globalThis, 'fetch', async () =>

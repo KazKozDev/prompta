@@ -158,8 +158,9 @@ export function createLLM(opts: LLMOptions): LLM {
     const base = (opts.baseUrl || (provider === 'xai' ? 'https://api.x.ai' : 'https://api.openai.com')).replace(/\/+$/, '');
     const apiRoot = base.endsWith('/v1') ? base : `${base}/v1`;
     // Meta's models think before every answer, and the thinking counts against max_tokens: at their own effort
-    // a SKILL.md spent 4094 of its 4096 tokens thinking and came back empty. At low it thought for 1289.
-    const effort = /(^|\.)meta\.ai$/.test(new URL(apiRoot).hostname) ? { reasoning_effort: 'low' } : {};
+    // a SKILL.md spent 4094 of its 4096 tokens thinking and came back empty; at low it thought for 1289.
+    // Minimal is the floor Muse Spark accepts ('none' is refused): a one-word reply thought for 13 tokens.
+    const effort = /(^|\.)meta\.ai$/.test(new URL(apiRoot).hostname) ? { reasoning_effort: 'minimal' } : {};
     return async (prompt, o = {}) => {
       const data = (await postJson(
         `${apiRoot}/chat/completions`,

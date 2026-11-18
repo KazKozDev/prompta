@@ -81,28 +81,41 @@ LOCAL_PROVIDERS_FILE = (
 )
 
 
+# OpenAI-compatible providers the app knows by name; they travel to the pipeline as "openai" + their URL.
+# Muse Spark models think before answering; the pipeline keeps that minimal for api.meta.ai (pipeline/llm.ts).
+COMPATIBLE_PROVIDERS = {
+    "meta": {"key": "meta", "label": "Meta (Muse Spark)", "base_url": "https://api.meta.ai/v1",
+             "models": ["muse-spark-1.3-contributor", "muse-spark-1.3"], "key_env": "META_API_KEY"},
+}
+
+
 def load_local_providers(path: Path = LOCAL_PROVIDERS_FILE) -> dict[str, dict]:
-    """Personal OpenAI-compatible providers from a gitignored file, e.g. Meta's Muse Spark:
-    {"providers": [{"key": "meta", "label": "Meta (Muse Spark)", "base_url": "https://api.meta.ai/v1",
-    "models": ["muse-spark-1.3"], "key_env": "META_API_KEY", "api_key": ""}]}.
-    The key comes from Keychain first, then key_env, then api_key. A missing or broken file adds nothing."""
+    """Named OpenAI-compatible providers: COMPATIBLE_PROVIDERS plus personal ones from a gitignored file:
+    {"providers": [{"key": "groq", "label": "Groq", "base_url": "https://api.groq.com/openai/v1",
+    "models": ["..."], "key_env": "GROQ_API_KEY", "api_key": ""}]}. An entry with a known key ("meta")
+    overrides its fields, e.g. adds an api_key. The key comes from Keychain first, then key_env, then api_key.
+    A missing or broken file adds nothing."""
+    found = {key: dict(item) for key, item in COMPATIBLE_PROVIDERS.items()}
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        return {}
-    found = {}
+        return found
     builtin = {"ollama", "gemini", "openai", "anthropic", "xai", COMPATIBLE}
     for item in data.get("providers", []) if isinstance(data, dict) else []:
         if not isinstance(item, dict):
             continue
-        key, base = str(item.get("key", "")).strip(), str(item.get("base_url", "")).strip()
+        key = str(item.get("key", "")).strip()
+        known = found.get(key, {})
+        base = str(item.get("base_url") or known.get("base_url") or "").strip()
         if key and key not in builtin and base.startswith(("http://", "https://")):
+            models = [m for m in item.get("models", []) if isinstance(m, str) and m]
             found[key] = {
+                **known,
                 **item,
                 "key": key,
                 "base_url": base,
-                "label": str(item.get("label") or key),
-                "models": [m for m in item.get("models", []) if isinstance(m, str) and m],
+                "label": str(item.get("label") or known.get("label") or key),
+                "models": models or known.get("models", []),
             }
     return found
 
