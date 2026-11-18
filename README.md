@@ -4,6 +4,12 @@ Prompta turns a rough, stream-of-thoughts request into a structured prompt for C
 
 ![a rough request for release notes typed into the desktop app, two variants built: the zero-shot baseline, a Few-shot prompt and a Self-Refine prompt, side by side as tabs](docs/demo/demo.gif)
 
+
+
+https://github.com/user-attachments/assets/eb53b856-eb92-4805-b193-1c8e703198fd
+
+
+
 The GIF is a real run of the desktop app on `deepseek-v4.1-flash:cloud` via Ollama, recorded with `docs/demo/record.py`. The wait for the model is cut out; the run itself took 52 seconds. The close-ups are crops of the real window, rendered at 2x.
 
 The desktop app has four tabs. Each one turns the same kind of rough request into a different file:
