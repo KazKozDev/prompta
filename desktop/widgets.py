@@ -44,6 +44,7 @@ from PyQt6.QtWidgets import (
     QAbstractScrollArea,
     QApplication,
     QComboBox,
+    QHBoxLayout,
     QFrame,
     QLabel,
     QListWidget,
@@ -414,9 +415,6 @@ def use_step_scroll(area, scroll_target=None) -> None:
     area.step_scroll = StepScroll(area, scroll_target)
 
 
-ICON_STRIP = 34  # px at the bottom of the request field for the paperclip and the microphone
-
-
 class ThoughtsEdit(QPlainTextEdit):
     dictationSetupRequested = pyqtSignal()  # the microphone was clicked but the Whisper model is not downloaded
     filesDropped = pyqtSignal(list)  # local files dropped on the field: attached, not pasted as paths
@@ -442,9 +440,13 @@ class ThoughtsEdit(QPlainTextEdit):
 
     def __init__(self) -> None:
         super().__init__()
-        # The paperclip and the microphone sit in the field's bottom-right corner, on a strip the text never enters
-        # (ICON_STRIP): no column is reserved for them, so lines keep their full width.
-        self.microphone_icon = QPushButton(self)
+        # The paperclip and the microphone sit in icon_bar, which the window puts under the field's right edge:
+        # outside the field, so the text has its whole height and never runs under them.
+        self.icon_bar = QWidget()
+        bar = QHBoxLayout(self.icon_bar)
+        bar.setContentsMargins(0, 4, 2, 0)
+        bar.setSpacing(4)
+        self.microphone_icon = QPushButton(self.icon_bar)
         self.microphone_icon.setIcon(QIcon(str(ROOT / "desktop" / "microphone.svg")))
         self.microphone_icon.setIconSize(QSize(18, 18))
         self.microphone_icon.setFixedSize(24, 24)
@@ -456,9 +458,8 @@ class ThoughtsEdit(QPlainTextEdit):
         self.voice_state = "idle"
         self.voice_buffer = ""
         self.microphone_icon.setObjectName("micIcon")
-        self.microphone_icon.raise_()
         # Left of the microphone: attaches project files every mode reads.
-        self.attach_icon = QPushButton(self)
+        self.attach_icon = QPushButton(self.icon_bar)
         self.attach_icon.setObjectName("micIcon")
         self.attach_icon.setIcon(QIcon(str(ROOT / "desktop" / "paperclip.svg")))
         self.attach_icon.setIconSize(QSize(18, 18))
@@ -470,28 +471,8 @@ class ThoughtsEdit(QPlainTextEdit):
         )
         self.attach_icon.setCursor(Qt.CursorShape.PointingHandCursor)
         self.attach_icon.clicked.connect(self.attachRequested)
-        self.attach_icon.raise_()
-        self.setViewportMargins(0, 0, 0, ICON_STRIP)
-        # A press over the icon starts dictation even if a neighbour (the field's text area, an overlay
-        # scrollbar) received it; presses near the icon are logged so a miss can be traced.
-        self.installEventFilter(self)
-        self.viewport().installEventFilter(self)
-
-    def eventFilter(self, watched, event) -> bool:  # noqa: N802 - Qt naming
-        if event.type() == QEvent.Type.MouseButtonPress and watched in (self, self.viewport()):
-            point = (
-                watched.mapTo(self, event.position().toPoint()) if watched is not self else event.position().toPoint()
-            )
-            hit = self.microphone_icon.geometry().adjusted(-6, -6, 6, 6)
-            if point.x() > self.width() - 90 and point.y() > self.height() - 60:
-                self._voice_log(f"press at {point.x()},{point.y()} on {type(watched).__name__} · icon {hit.getRect()}")
-            if hit.contains(point) and self.microphone_icon.isEnabled():
-                self._toggle_dictation()
-                return True
-            if self.attach_icon.geometry().adjusted(-4, -4, 4, 4).contains(point):
-                self.attachRequested.emit()
-                return True
-        return super().eventFilter(watched, event)
+        bar.addWidget(self.attach_icon)
+        bar.addWidget(self.microphone_icon)
 
     @staticmethod
     def _voice_log(message: str) -> None:
@@ -659,16 +640,6 @@ class ThoughtsEdit(QPlainTextEdit):
             if not self.voice_process.waitForFinished(2000):
                 self.voice_process.kill()
                 self.voice_process.waitForFinished(1000)
-
-    def resizeEvent(self, event) -> None:  # noqa: N802
-        super().resizeEvent(event)
-        if hasattr(self, "microphone_icon"):
-            x = self.width() - self.verticalScrollBar().sizeHint().width() - 19
-            y = self.height() - ICON_STRIP + (ICON_STRIP - self.microphone_icon.height()) // 2 - 2
-            self.microphone_icon.move(x, y)
-            self.microphone_icon.raise_()
-            self.attach_icon.move(x - 28, y)
-            self.attach_icon.raise_()
 
 
 TICK_PITCH = 7  # px from one tick to the next
