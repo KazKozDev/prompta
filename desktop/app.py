@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import os
 import sys
 from pathlib import Path
 
@@ -946,7 +947,16 @@ def main() -> int:
         print(f"screenshot: {path}")
         return 0
 
-    return app.exec()
+    code = app.exec()
+    # Python's own teardown of the PyQt objects crashes in dealloc_QApplication (SIGBUS in sip_api_visit_wrappers):
+    # every quit left a crash report and macOS said the app quit unexpectedly. Nothing is left to save by now:
+    # closeEvent flushed the history, aboutToQuit stopped dictation and downloads, and each prefs() call has
+    # written its value. So leave without that teardown.
+    if instance.server is not None:
+        instance.server.close()
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(code)
 
 
 if __name__ == "__main__":
