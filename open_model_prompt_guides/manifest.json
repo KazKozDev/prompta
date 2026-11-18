@@ -343,9 +343,9 @@
           "snapshot": "gemma-4-31b/official-guide.html",
           "url": "https://ai.google.dev/gemma/docs/core/prompt-formatting-gemma4",
           "download_url": "https://ai.google.dev/gemma/docs/core/prompt-formatting-gemma4",
-          "sha256": "e74d27f63c4c7a76ce3f1844bb6423a6260ac18955452ee07b33d6340fadd314",
-          "bytes": 155709,
-          "scope": "Gemma 4 family: control tokens and prompt formatting."
+          "sha256": "cc1018b41c4a88b457eb2b7f54805fbe266ddd8db1fbe56c47bd4486aa8a62a5",
+          "bytes": 155574,
+          "scope": "Gemma 4 family: control tokens and prompt formatting. The page's own Google browser API keys are replaced with REDACTED-google-page-key."
         },
         {
           "title": "Gemma 4 prompt formatting · readable text",
