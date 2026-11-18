@@ -107,7 +107,7 @@ export async function generateAgent(opts: AgentOptions): Promise<AgentResult> {
   const set = loadAgentRules(target);
   const call = async (prompt: string) => {
     if (opts.signal?.aborted) throw new PipelineError('Cancelled.', 'agent');
-    return cleanDraft(await opts.llm(prompt, { temperature: 0.3, maxTokens: 4096 }));
+    return cleanDraft(await opts.llm(prompt, { temperature: 0.3 }));
   };
   let text = await call(buildAgentPrompt(opts.thoughts, set.rules, target, opts.clarify));
   let check = validateAgent(text, target);

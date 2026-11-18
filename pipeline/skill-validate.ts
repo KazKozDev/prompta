@@ -21,6 +21,8 @@ export interface SkillCheck {
   description: string;
   keys: string[];
   bodyLines: number;
+  /** Lines of SKILL-template.md left unfilled in the draft: not a format error, but the file is not finished. */
+  leftovers: string[];
 }
 
 /** Top-level frontmatter keys with their scalar text. Indented lines belong to the key above
@@ -57,7 +59,7 @@ export function validateSkill(markdown: string, surface: SkillSurface): SkillChe
   const warnings: string[] = [];
   const parsed = readFrontmatter(markdown.trimStart());
   if (!parsed) {
-    return { valid: false, errors: ['No YAML frontmatter: SKILL.md must start with a "---" block.'], warnings, name: '', description: '', keys: [], bodyLines: 0 };
+    return { valid: false, errors: ['No YAML frontmatter: SKILL.md must start with a "---" block.'], warnings, name: '', description: '', keys: [], bodyLines: 0, leftovers: [] };
   }
   const { fields, body } = parsed;
   const keys = [...fields.keys()];
@@ -103,7 +105,31 @@ export function validateSkill(markdown: string, surface: SkillSurface): SkillChe
   if (!bodyLines) errors.push('The body after the frontmatter is empty.');
   if (bodyLines > BODY_LINES) warnings.push(`The body is ${bodyLines} lines; keep it under ${BODY_LINES} and move detail into referenced files.`);
 
-  return { valid: errors.length === 0, errors, warnings, name, description, keys, bodyLines };
+  const leftovers = skeletonLeftovers(body);
+  if (leftovers.length) warnings.push(`Unfilled template lines: ${leftovers.map((l) => `"${l}"`).join(', ')}.`);
+  const placeholders = (body.match(PLACEHOLDER) ?? []).length;
+  if (placeholders) warnings.push(`${placeholders} «INSERT HERE» placeholder${placeholders === 1 ? '' : 's'} to fill in.`);
+
+  return { valid: errors.length === 0, errors, warnings, name, description, keys, bodyLines, leftovers };
+}
+
+const PLACEHOLDER = /«INSERT HERE[^»]*»/g;
+
+/** The placeholder lines of skill_rules/SKILL-template.md. Matched one by one, not as any <...>: an output
+ *  template in a skill legitimately holds slots like <alt text> or <model, version>. */
+const SKELETON = [
+  /For <case>, use <alternative> instead/,
+  /Does X with Y/,
+  /^#\s+Skill Name\s*$/,
+  /^- \[ \] Step \d+: \.\.\.\s*$/,
+  /^- (?:MUST|Never) \.\.\.\s*$/,
+  /^One default approach for the most common case/,
+  /INSERT HERE[^»\n]*«\s*INSERT HERE/,
+];
+
+/** Template lines the draft kept instead of filling in or dropping. */
+export function skeletonLeftovers(body: string): string[] {
+  return body.split(/\r?\n/).map((line) => line.trim()).filter((line) => SKELETON.some((re) => re.test(line)));
 }
 
 /** Code blocks that break: one left open, or one that opens inside a block fenced with as many backticks

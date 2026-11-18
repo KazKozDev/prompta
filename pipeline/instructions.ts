@@ -91,7 +91,7 @@ export async function generateInstructions(opts: InstructionOptions): Promise<In
   const set = loadInstructionRules(target);
   const call = async (prompt: string) => {
     if (opts.signal?.aborted) throw new PipelineError('Cancelled.', 'instructions');
-    return cleanDraft(await opts.llm(prompt, { temperature: 0.3, maxTokens: 4096 }));
+    return cleanDraft(await opts.llm(prompt, { temperature: 0.3 }));
   };
   let text = await call(buildInstructionsPrompt(opts.thoughts, set.rules, target, opts.clarify));
   let check = validateInstructions(text, target);

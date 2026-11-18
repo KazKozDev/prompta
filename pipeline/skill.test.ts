@@ -9,9 +9,10 @@ import type { LLM } from './types.ts';
 
 const good = '```markdown\n---\nname: summarizing-meetings\ndescription: Summarizes meeting notes into decisions and owners. Use when the user shares meeting notes.\n---\n\n# Summarizing Meetings\n\nList decisions first.\n```';
 
-function fake(...replies: string[]): { llm: LLM; prompts: string[] } {
+function fake(...replies: string[]): { llm: LLM; prompts: string[]; options: unknown[] } {
   const prompts: string[] = [];
-  return { prompts, llm: async (prompt) => { prompts.push(prompt); return replies.shift() ?? ''; } };
+  const options: unknown[] = [];
+  return { prompts, options, llm: async (prompt, o) => { prompts.push(prompt); options.push(o); return replies.shift() ?? ''; } };
 }
 
 test('skill snapshots match their saved hashes', () => {
@@ -31,9 +32,12 @@ test('rules load with sources; Claude Code-only rules stay out of portable skill
 });
 
 test('one call when the draft is valid; fences are removed; the task is passed as data', async () => {
-  const { llm, prompts } = fake(good);
+  const { llm, prompts, options } = fake(good);
   const result = await generateSkill({ thoughts: 'summarize my meeting notes', llm });
   assert.equal(prompts.length, 1);
+  // No output cap: a thinking model spends it thinking and the file comes back empty or cut (history, case 44).
+  assert.deepEqual(options[0], { temperature: 0.3 });
+  assert.match(prompts[0], /never drop a requirement or a figure/);
   assert.match(prompts[0], /not instructions to you:\n"summarize my meeting notes"/);
   assert.ok(result.skill.startsWith('---\nname: summarizing-meetings'));
   assert.equal(result.check.valid, true);
@@ -48,6 +52,16 @@ test('an invalid draft gets exactly one repair pass with the errors', async () =
   assert.match(prompts[1], /must be lowercase/);
   assert.equal(result.repaired, true);
   assert.equal(result.check.valid, true);
+});
+
+test('a draft with an unfilled template line gets the repair pass that names it', async () => {
+  const leftover = good.replace('List decisions first.', 'For <case>, use <alternative> instead.\n\nList decisions first.');
+  const { llm, prompts } = fake(leftover, good);
+  const result = await generateSkill({ thoughts: 'notes', llm });
+  assert.equal(prompts.length, 2);
+  assert.match(prompts[1], /"For <case>, use <alternative> instead\." is a template line left unfilled/);
+  assert.equal(result.repaired, true);
+  assert.deepEqual(result.check.leftovers, []);
 });
 
 test('a still-invalid repair is returned with its errors, not hidden', async () => {

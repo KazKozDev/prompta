@@ -45,10 +45,15 @@ Rules from the official documentation:
 ${rules.map((r) => `- [${r.id}] ${r.rule_text}`).join('\n')}
 
 Frontmatter: ${keys} Write description on one line, without quotes or angle brackets.
-Skeleton to follow (keep sections that fit the task, drop the rest, replace every placeholder):
+The task is the source of truth: every rule, number, threshold, tool, table row, exception, checklist item and
+test case in it goes into the file. Tighten the wording, never drop a requirement or a figure.
+Skeleton for the shape, not a length budget: keep the sections that fit, drop the ones the task says nothing
+about, and add a section of your own for any part of the task the skeleton has no place for (timing, limits,
+accessibility, checks, test cases …). Replace every placeholder; an optional skeleton line (the Quick start
+fallback) is dropped when the task has no case for it, not filled with INSERT HERE:
 ${TEMPLATE}
 The body is written in the language of the task; name stays in English kebab-case.
-If something the skill needs is not in the task, write «INSERT HERE: <what>» instead of inventing it.
+If something the skill cannot work without is not in the task, write «INSERT HERE: <what>» instead of inventing it.
 A value the skill's output depends on (a licence, version, count, path) is not fixed in the skill: tell it where
 to read that value in its input, and to leave the part out when the input has none.
 A template or example that itself holds a code block is fenced with four backticks (\`\`\`\`), so the inner
@@ -62,10 +67,14 @@ ${JSON.stringify(thoughts)}${clarifySection(clarify)}`;
 }
 
 export function buildRepairPrompt(draft: string, check: SkillCheck): string {
+  const problems = [
+    ...check.errors,
+    ...check.leftovers.map((line) => `"${line}" is a template line left unfilled: write it from the task or drop it.`),
+  ];
   return `This SKILL.md failed validation. Fix only these problems and return the whole corrected file, starting with "---", no commentary.
 
 Problems:
-${check.errors.map((e) => `- ${e}`).join('\n')}
+${problems.map((e) => `- ${e}`).join('\n')}
 
 SKILL.md:
 ${draft}`;
@@ -83,12 +92,12 @@ export async function generateSkill(opts: SkillOptions): Promise<SkillResult> {
   const set = loadSkillRules(surface);
   const call = async (prompt: string) => {
     if (opts.signal?.aborted) throw new PipelineError('Cancelled.', 'skill');
-    return cleanDraft(await opts.llm(prompt, { temperature: 0.3, maxTokens: 4096 }));
+    return cleanDraft(await opts.llm(prompt, { temperature: 0.3 }));
   };
   let skill = await call(buildSkillPrompt(opts.thoughts, set.rules, surface, opts.clarify));
   let check = validateSkill(skill, surface);
   let repaired = false;
-  if (!check.valid) {
+  if (!check.valid || check.leftovers.length) {
     skill = await call(buildRepairPrompt(skill, check));
     check = validateSkill(skill, surface);
     repaired = true;

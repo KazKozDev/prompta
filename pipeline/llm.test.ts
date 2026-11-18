@@ -28,6 +28,23 @@ test('provider adapters pass settings and parse responses', async (t) => {
   }
 });
 
+test('an answer cut at the token limit is an error on every provider, never a silent half', async (t) => {
+  const cases = [
+    ['ollama', { response: '', thinking: 'долго думал', done_reason: 'length' }, /spent its whole token limit thinking/],
+    ['ollama', { response: '---\nname: half', done_reason: 'length' }, /cut the answer off/],
+    ['openai', { choices: [{ message: { content: 'half' }, finish_reason: 'length' }] }, /cut the answer off/],
+    ['gemini', { candidates: [{ content: { parts: [{ text: 'half' }] }, finishReason: 'MAX_TOKENS' }] }, /cut the answer off/],
+    ['anthropic', { content: [{ type: 'text', text: 'half' }], stop_reason: 'max_tokens' }, /cut the answer off/],
+  ] as const;
+  for (const [provider, payload, error] of cases) {
+    t.mock.method(globalThis, 'fetch', async () => new Response(JSON.stringify(payload)));
+    await assert.rejects(createLLM({ provider, model: 'synthetic', apiKey: 'synthetic-test-key' })('тест'), error, provider);
+    t.mock.restoreAll();
+  }
+  t.mock.method(globalThis, 'fetch', async () => new Response(JSON.stringify({ response: 'ответ', done_reason: 'stop' })));
+  assert.equal(await createLLM({ provider: 'ollama', model: 'synthetic' })('тест'), 'ответ');
+});
+
 test('auth errors are not retried, empty responses are rejected', async (t) => {
   let calls = 0;
   t.mock.method(globalThis, 'fetch', async () => { calls++; return new Response('unauthorized', { status: 401 }); });

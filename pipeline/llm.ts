@@ -140,11 +140,12 @@ export function createLLM(opts: LLMOptions): LLM {
         { 'x-goog-api-key': apiKey },
         http,
       )) as {
-        candidates?: { content?: { parts?: { text?: string }[] } }[];
+        candidates?: { content?: { parts?: { text?: string }[] }; finishReason?: string }[];
         usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
       };
       report(o.onUsage, data.usageMetadata?.promptTokenCount, data.usageMetadata?.candidatesTokenCount);
       const out = data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? '';
+      if (data.candidates?.[0]?.finishReason === 'MAX_TOKENS') throw new Error('gemini cut the answer off at the token limit');
       if (!out) throw new Error('gemini returned an empty response');
       return out;
     };
@@ -180,8 +181,10 @@ export function createLLM(opts: LLMOptions): LLM {
       };
       report(o.onUsage, data.usage?.prompt_tokens, data.usage?.completion_tokens);
       const out = data.choices?.[0]?.message?.content ?? '';
-      if (!out && data.choices?.[0]?.finish_reason === 'length') {
-        throw new Error(`${provider} returned an empty response: the model spent its whole token limit thinking`);
+      if (data.choices?.[0]?.finish_reason === 'length') {
+        throw new Error(out
+          ? `${provider} cut the answer off at the token limit`
+          : `${provider} returned an empty response: the model spent its whole token limit thinking`);
       }
       if (!out) throw new Error(`${provider} returned an empty response`);
       return out;
@@ -210,6 +213,7 @@ export function createLLM(opts: LLMOptions): LLM {
       };
       report(o.onUsage, data.usage?.input_tokens, data.usage?.output_tokens);
       if (data.stop_reason === 'refusal') throw new Error('anthropic declined the request (stop_reason: refusal)');
+      if (data.stop_reason === 'max_tokens') throw new Error('anthropic cut the answer off at the token limit');
       const out = (data.content ?? []).filter((b) => b.type === 'text').map((b) => b.text ?? '').join('');
       if (!out) throw new Error('anthropic returned an empty response');
       return out;
@@ -239,9 +243,17 @@ export function createLLM(opts: LLMOptions): LLM {
       },
       ollamaHeaders,
       http,
-    )) as { response?: string; prompt_eval_count?: number; eval_count?: number };
+    )) as { response?: string; thinking?: string; done_reason?: string; prompt_eval_count?: number; eval_count?: number };
     report(o.onUsage, data.prompt_eval_count, data.eval_count);
     const out = data.response ?? '';
+    // Thinking models (deepseek-v4.1-flash:cloud) think before the answer, and the thinking counts against
+    // num_predict and the window: a SKILL.md at num_predict 4096 thought for all 4096 tokens and came back empty;
+    // uncapped it thought for ~9,000 and then wrote the file. A cut answer is an error, never a silent half file.
+    if (data.done_reason === 'length') {
+      throw new Error(out
+        ? 'ollama cut the answer off at the token limit'
+        : `ollama returned an empty response: the model spent its whole token limit ${data.thinking ? 'thinking' : 'without answering'}`);
+    }
     if (!out) throw new Error('ollama returned an empty response');
     return out;
   };

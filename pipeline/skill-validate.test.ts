@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { fenceErrors, readFrontmatter, validateSkill } from './skill-validate.ts';
+import { fenceErrors, readFrontmatter, skeletonLeftovers, validateSkill } from './skill-validate.ts';
 
 const ok = `---
 name: processing-invoices
@@ -23,6 +23,19 @@ test('a minimal portable skill passes', () => {
 test('the shipped template passes, like quick_validate.py does', () => {
   const template = readFileSync(new URL('../skill_rules/SKILL-template.md', import.meta.url), 'utf8');
   assert.equal(validateSkill(template, 'portable').valid, true);
+});
+
+test('unfilled template lines are listed; output slots like <alt text> are not', () => {
+  const template = readFileSync(new URL('../skill_rules/SKILL-template.md', import.meta.url), 'utf8');
+  const check = validateSkill(template, 'portable');
+  assert.ok(check.leftovers.some((l) => l.includes('For <case>, use <alternative> instead')));
+  assert.ok(check.leftovers.includes('- [ ] Step 1: ...'));
+  assert.match(check.warnings.join(' '), /Unfilled template lines/);
+  // the line a real draft (history, case 44) shipped with
+  assert.equal(skeletonLeftovers('For <case>, use <alternative> instead: INSERT HERE: «INSERT HERE: fallback case».').length, 1);
+  const filled = ok + '\n````\n![<what happens, input -> result>](docs/demo/demo.gif)\n\nRecorded on <model, version>.\n````\n';
+  assert.deepEqual(validateSkill(filled, 'portable').leftovers, []);
+  assert.match(validateSkill(ok + '\nLicence: «INSERT HERE: licence».\n', 'portable').warnings.join(' '), /1 «INSERT HERE» placeholder to fill/);
 });
 
 test('name rules mirror quick_validate.py and the reserved words', () => {
