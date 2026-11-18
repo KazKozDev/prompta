@@ -148,7 +148,7 @@ test('digest: prompta itself, every source file attached, keeps the facts a skil
   assert.ok(text.length <= BUDGET);
   assert.match(text, /"test": "node --test/, 'package.json scripts');
   assert.match(text, /npm run pipeline -- /, 'a README command block');
-  assert.match(text, /## Quick start/, 'README headings');
+  assert.match(text, /## quick start/i, 'README headings');
   assert.match(text, /export async function generateInstructions\(/, 'a pipeline signature');
   const isTest = (path: string) => /(\.test\.ts|\/test_[^/]+\.py)$/.test(path);
   const ranked = rankFiles('write AGENTS.md for this repository', files).map((i) => files[i]!.path);

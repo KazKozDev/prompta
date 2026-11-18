@@ -1,170 +1,120 @@
-# Prompta — prompt generator for Claude, ChatGPT, Gemini and Grok
+# prompta
 
-Turn a messy stream of thoughts into a ready prompt, with a zero-shot baseline to compare.
+Prompta turns a rough, stream-of-thoughts request into a structured prompt for Claude, ChatGPT, Gemini, Grok or an open-weight model, and gives you a zero-shot baseline to compare it against.
 
-```bash
+![a rough request typed into the desktop app becomes a system prompt with few-shot examples and stated assumptions](docs/demo.gif)
+
+The GIF is a real run of the desktop app on `deepseek-v4.1-flash:cloud`. The wait for the model is sped up; the run itself took about a minute.
+
+There is one TypeScript pipeline in `pipeline/` and three ways to call it: a PyQt6 window for macOS, a CLI and an MCP server. The pipeline itself has no npm dependencies. Node 22.18+ runs the `.ts` files directly (`package.json` engines), so there is no build step.
+
+## install
+
+You need Node.js 22.18+ and Python 3.12 (the version CI uses). From the repo root:
+
+```
 python3 -m pip install -r desktop/requirements.txt
 ```
 
-![Prompta desktop app turning a rough request into a structured prompt](https://raw.githubusercontent.com/KazKozDev/prompta/main/docs/preview-desktop.png)
+This installs pinned PyQt6, which only the desktop app needs. The CLI and MCP server need nothing beyond Node. Dev tools for tests and typechecking:
 
-Runs on Ollama, no key · Official guides with source links · MIT
-
----
-
-## Quick start
-
-You need Node.js 22.18+ and Python 3.12. The pipeline itself has no npm dependencies. In the repository root:
-
-```bash
-python3 -m pip install -r desktop/requirements.txt && python3 desktop/app.py
+```
+npm ci
 ```
 
-The macOS window opens; pick a provider and model in Settings. Or run the same pipeline from the terminal
-on an Ollama cloud model (through the local Ollama daemon, no API key):
+## quick start
 
-```bash
+Desktop app (macOS):
+
+```
+python3 desktop/app.py
+```
+
+Pick a provider and model in Settings. CLI, on an Ollama cloud model through the local Ollama daemon (no API key needed):
+
+```
 npm run pipeline -- "sort support emails into billing/shipping/returns, strict JSON" --provider ollama --model deepseek-v4.1-flash:cloud
 ```
+
+what you should see (abridged, from an earlier run of this command):
 
 ```
 Task: Classify support emails into billing, shipping, or returns and return strict JSON.
 Type: classification | language: en | stakes: medium
-...
 Technique: Few-shot (one-shot) (few_shot), confidence 86%
-Why not cheaper: zero_shot is cheaper but cannot reliably enforce the strict JSON schema and category boundaries, so it is not suitable here.
-...
+Why not cheaper: zero_shot is cheaper but cannot reliably enforce the strict JSON schema ...
 Usage: 4 calls, tokens 5212 → 10632
 Warnings: Prompt-injection guard added: input material is treated as data
 Filtered out before selection: 80 techniques
 ```
 
-The run took 43 s. The prompt follows the language of the request.
+That run took 43 s. The output depends on the model, so yours will differ.
 
-## Turn a rough request into a structured prompt
+MCP server for Claude Code (two tools: `improve_prompt` and `suggest_next_prompts`):
 
-Write what you want the way you would say it. Prompta parses it into a brief (goal, format,
-constraints, assumptions), asks up to 3 questions about missing facts, picks the cheapest of
-90 catalogued techniques that fits, and builds 1–5 prompt variants plus a zero-shot baseline.
-
-```bash
-npm run pipeline -- "summarise meeting notes into action items with owners" --provider ollama --model deepseek-v4.1-flash:cloud --budget 1
 ```
-
-`--budget 1` keeps only one-call techniques: in this run 81 were filtered out and it chose
-`contextual_prompting`. In the app, edit the **What I assumed** card and press
-**Rebuild** to regenerate from the corrected brief.
-
-## Write prompts from official Claude, ChatGPT, Gemini and Grok guides
-
-Pick **For Claude**, **For ChatGPT**, **For Gemini**, **For Grok** or **Hermes** in the app. The prompt is
-then compiled only from rule sets saved in `*_prompt_rules/` and `hermes_agent_prompt_guides/`, and each
-result lists the rule IDs and official source links it used. 15 open-weight models (DeepSeek, GLM, Kimi,
-Mistral, Gemma, gpt-oss and others) have their own saved guides in `open_model_prompt_guides/`.
-
-The generator model stays whatever you selected; the target only decides which rules apply.
-
-## Improve prompts from Claude Code or Cursor via MCP
-
-The MCP server exposes two tools to any MCP client: `improve_prompt` (rough request → structured prompt,
-`target`: `auto`, `claude`, `chatgpt`, `gemini`, `grok`, `hermes`) and `suggest_next_prompts`
-(conversation → next messages to send).
-
-```bash
 claude mcp add prompta -e PROMPTA_MODEL=deepseek-v4.1-flash:cloud -- node /absolute/path/to/prompta/mcp/server.ts
 ```
 
-Then ask the agent "improve this prompt with prompta for Claude". Config for Cursor and Claude Desktop is in
-[mcp/README.md](mcp/README.md).
+Config for Cursor and Claude Desktop is in `mcp/README.md`.
 
-## How it works
-
-The desktop app, the CLI and the MCP server all call the same TypeScript pipeline; the PyQt6 window talks
-to it through `desktop/bridge.ts` (JSON in, JSON out). Each stage's model output is validated: an unknown
-task type or a technique outside the catalog is an error, not a guess. Techniques without a template are
-gated out before the model sees them. Pasted documents and agent context are passed as delimited data,
-and prompts that process third-party material get a data-not-instructions rule.
+## how it works
 
 ```
 thoughts → brief → technique gate → selection → synthesis → prompt + zero-shot baseline
 ```
 
-## Configuration
+`brief.ts` parses the request into a brief: goal, format, language, stakes and call budget. The clarify step asks up to 3 questions about missing facts. `catalog.ts` then filters the 90 techniques in `catalog/catalog.json` deterministically, by type, status and budget, before the model sees any of them. `select.ts` picks the cheapest technique that fits and says why nothing cheaper would work. `synthesize.ts` fills that technique's template. An unknown task type or a technique outside the catalog is an error, not a guess.
 
-| Option (`npm run pipeline`) | Default | What it does |
-|---|---|---|
-| `--provider` | `gemini` | `gemini`, `openai`, `ollama`, `anthropic` or `xai` |
-| `--model` | `gemini-2.5-flash` | Generator model name, e.g. `deepseek-v4.1-flash:cloud` with `ollama` |
-| `--budget` | from the brief | Maximum model calls a technique may need |
-| `--deterministic` | off | Fill the technique template without the synthesis call |
-| `--execution-profile` | `universal` | Where the prompt runs: `universal`, `web`, `local` or `agent` |
-| `--agent-capabilities` | none | With `agent`: comma list of `web`, `files`, `code`, `integrations` |
-| `--json` | off | Print the full result as JSON |
+With a named target (`claude`, `chatgpt`, `gemini`, `grok`, `hermes`), the prompt is compiled only from the saved rule sets in `*_prompt_rules/` and `hermes_agent_prompt_guides/`, and the result lists the rule IDs and source links it used. 15 open-weight models have their own saved guides in `open_model_prompt_guides/`. The generator model stays whatever you picked; the target only decides which rules apply.
 
-### Environment variables
+Pasted documents and agent context go in as delimited data. A prompt that processes someone else's material gets a data-not-instructions rule (`injection.ts`).
 
-Read from the environment or `.env.local` in the repository root.
+## cli flags
 
-| Variable | Required | What it does |
-|---|---|---|
-| `GEMINI_API_KEY` · `OPENAI_API_KEY` · `ANTHROPIC_API_KEY` · `XAI_API_KEY` | for that provider | Provider key |
-| `OLLAMA_HOST` | no | Ollama address; `https://ollama.com` for Ollama Cloud without a daemon, with `OLLAMA_API_KEY` |
-| `PROMPTA_PROVIDER` · `PROMPTA_MODEL` · `PROMPTA_API_KEY` · `PROMPTA_BASE_URL` | no | MCP server model settings; default provider `ollama` |
-| `PROMPTA_HISTORY_MAX` · `PROMPTA_HISTORY_DAYS` | no | Desktop history size (default 500, `-1` turns it off) and age limit |
+From `pipeline/cli.ts`:
 
-## Requirements
+- `--provider` - `gemini` (default), `openai`, `ollama`, `anthropic`, `xai`
+- `--model` - generator model, default `gemini-2.5-flash`
+- `--budget N` - max model calls a technique may need; by default taken from the brief
+- `--deterministic` - fill the template without the synthesis call
+- `--execution-profile` - `universal` (default), `web`, `local`, `agent`
+- `--agent-capabilities` - with `agent`: comma list of `web,files,code,integrations`
+- `--json` - print the full result as JSON
 
-- Node.js 22.18+ (runs `.ts` files directly; CI uses Node 22)
-- macOS for the desktop app (documented as macOS 12+), Python 3.12 with PyQt6
-- Pipeline, CLI and MCP server: macOS or Linux (offline tests run on Ubuntu in CI)
-- A model: Ollama (local or `:cloud`, no key), or an API key for Gemini, OpenAI or a compatible API, Anthropic, xAI
-- Optional dictation: local Whisper, model downloaded from Settings → Dictation; from source also `.venv-whisper` ([setup](desktop/README.md#local-whisper-dictation))
+Keys come from the environment or `.env.local` in the repo root: `GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `XAI_API_KEY`. For Ollama, set `OLLAMA_HOST`, plus `OLLAMA_API_KEY` for the direct ollama.com API. The MCP server reads `PROMPTA_PROVIDER` (default `ollama`), `PROMPTA_MODEL`, `PROMPTA_API_KEY` and `PROMPTA_BASE_URL`.
 
-## Limitations
+## layout
 
-- No signed or downloadable build: the app runs from source, and `build_app.sh` makes a local launcher only.
-- Windows is untested; the desktop app is macOS only.
-- The CLI has no target flag; official-guide targets are in the desktop app and the MCP server.
-- One request at a time in the app; a build takes tens of seconds (43 s in the example above).
-- Official rule sets are dated snapshots; `source-drift` CI flags upstream changes but does not update them.
+- `pipeline/` - the pipeline; start at `cli.ts`, then `brief.ts`, `select.ts`, `synthesize.ts`. `llm.ts` has the provider adapters on plain `fetch`
+- `catalog/` - the technique catalog and its validator `validate.py`
+- `*_prompt_rules/`, `hermes_agent_prompt_guides/`, `open_model_prompt_guides/` - dated snapshots of the official guides, plus the rules taken from them
+- `agent_rules/`, `skill_rules/`, `instructions_rules/` - rules for writing agent prompts, skills and AGENTS.md-style instruction files
+- `desktop/` - the PyQt6 app; `bridge.ts` passes JSON between the window and the pipeline, so no pipeline logic lives in Python
+- `mcp/server.ts` - the MCP server
+- `eval/` - live evaluation: 28 tasks in `tasks.json`, a rubric judge and a regression gate
 
-<details>
-<summary>macOS app bundle, keys and privacy, development</summary>
+## tests
 
-### macOS app bundle
-
-```bash
-./desktop/build_app.sh && open release/Prompta.app
+```
+npm test && npm run typecheck && python3 catalog/validate.py
 ```
 
-### Keys and privacy
+The offline tests run on Ubuntu in CI, and the desktop tests on macOS. To run the CI lint and type gates before every commit:
 
-History is local, in `~/Library/Application Support/Prompta/history.sqlite3`, owner-only, without API keys.
-With **Remember in Keychain** on, the app saves keys in the macOS login Keychain. Connecting the MCP server
-from the app writes the key into that client's MCP config. MCP context is trimmed and secrets are redacted.
-
-### Development
-
-```bash
-npm ci && npm test && npm run typecheck && python3 catalog/validate.py
 ```
-
-The same lint and type gates as CI run before each commit once the hook is on:
-
-```bash
 git config core.hooksPath .githooks
 ```
 
-Live evaluation (28 tasks, 10 with injected commands, rubric judge, regression gate) is in [eval/](eval/README.md).
+## notes
 
-</details>
+- The desktop app is macOS only. Windows is untested.
+- `./desktop/build_app.sh` makes a local launcher. `./desktop/build_standalone.sh` makes an Apple Silicon `.app` and `.dmg` that is signed ad hoc and not notarized, so on another Mac the first launch has to be allowed in Privacy & Security. See `desktop/README.md`.
+- The CLI has no target flag. Named targets are available in the desktop app and the MCP server.
+- The app runs one request at a time, and a build takes from tens of seconds to about a minute, depending on the model (43 s and 59 s in the two runs above).
+- The official rule sets are dated snapshots. The `source-drift` workflow flags upstream changes but does not update the snapshots.
+- History is stored locally in `~/Library/Application Support/Prompta/history.sqlite3`, without API keys. Keys go to the macOS Keychain only if you turn on Remember in Keychain.
 
----
+## license
 
-<div align="center">
-
-![macOS](https://img.shields.io/badge/macOS-333?style=flat-square&logo=apple&logoColor=fff) ![Linux](https://img.shields.io/badge/Linux-333?style=flat-square&logo=linux&logoColor=fff) [![CI](https://img.shields.io/github/actions/workflow/status/KazKozDev/prompta/ci.yml?style=flat-square&label=CI)](https://github.com/KazKozDev/prompta/actions/workflows/ci.yml) [![Node.js 22.18+](https://img.shields.io/badge/Node.js-22.18%2B-333?style=flat-square&logo=nodedotjs&logoColor=fff)](.github/workflows/ci.yml) [![License MIT](https://img.shields.io/badge/License-MIT-333?style=flat-square)](LICENSE)
-
-[Issues](https://github.com/KazKozDev/prompta/issues) · [License](LICENSE) · [Pipeline](pipeline/README.md) · [MCP server](mcp/README.md) · [Desktop app](desktop/README.md) · [Evaluation](eval/README.md) · [LinkedIn](https://www.linkedin.com/in/kazkozdev/)
-
-</div>
+MIT, see `LICENSE`.
