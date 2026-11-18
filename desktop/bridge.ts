@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { loadCatalog } from '../pipeline/catalog.ts';
 import { runPipeline } from '../pipeline/index.ts';
 import { promptVersion } from '../pipeline/prompt-version.ts';
+import { parseTarget, TARGET_LABELS } from '../pipeline/target.ts';
 import { extractJson } from '../pipeline/json.ts';
 import { createLLM, meterLLM } from '../pipeline/llm.ts';
 import { generateManualPrompt } from '../pipeline/manual.ts';
@@ -50,12 +51,8 @@ interface BridgeRequest {
   apiKey?: string;
   baseUrl?: string;
   deterministic?: boolean;
-  claudeOnly?: boolean;
-  chatgptOnly?: boolean;
-  geminiOnly?: boolean;
-  grokOnly?: boolean;
-  hermesOnly?: boolean;
-  openModel?: string;
+  /** The model the prompt is written for: "claude" … "hermes" or "open:<model id>"; absent — any LLM. */
+  target?: string;
   budgetCalls?: number | null;
   /** The technique list for the UI dropdown. */
   listTechniques?: boolean;
@@ -122,12 +119,7 @@ async function main() {
   const filesUsed = files.length ? Object.fromEntries(files.map((file, i) => [file.path, uses[i] ?? 'tree'])) : undefined;
   const reply = (payload: Record<string, unknown>) => process.stdout.write(JSON.stringify(filesUsed ? { ...payload, filesUsed } : payload));
 
-  for (const key of ['claudeOnly', 'chatgptOnly', 'geminiOnly', 'grokOnly', 'hermesOnly'] as const) {
-    if (req[key] !== undefined && typeof req[key] !== 'boolean') throw new Error(`${key} must be a boolean.`);
-  }
-  if ([req.claudeOnly, req.chatgptOnly, req.geminiOnly, req.grokOnly, req.hermesOnly, req.openModel].filter(Boolean).length > 1) throw new Error('Choose only one target.');
-
-  if (req.openModel !== undefined && (typeof req.openModel !== 'string' || !req.openModel.trim())) throw new Error('Invalid target model.');
+  const target = parseTarget(req.target);
   const provider = req.provider ?? 'ollama';
   const model = req.model ?? '';
   if (!model) throw new Error('Choose a model');
@@ -153,7 +145,6 @@ async function main() {
     const clean = brief && sanitizeBrief(brief, thoughts).brief;
     return clean && files.length ? { ...clean, input: attachedInput(files, clean.language) } : clean;
   };
-  const officialMode = req.claudeOnly || req.chatgptOnly || req.geminiOnly || req.grokOnly || req.hermesOnly || req.openModel;
 
   // What the request leaves open: asked once, then the window's edited answers come back on Rebuild.
   const getClarify = async (kind: ClarifyKind) => {
@@ -171,7 +162,7 @@ async function main() {
   }
   if (req.agent !== undefined) {
     if (!AGENT_TARGETS.includes(req.agent)) throw new Error(`agent must be one of ${AGENT_TARGETS.join(', ')}.`);
-    if (officialMode || req.manualTechnique || req.manualTechniques) throw new Error('An agent cannot be combined with a prompt target or technique.');
+    if (target || req.manualTechnique || req.manualTechniques) throw new Error('An agent cannot be combined with a prompt target or technique.');
     const clarify = await getClarify('agent');
     onProgress?.(30, 'Writing the agent');
     const agent = await generateAgent({ thoughts, llm, target: req.agent, clarify });
@@ -180,7 +171,7 @@ async function main() {
   }
   if (req.skill !== undefined) {
     if (!['portable', 'claudeCode'].includes(req.skill)) throw new Error('skill must be "portable" or "claudeCode".');
-    if (officialMode || req.manualTechnique || req.manualTechniques) throw new Error('A skill cannot be combined with a prompt target or technique.');
+    if (target || req.manualTechnique || req.manualTechniques) throw new Error('A skill cannot be combined with a prompt target or technique.');
     const clarify = await getClarify('skill');
     onProgress?.(30, 'Writing SKILL.md');
     const skill = await generateSkill({ thoughts, llm, surface: req.skill, clarify });
@@ -190,7 +181,7 @@ async function main() {
 
   if (req.instructions !== undefined) {
     if (!INSTRUCTION_TARGETS.includes(req.instructions)) throw new Error(`instructions must be one of ${INSTRUCTION_TARGETS.join(', ')}.`);
-    if (officialMode || req.manualTechnique || req.manualTechniques) throw new Error('Project instructions cannot be combined with a prompt target or technique.');
+    if (target || req.manualTechnique || req.manualTechniques) throw new Error('Project instructions cannot be combined with a prompt target or technique.');
     const clarify = await getClarify('instructions');
     onProgress?.(30, 'Writing project instructions');
     const instructions = await generateInstructions({ thoughts, llm, target: req.instructions, clarify });
@@ -198,7 +189,7 @@ async function main() {
     return;
   }
 
-  const catalog = officialMode && !req.listTechniques ? { version: 'official-only', techniques: [] } : loadCatalog(JSON.parse(readFileSync(join(root, 'catalog', 'catalog.json'), 'utf8')));
+  const catalog = target && !req.listTechniques ? { version: 'official-only', techniques: [] } : loadCatalog(JSON.parse(readFileSync(join(root, 'catalog', 'catalog.json'), 'utf8')));
 
   if (req.listTechniques) {
     const ready = catalog.techniques
@@ -220,7 +211,7 @@ async function main() {
     return;
   }
 
-  if (officialMode && req.manualTechniques) {
+  if (target && req.manualTechniques) {
     throw new Error('Official-guidance targets cannot use generic manual techniques.');
   }
 
@@ -274,9 +265,8 @@ async function main() {
     return;
   }
 
-  if (officialMode && req.manualTechnique) {
-    const target = req.claudeOnly ? 'Claude' : req.chatgptOnly ? 'ChatGPT' : req.geminiOnly ? 'Gemini' : req.grokOnly ? 'Grok' : 'Open-weight model';
-    throw new Error(`${target} mode cannot use a generic manual technique.`);
+  if (target && req.manualTechnique) {
+    throw new Error(`${TARGET_LABELS[target.kind]} mode cannot use a generic manual technique.`);
   }
 
   if (req.manualTechnique) {
@@ -337,12 +327,7 @@ async function main() {
     executionCapabilities,
     brief: revisedBrief,
     thoughts,
-    claudeOnly: req.claudeOnly === true,
-    chatgptOnly: req.chatgptOnly === true,
-    geminiOnly: req.geminiOnly === true,
-    grokOnly: req.grokOnly === true,
-    hermesOnly: req.hermesOnly === true,
-    openModel: req.openModel,
+    target,
     catalog,
     llm,
     mode: req.deterministic ? 'deterministic' : 'llm',

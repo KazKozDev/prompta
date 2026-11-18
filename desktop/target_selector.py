@@ -98,7 +98,7 @@ class TargetSelector(QWidget):
             key = target
         self.picker.set_current(key, emit=True)
 
-    def flags(self) -> dict[str, bool]:
-        """The request's official-target switches: claudeOnly, chatgptOnly, …"""
-        target = self.target()
-        return {f"{key}Only": key == target for key in OFFICIAL_TARGETS}
+    def request_field(self) -> dict[str, str]:
+        """The bridge's `target` (pipeline/target.ts): an official key or "open:<id>"; nothing for any LLM."""
+        key = self.picker.current_key()
+        return {"target": key} if key in OFFICIAL_TARGETS or key.startswith(OPEN_PREFIX) else {}

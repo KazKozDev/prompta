@@ -11,6 +11,8 @@ import { attachedInput } from './context.ts';
 import type { ProjectFile } from './context.ts';
 import { sanitizeBrief } from './injection.ts';
 import { promptVersion } from './prompt-version.ts';
+import { TARGET_LABELS } from './target.ts';
+import type { PromptTarget } from './target.ts';
 
 export interface RunOptions {
   oneShot?: boolean;
@@ -19,12 +21,8 @@ export interface RunOptions {
   executionCapabilities?: ExecutionCapabilities;
   /** Completed pipeline stages, not an estimate of elapsed time. */
   onProgress?: (percent: number, stage: string) => void;
-  claudeOnly?: boolean;
-  chatgptOnly?: boolean;
-  geminiOnly?: boolean;
-  grokOnly?: boolean;
-  hermesOnly?: boolean;
-  openModel?: string;
+  /** The model the prompt is written for; absent — any LLM, through the technique catalog. */
+  target?: PromptTarget;
   thoughts: string;
   catalog: Catalog;
   llm: LLM;
@@ -56,40 +54,23 @@ export async function runPipeline(opts: RunOptions): Promise<PipelineResult> {
   return { ...result, usage: meter.usage(), promptVersion: promptVersion() };
 }
 
+/** A target's prompt comes only from its saved guides: no offline substitution, no catalog technique. */
+async function dispatchTarget(opts: RunOptions, target: PromptTarget): Promise<PipelineResult> {
+  if (opts.mode === 'deterministic' || opts.techniqueKey) {
+    throw new PipelineError(`${TARGET_LABELS[target.kind]} mode requires LLM synthesis and cannot use a generic technique.`, 'target');
+  }
+  switch (target.kind) {
+    case 'claude': return (await import('./claude.ts')).runClaudePipeline(opts);
+    case 'chatgpt': return (await import('./chatgpt.ts')).runChatGPTPipeline(opts);
+    case 'gemini': return (await import('./gemini.ts')).runGeminiPipeline(opts);
+    case 'grok': return (await import('./grok.ts')).runGrokPipeline(opts);
+    case 'hermes': return (await import('./hermes.ts')).runHermesPipeline(opts);
+    case 'openModel': return (await import('./open-model.ts')).runOpenModelPipeline({ ...opts, openModel: target.model });
+  }
+}
+
 async function dispatch(opts: RunOptions): Promise<PipelineResult> {
-  if ([opts.claudeOnly, opts.chatgptOnly, opts.geminiOnly, opts.grokOnly, opts.hermesOnly, opts.openModel].filter(Boolean).length > 1) {
-    throw new PipelineError('Choose only one target.', 'target');
-  }
-  if (opts.hermesOnly) {
-    if (opts.mode === 'deterministic' || opts.techniqueKey) throw new PipelineError('Hermes Agent requires LLM synthesis without a generic technique.', 'hermes');
-    const { runHermesPipeline } = await import('./hermes.ts');
-    return runHermesPipeline(opts);
-  }
-  if (opts.openModel) {
-    if (opts.mode === 'deterministic' || opts.techniqueKey) throw new PipelineError('Model-specific prompting requires synthesis without a generic technique.', 'target');
-    const { runOpenModelPipeline } = await import('./open-model.ts');
-    return runOpenModelPipeline({ ...opts, openModel: opts.openModel });
-  }
-  if (opts.grokOnly) {
-    if (opts.mode === 'deterministic' || opts.techniqueKey) throw new PipelineError('Grok mode requires LLM synthesis and cannot use a generic technique.', 'target');
-    const { runGrokPipeline } = await import('./grok.ts');
-    return runGrokPipeline(opts);
-  }
-  if (opts.chatgptOnly || opts.geminiOnly) {
-    const label = opts.chatgptOnly ? 'ChatGPT' : 'Gemini';
-    if (opts.mode === 'deterministic' || opts.techniqueKey) throw new PipelineError(`${label} mode requires LLM synthesis and cannot use a generic technique.`, 'target');
-    if (opts.chatgptOnly) {
-      const { runChatGPTPipeline } = await import('./chatgpt.ts');
-      return runChatGPTPipeline(opts);
-    }
-    const { runGeminiPipeline } = await import('./gemini.ts');
-    return runGeminiPipeline(opts);
-  }
-  if (opts.claudeOnly) {
-    if (opts.mode === 'deterministic' || opts.techniqueKey) throw new PipelineError('Claude mode requires LLM synthesis and cannot use a generic technique.', 'claude');
-    const { runClaudePipeline } = await import('./claude.ts');
-    return runClaudePipeline(opts);
-  }
+  if (opts.target) return dispatchTarget(opts, opts.target);
   const mode = opts.mode ?? 'llm';
   const trace: PipelineTrace[] = [];
   const t0 = () => performance.now();

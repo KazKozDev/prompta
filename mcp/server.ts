@@ -18,6 +18,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { loadCatalog } from '../pipeline/catalog.ts';
 import { composeThoughts } from '../pipeline/context.ts';
 import { runPipeline } from '../pipeline/index.ts';
+import { parseTarget } from '../pipeline/target.ts';
 import { apiKeyEnv, createLLM, isLocalHost, PROVIDERS } from '../pipeline/llm.ts';
 import type { Provider } from '../pipeline/llm.ts';
 import { suggestNextPrompts } from '../pipeline/suggest.ts';
@@ -137,11 +138,7 @@ export function createServer(deps: ServerDeps) {
         llm,
         variants,
         executionCapabilities,
-        claudeOnly: target === 'claude',
-        chatgptOnly: target === 'chatgpt',
-        geminiOnly: target === 'gemini',
-        hermesOnly: target === 'hermes',
-        grokOnly: target === 'grok',
+        target: target === 'auto' ? undefined : parseTarget(target),
         onProgress: progress,
       });
       const { text, structured } = formatImprove(result);

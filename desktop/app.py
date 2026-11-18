@@ -652,7 +652,7 @@ class PromptaWindow(QMainWindow):
         payload = {
             "thoughts": thoughts,
             **generator,  # provider, model, key and URL
-            **self.target_selector.flags(),
+            **self.target_selector.request_field(),
             "variants": self.variants.value(),
             **self._files_field(),
         }
@@ -660,8 +660,6 @@ class PromptaWindow(QMainWindow):
         payload["executionProfile"] = profile
         if profile == "agent":
             payload["agentCapabilities"] = list(self.execution_profile.AGENT_CAPABILITIES)
-        if self.target_selector.open_model():
-            payload["openModel"] = self.target_selector.open_model()
         if technique_keys:
             if len(technique_keys) == 1:
                 payload["manualTechnique"] = technique_keys[0]

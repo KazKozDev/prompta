@@ -36,7 +36,7 @@ test('Grok archive and every active recommendation match downloaded official sou
 
 test('Grok generates five sourced variants without the generic catalog or API advice', async () => {
   let request = '';
-  const result = await runPipeline({ thoughts: 'Classify 2, 3, 4', grokOnly: true, variants: 5,
+  const result = await runPipeline({ thoughts: 'Classify 2, 3, 4', target: { kind: 'grok' }, variants: 5,
     catalog: { version: 'unused', get techniques(): never { throw new Error('Generic catalog accessed'); } },
     llm: async (prompt) => { request = prompt; return reply(); } });
   assert.match(request, /targeted at Grok/);
@@ -47,12 +47,11 @@ test('Grok generates five sourced variants without the generic catalog or API ad
   assert.equal(result.synthesis.config.temperature, 0.1, 'computed from the task (classification), not left empty');
 });
 
-test('Grok rejects missing rules, mixed targets, and synthesis bypasses', async () => {
+test('Grok rejects missing rules and synthesis bypasses', async () => {
   let calls = 0;
   await assert.rejects(runGrokPipeline({ thoughts: 'Test', variants: 5, llm: async () => { calls++; return reply(5, ['clear', 'invented']); } }), /official rule IDs/);
   assert.equal(calls, 3, 'one retry plus the zero-shot call');
-  const base = { thoughts: 'Test', grokOnly: true, catalog: { version: 'unused', techniques: [] }, llm: async () => { throw new Error('Must not call'); } };
-  await assert.rejects(runPipeline({ ...base, geminiOnly: true }), /only one target/);
+  const base = { thoughts: 'Test', target: { kind: 'grok' } as const, catalog: { version: 'unused', techniques: [] }, llm: async () => { throw new Error('Must not call'); } };
   await assert.rejects(runPipeline({ ...base, mode: 'deterministic' }), /cannot use a generic technique/);
   await assert.rejects(runPipeline({ ...base, techniqueKey: 'zero_shot' }), /cannot use a generic technique/);
 });

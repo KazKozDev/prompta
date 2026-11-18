@@ -56,14 +56,12 @@ class TargetSelectorTest(unittest.TestCase):
         self.assertIsNone(self.selector.target())
         self.assertEqual(self.selector.open_model(), "")
         self.assertEqual(self.selector.picker.text(), "— any LLM —")
-        self.assertFalse(any(self.selector.flags().values()))
+        self.assertEqual(self.selector.request_field(), {})
 
-    def test_official_target_sets_exactly_one_flag(self):
+    def test_official_target_is_the_request_target(self):
         self.selector.picker._choose("grok")
         self.assertEqual(self.selector.target(), "grok")
-        flags = self.selector.flags()
-        self.assertEqual(set(flags), {f"{key}Only" for key in OFFICIAL_TARGETS})
-        self.assertEqual([key for key, on in flags.items() if on], ["grokOnly"])
+        self.assertEqual(self.selector.request_field(), {"target": "grok"})
         self.assertEqual(self.changes, ["grok"])
 
     def test_open_model_target(self):
@@ -71,7 +69,7 @@ class TargetSelectorTest(unittest.TestCase):
         self.assertEqual(self.selector.target(), "openModel")
         self.assertEqual(self.selector.open_model(), "glm")
         self.assertEqual(self.selector.open_model_label(), "GLM 5")
-        self.assertFalse(any(self.selector.flags().values()), "an open model is not an official target")
+        self.assertEqual(self.selector.request_field(), {"target": "open:glm"})
 
     def test_set_target_restores_and_falls_back(self):
         self.selector.set_target("openModel", self.selector.open_model_id("Qwen A"))

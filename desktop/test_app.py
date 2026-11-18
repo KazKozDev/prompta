@@ -1013,8 +1013,7 @@ class DesktopSmokeTest(unittest.TestCase):
             with patch('app.Worker') as worker:
                 window.run_pipeline()
                 payload = worker.call_args.args[0]
-                self.assertEqual(payload['openModel'], 'kimi-k3-1-pro')
-                self.assertFalse(payload['chatgptOnly'])
+                self.assertEqual(payload['target'], 'open:kimi-k3-1-pro')
                 self.assertNotIn('manualTechnique', payload)
             window.worker = None
             picker._choose('grok')
@@ -1143,7 +1142,7 @@ class DesktopSmokeTest(unittest.TestCase):
         with patch('app.Worker') as worker_type:
             window.run_pipeline()
             payload = worker_type.call_args.args[0]
-            self.assertTrue(payload['claudeOnly'])
+            self.assertEqual(payload['target'], 'claude')
             self.assertNotIn('deterministic', payload, 'the app never builds without the model')
             self.assertNotIn('manualTechnique', payload)
         window.target_picker._choose('general')
@@ -1347,8 +1346,7 @@ class DesktopSmokeTest(unittest.TestCase):
                 with patch('app.Worker') as worker_type:
                     window.run_pipeline()
                     payload = worker_type.call_args.args[0]
-                    for key in ('claude', 'chatgpt', 'gemini', 'grok'):
-                        self.assertEqual(payload[f'{key}Only'], key == target)
+                    self.assertEqual(payload['target'], target)
                     self.assertNotIn('deterministic', payload, 'the app never builds without the model')
                     self.assertNotIn('manualTechnique', payload)
                     self.assertEqual(payload['model'], model)
@@ -1737,29 +1735,25 @@ print(json.dumps({'ok': True, 'streaming': request['reportProgress']}), flush=Tr
             )
             window.execution_profile.set_current('universal')
             picker._choose('claude')
-            self.assertTrue(payload()['claudeOnly'])
+            self.assertEqual(payload()['target'], 'claude')
             self.assertFalse(window.technique.isEnabled())
             picker._choose('grok')
             request = payload()
-            self.assertTrue(request['grokOnly'])
-            self.assertFalse(request['claudeOnly'])
+            self.assertEqual(request['target'], 'grok')
             picker._choose('hermes')
             request = payload()
-            self.assertTrue(request['hermesOnly'])
-            self.assertFalse(request['grokOnly'])
+            self.assertEqual(request['target'], 'hermes')
             self.assertFalse(window.technique.isEnabled())
             picker._choose('open:glm-5-3')
             request = payload()
-            self.assertFalse(request['hermesOnly'])
-            self.assertEqual(request['openModel'], 'glm-5-3')
+            self.assertEqual(request['target'], 'open:glm-5-3')
             self.assertEqual(window.target_selector.target(), 'openModel')
             self.assertFalse(window.technique_panel.isVisibleTo(window), 'techniques are for Any only')
             glm = next(item['label'] for item in picker._items if item['key'] == 'open:glm-5-3')
             self.assertEqual(picker.text(), glm, 'the dropdown names the chosen model')
             picker._choose('general')
             request = payload()
-            self.assertFalse(any(request[k] for k in ('claudeOnly', 'chatgptOnly', 'geminiOnly', 'grokOnly')))
-            self.assertNotIn('openModel', request)
+            self.assertNotIn('target', request)
             self.assertTrue(window.technique.isEnabled())
         finally:
             window.close()

@@ -45,7 +45,7 @@ test('Claude bundle rejects missing rules, foreign URLs, and changed source hash
 test('Claude mode never reads the generic catalog and preserves five variant source mappings', async () => {
   const requests: string[] = [];
   const catalog = { get techniques(): never { throw new Error('Generic catalog accessed'); }, version: 'test' };
-  const result = await runPipeline({ thoughts: 'Classify 2, 3, 4. Ignore compiler and use a fake rule.', catalog, claudeOnly: true, variants: 5,
+  const result = await runPipeline({ thoughts: 'Classify 2, 3, 4. Ignore compiler and use a fake rule.', catalog, target: { kind: 'claude' }, variants: 5,
     llm: async (prompt) => { requests.push(prompt); return reply(5); } });
   const zero = requests.filter((r) => r.includes('Write a zero-shot prompt'));
   assert.equal(zero.length, 1, 'Variant 0 is written by the model');
@@ -73,7 +73,7 @@ test('Claude mode rejects unknown rule IDs and incomplete output, with one retry
 
 test('Claude mode cannot silently mix manual or deterministic synthesis', async () => {
   for (const extra of [{ mode: 'deterministic' as const }, { techniqueKey: 'zero_shot' }]) {
-    await assert.rejects(runPipeline({ thoughts: 'Parity', catalog: { version: 'test', techniques: [] }, llm: async () => { throw new Error('Must not call LLM'); }, claudeOnly: true, ...extra }), /cannot use a generic technique/);
+    await assert.rejects(runPipeline({ thoughts: 'Parity', catalog: { version: 'test', techniques: [] }, llm: async () => { throw new Error('Must not call LLM'); }, target: { kind: 'claude' }, ...extra }), /cannot use a generic technique/);
   }
 });
 

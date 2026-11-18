@@ -15,7 +15,7 @@ test('all fifteen prompting targets load pinned and verified model-specific sour
 });
 test('open-model target reaches synthesis, retains provenance and excludes other providers', async () => {
   let instructions = '';
-  const opts = { thoughts: 'Classify 2, 3, 4 by parity', openModel: 'gemma-4-31b', catalog: { version: 'test', techniques: [] }, variants: 1,
+  const opts = { thoughts: 'Classify 2, 3, 4 by parity', target: { kind: 'openModel', model: 'gemma-4-31b' } as const, catalog: { version: 'test', techniques: [] }, variants: 1,
     llm: async (prompt: string) => {
       instructions = prompt;
       return JSON.stringify({ brief: { goal: 'Classify integers', task_type: 'classification', input: '2, 3, 4', output_format: 'JSON', constraints: [], language: 'en', modality: 'text', stakes: 'low', assumptions: [], budget_calls: null },
@@ -24,8 +24,7 @@ test('open-model target reaches synthesis, retains provenance and excludes other
   const result = await runPipeline(opts);
   assert.ok(instructions.includes('Exact target: Gemma 4 31B IT'));
   assert.ok(!instructions.includes('no exact target model is selected'));
-  assert.equal(result.openModelGuidance?.rules[0].source_url, loadOpenModel(opts.openModel).rule.source_url);
+  assert.equal(result.openModelGuidance?.rules[0].source_url, loadOpenModel(opts.target.model).rule.source_url);
   assert.equal(result.alternatives?.length, 0);
-  await assert.rejects(runPipeline({ ...opts, grokOnly: true }), /Choose only one target/);
-  await assert.rejects(runPipeline({ ...opts, techniqueKey: 'zero_shot' }), /requires synthesis/);
+  await assert.rejects(runPipeline({ ...opts, techniqueKey: 'zero_shot' }), /cannot use a generic technique/);
 });

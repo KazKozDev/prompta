@@ -90,24 +90,24 @@ test('bridge: manual technique does not ignore the LLM-synthesis ban', () => {
 
 test('bridge: Claude-only mode rejects manual and deterministic bypasses', () => {
   for (const extra of [{ manualTechnique: 'zero_shot' }, { deterministic: true }]) {
-    const { data } = call({ thoughts: 'Synthetic parity test', model: 'dummy', claudeOnly: true, ...extra });
+    const { data } = call({ thoughts: 'Synthetic parity test', model: 'dummy', target: 'claude', ...extra });
     assert.equal(data.ok, false);
     assert.match(String(data.error), /Claude mode/);
   }
 });
 
-test('bridge: all official modes reject conflicting flags, wrong types, and manual bypasses', () => {
+test('bridge: all official modes reject unknown targets, wrong types, and manual bypasses', () => {
   for (const extra of [
-    { claudeOnly: true, chatgptOnly: true }, { chatgptOnly: true, geminiOnly: true },
-    { chatgptOnly: 'true' }, { geminiOnly: 1 },
-    { chatgptOnly: true, manualTechnique: 'zero_shot' }, { geminiOnly: true, manualTechnique: 'zero_shot' },
-    { chatgptOnly: true, deterministic: true }, { geminiOnly: true, deterministic: true },
-    { grokOnly: 'true' }, { grokOnly: true, claudeOnly: true },
-    { grokOnly: true, manualTechnique: 'zero_shot' }, { grokOnly: true, deterministic: true },
+    { target: 'claude,chatgpt' }, { target: 'open:' }, { target: 'llama' },
+    { target: true }, { target: 1 },
+    { target: 'chatgpt', manualTechnique: 'zero_shot' }, { target: 'gemini', manualTechnique: 'zero_shot' },
+    { target: 'chatgpt', deterministic: true }, { target: 'gemini', deterministic: true },
+    { target: 'grok', manualTechnique: 'zero_shot' }, { target: 'grok', deterministic: true },
+    { target: 'open:gemma-4-31b', deterministic: true },
   ]) {
     const { data } = call({ thoughts: 'Synthetic parity test', model: 'dummy', ...extra });
     assert.equal(data.ok, false);
-    assert.match(String(data.error), /only one target|must be a boolean|cannot use a generic technique|cannot use a generic manual technique/);
+    assert.match(String(data.error), /Unknown target|must be a string|cannot use a generic technique|cannot use a generic manual technique/);
   }
 });
 
@@ -131,7 +131,7 @@ test('bridge: several techniques — input validation before the model call', ()
     [{ manualTechniques: ['zero_shot', 'no_such_technique'] }, /Unknown technique/],
     [{ manualTechniques: ['zero_shot', 'icl_knn_selection'] }, /procedure and cannot be combined/],
     [{ manualTechniques: ['zero_shot', 'few_shot'], deterministic: true }, /requires LLM synthesis/],
-    [{ manualTechniques: ['zero_shot', 'few_shot'], claudeOnly: true }, /cannot use generic manual techniques/],
+    [{ manualTechniques: ['zero_shot', 'few_shot'], target: 'claude' }, /cannot use generic manual techniques/],
   ];
   for (const [extra, error] of cases) {
     const { data } = call({ thoughts: 'синтетический тест', model: 'dummy', ...extra });
@@ -151,7 +151,7 @@ test('bridge: "Select all" — more than 10 techniques pass validation, more tha
 test('bridge: skill requests reject unknown surfaces and prompt targets before calling a model', () => {
   for (const payload of [
     { thoughts: 'x', model: 'dummy', skill: 'web' },
-    { thoughts: 'x', model: 'dummy', skill: 'portable', claudeOnly: true },
+    { thoughts: 'x', model: 'dummy', skill: 'portable', target: 'claude' },
     { thoughts: 'x', model: 'dummy', skill: 'portable', manualTechnique: 'few_shot' },
   ]) {
     const { data } = call(payload);
@@ -163,7 +163,7 @@ test('bridge: skill requests reject unknown surfaces and prompt targets before c
 test('bridge: instruction requests reject unknown targets, prompt targets and skills before calling a model', () => {
   for (const payload of [
     { thoughts: 'x', model: 'dummy', instructions: 'vim' },
-    { thoughts: 'x', model: 'dummy', instructions: 'agentsMd', chatgptOnly: true },
+    { thoughts: 'x', model: 'dummy', instructions: 'agentsMd', target: 'chatgpt' },
     { thoughts: 'x', model: 'dummy', instructions: 'cursor', manualTechnique: 'few_shot' },
     { thoughts: 'x', model: 'dummy', instructions: 'claudeMd', skill: 'portable' },
   ]) {
@@ -176,7 +176,7 @@ test('bridge: instruction requests reject unknown targets, prompt targets and sk
 test('bridge: agent requests reject unknown targets, prompt targets and other file modes before calling a model', () => {
   for (const payload of [
     { thoughts: 'x', model: 'dummy', agent: 'vim' },
-    { thoughts: 'x', model: 'dummy', agent: 'codex', claudeOnly: true },
+    { thoughts: 'x', model: 'dummy', agent: 'codex', target: 'claude' },
     { thoughts: 'x', model: 'dummy', agent: 'cursor', manualTechnique: 'few_shot' },
     { thoughts: 'x', model: 'dummy', agent: 'claudeCode', instructions: 'agentsMd' },
   ]) {

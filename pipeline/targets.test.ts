@@ -14,8 +14,8 @@ import { isOfficialSourceUrl } from './official.ts';
 import type { OfficialTarget } from './official.ts';
 
 const cases = [
-  { target: 'chatgpt' as const, flag: 'chatgptOnly' as const, key: 'chatgptGuidance' as const, label: 'ChatGPT', load: loadChatGPTRules, run: runChatGPTPipeline, rules: chatgptRules, sources: chatgptSources },
-  { target: 'gemini' as const, flag: 'geminiOnly' as const, key: 'geminiGuidance' as const, label: 'Gemini', load: loadGeminiRules, run: runGeminiPipeline, rules: geminiRules, sources: geminiSources },
+  { target: 'chatgpt' as const, key: 'chatgptGuidance' as const, label: 'ChatGPT', load: loadChatGPTRules, run: runChatGPTPipeline, rules: chatgptRules, sources: chatgptSources },
+  { target: 'gemini' as const, key: 'geminiGuidance' as const, label: 'Gemini', load: loadGeminiRules, run: runGeminiPipeline, rules: geminiRules, sources: geminiSources },
 ];
 const brief = { goal: 'Classify integers by parity', task_type: 'classification', input: '2, 3, 4', output_format: 'JSON', constraints: [], language: 'en', modality: 'text', stakes: 'low', assumptions: [], budget_calls: null };
 function reply(count = 1, rule = 'output-schema') {
@@ -56,7 +56,7 @@ for (const item of cases) {
   test(`${item.label}: routes five variants without reading the generic catalog`, async () => {
     let request = '';
     const catalog = { version: 'unused', get techniques(): never { throw new Error('Generic catalog accessed'); } };
-    const result = await runPipeline({ thoughts: 'Synthetic parity test', catalog, [item.flag]: true, variants: 5,
+    const result = await runPipeline({ thoughts: 'Synthetic parity test', catalog, target: { kind: item.target }, variants: 5,
       llm: async (prompt) => { request = prompt; return reply(5); } });
     assert.match(request, new RegExp(`targeted at ${item.label}`));
     assert.ok(!request.includes('"id":"legacy-prefill"'));
@@ -82,14 +82,11 @@ for (const item of cases) {
   });
 }
 
-test('official target modes reject simultaneous selection and generic synthesis bypasses', async () => {
+test('official target modes reject generic synthesis bypasses', async () => {
   const base = { thoughts: 'Synthetic parity', catalog: { version: 'unused', techniques: [] }, llm: async () => { throw new Error('Must not call model'); } };
-  for (const flags of [{ claudeOnly: true, chatgptOnly: true }, { claudeOnly: true, geminiOnly: true }, { chatgptOnly: true, geminiOnly: true }]) {
-    await assert.rejects(runPipeline({ ...base, ...flags }), /Choose only one target/);
-  }
   for (const item of cases) {
     for (const extra of [{ mode: 'deterministic' as const }, { techniqueKey: 'zero_shot' }]) {
-      await assert.rejects(runPipeline({ ...base, [item.flag]: true, ...extra }), /cannot use a generic technique/);
+      await assert.rejects(runPipeline({ ...base, target: { kind: item.target }, ...extra }), /cannot use a generic technique/);
     }
   }
 });
@@ -107,7 +104,7 @@ for (const item of cases) {
   test(`${item.label}: desktop example and topic instructions accompany real validation progress`, async () => {
     const updates: number[] = [];
     const result = await runPipeline({ thoughts: 'Classify integers', catalog: { version: 'test', techniques: [] },
-      [item.flag]: true, oneShot: true, onProgress: (percent) => updates.push(percent),
+      target: { kind: item.target }, oneShot: true, onProgress: (percent) => updates.push(percent),
       llm: async (prompt) => {
         assert.match(prompt, /Begin the final prompt with one short, relevant worked example/);
         assert.match(prompt, /brief.topic/);
@@ -128,7 +125,7 @@ test('Hermes Agent routes through saved guidance and preserves the revised brief
     thoughts: 'Classify the input numbers',
     brief: revised,
     catalog: { version: 'test', techniques: [] },
-    hermesOnly: true,
+    target: { kind: 'hermes' },
     executionCapabilities: { web: 'available' },
     llm: async (prompt) => {
       prompts.push(prompt);
