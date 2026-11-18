@@ -2,9 +2,9 @@
 
 Prompta turns a rough, stream-of-thoughts request into a structured prompt for Claude, ChatGPT, Gemini, Grok or an open-weight model, and gives you a zero-shot baseline to compare it against.
 
-![a rough request for release notes typed into the desktop app, two variants built: the zero-shot baseline, a System prompting prompt and a Few-shot prompt, side by side as tabs](docs/demo/demo.gif)
+![a rough request for release notes typed into the desktop app, two variants built: the zero-shot baseline, a Few-shot prompt and a Self-Refine prompt, side by side as tabs](docs/demo/demo.gif)
 
-The GIF is a real run of the desktop app on `deepseek-v4.1-flash:cloud` via Ollama, recorded with `docs/demo/record.py`. The wait for the model is sped up; the run itself took 56 seconds. The zooms are crops of the real window, rendered at 2x.
+The GIF is a real run of the desktop app on `deepseek-v4.1-flash:cloud` via Ollama, recorded with `docs/demo/record.py`. The wait for the model is cut out; the run itself took 52 seconds. The close-ups are crops of the real window, rendered at 2x.
 
 The desktop app has four tabs. Each one turns the same kind of rough request into a different file:
 
