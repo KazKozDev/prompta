@@ -7,6 +7,9 @@ The window renders offscreen (QWidget.grab): no cursor, no other windows, no scr
 HOME is a throwaway folder, so no history, settings or Keychain keys reach the frame. The pipeline and the
 model are real (Ollama at localhost:11434, MODEL defaults to deepseek-v4.1-flash:cloud); only the wait for
 the model is shortened, by showing each progress frame for 0.3 s.
+
+Scenario: type the request, pick 2 variants, Build; then flip through the result tabs (zero-shot baseline,
+then each technique's prompt) and scroll down to what the prompt adds over zero-shot.
 """
 
 from __future__ import annotations
@@ -20,10 +23,7 @@ from pathlib import Path
 
 OUT = Path(sys.argv[1] if len(sys.argv) > 1 else "demo-frames").resolve()
 MODEL = sys.argv[2] if len(sys.argv) > 2 else "deepseek-v4.1-flash:cloud"
-REQUEST = (
-    "I paste a raw changelog from our repo and want release notes for users: "
-    "what's new, what got fixed, no internal ticket numbers or jargon. short, markdown"
-)
+REQUEST = "turn a raw changelog into release notes for users: what's new, what's fixed, no ticket numbers"
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ["HOME"] = tempfile.mkdtemp(prefix="prompta-demo-home-")  # before app imports: paths derive from HOME
@@ -34,6 +34,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "desktop"))
 from unittest.mock import patch  # noqa: E402
 
 from PyQt6.QtCore import QSettings  # noqa: E402
+from PyQt6.QtWidgets import QTabWidget  # noqa: E402
 
 QSettings.setPath(QSettings.Format.IniFormat, QSettings.Scope.UserScope, os.environ["HOME"])  # not the real prefs
 
@@ -96,10 +97,22 @@ def main() -> int:
         qt.processEvents()
         if i % 2 == 1 or i == len(REQUEST) - 1:
             snap(50)  # 2 characters per frame, 50 ms per frame
-    snap(800)  # beat before Build
+    snap(600)
+
+    def press(button) -> None:
+        """Show the button held down for a moment (there is no cursor offscreen), then click it for real."""
+        button.setDown(True)
+        qt.processEvents()
+        snap(250)
+        button.setDown(False)
+        button.click()
+        pump(0.2)
+
+    press(window.variants.buttons.button(2))  # two prompts, built with different techniques
+    snap(500)
 
     started = time.monotonic()
-    window.run_pipeline()  # what Build and ⌘↵ call
+    press(window.run_button)  # Build: calls run_pipeline
 
     def state() -> tuple:
         return (window.status.text(), window.generation_progress.value())
@@ -117,7 +130,24 @@ def main() -> int:
             return 1
     pump(1.0)
     real = time.monotonic() - started
-    snap(5000)  # hold the result long enough to read
+    snap(2200)  # the first prompt
+
+    tabs = window.result_column.findChild(QTabWidget, "variantTabs")
+    if tabs is None:
+        print("no result tabs: the run failed, see the window status", flush=True)
+        window.grab().save(str(OUT / "failed.png"))
+        return 1
+    for index in (0, 2, 1):  # zero-shot baseline, the second technique, back to the first
+        tabs.setCurrentIndex(index)
+        pump(0.2)
+        snap(2000 if index == 0 else 1600)
+
+    bar = window.result_column.verticalScrollBar()  # down to "What it adds over zero-shot"
+    while bar.value() < bar.maximum():
+        bar.setValue(min(bar.maximum(), bar.value() + 14))
+        qt.processEvents()
+        snap(40)
+    snap(2800)
 
     (OUT / "frames.txt").write_text(
         "".join(f"file '{name}'\nduration {ms / 1000:.3f}\n" for name, ms in frames) + f"file '{frames[-1][0]}'\n"
