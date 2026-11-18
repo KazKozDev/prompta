@@ -2,7 +2,7 @@
 
 Prompta turns a rough, stream-of-thoughts request into a structured prompt for Claude, ChatGPT, Gemini, Grok or an open-weight model, and gives you a zero-shot baseline to compare it against.
 
-https://github.com/user-attachments/assets/eb53b856-eb92-4805-b193-1c8e703198fd
+https://github.com/user-attachments/assets/a0e466d1-8abf-4098-8850-2ec7262cec62
 
 The video is a real run of the desktop app on `deepseek-v4.1-flash:cloud` via Ollama, recorded with `docs/demo/record.py`. The wait for the model is cut out; the run itself took 52 seconds. The close-ups are crops of the real window, rendered at 2x.
 
