@@ -297,6 +297,14 @@ class DesktopSmokeTest(WindowTestCase):
         self.assertIn('When it hurts', read_material(ROOT, cot)[1], 'techniques read as pages, not JSON')
         claude = next(e for e in entries if e['category'] == 'Official rules' and e['title'] == 'Claude')
         self.assertIn('Applies:', read_material(ROOT, claude)[1])
+        for folder, title in (('skill_rules', 'Skill'), ('instructions_rules', 'Project'), ('agent_rules', 'Subagent')):
+            entry = next(e for e in entries if e['path'] == f'{folder}/rules.json')
+            self.assertEqual((entry['category'], entry['title']), ('File rules', title))
+            page = read_material(ROOT, entry)[1]
+            self.assertIn(f'{title} mode · the official rules for', page)
+            self.assertIn('Source: ', page, 'each rule names the document it came from')
+        skill = read_material(ROOT, next(e for e in entries if e['path'] == 'skill_rules/rules.json'))[1]
+        self.assertIn('body-plan — For batch, destructive or irreversible operations', skill)
         for entry in entries:
             self.assertTrue((ROOT / entry['path']).is_file(), entry['path'])
             self.assertNotIn('history.sqlite3', entry['path'])

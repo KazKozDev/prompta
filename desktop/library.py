@@ -103,8 +103,42 @@ def _rules_page(label: str, organization: str, data: dict) -> str:
     return '\n'.join(lines).strip() + '\n'
 
 
+# folder → (title, what the mode writes) for the modes that write a file instead of a prompt
+FILE_RULES = [
+    ("skill_rules", "Skill", "a SKILL.md"),
+    ("instructions_rules", "Project", "a project instruction file (AGENTS.md, CLAUDE.md, Cursor, Copilot)"),
+    ("agent_rules", "Subagent", "a subagent file"),
+]
+
+
+def _file_rules_page(title: str, writes: str, data: dict, sources: dict) -> str:
+    """The rules a file mode writes from, each with where it applies and the document it was taken from."""
+    by_id = {source.get("id"): source for source in sources.get("sources", [])}
+    targets = data.get("targets") or {}
+    rules = data.get("rules", [])
+    lines = [
+        f"{title} mode · the official rules for {writes}",
+        f"Checked {data.get('verified_at', 'unknown')} · {len(rules)} rules · version {data.get('version', '?')}",
+        "",
+    ]
+    for rule in rules:
+        lines.append(f"{rule.get('id')} — {rule.get('rule_text', '').strip()}")
+        if rule.get("targets"):
+            lines.append("  Applies: " + "; ".join(str(targets.get(t, t)).split(":")[0] for t in rule["targets"]))
+        elif rule.get("surface"):
+            lines.append(
+                "  Applies: " + ("Claude Code skills only" if rule["surface"] == "claude-code" else "every skill")
+            )
+        source = by_id.get(rule.get("source_id"), {})
+        if source:
+            lines.append(f"  Source: {source.get('title', source.get('id'))} · {source.get('url', '')}")
+        lines.append("")
+    return "\n".join(lines).strip() + "\n"
+
+
 def library_entries(root: Path) -> list[dict]:
-    """Only what prompts are built from, in readable form: techniques, official rules, open-model cards.
+    """Only what prompts and files are built from, in readable form: techniques, official rules, the rules of the
+    file modes (Skill, Project, Subagent), open-model cards.
     Snapshots, registries, licences, scripts, PDFs and code are not prompt material and stay in the repository."""
     entries: list[dict] = []
 
@@ -150,6 +184,21 @@ def library_entries(root: Path) -> list[dict]:
             f'{folder}/rules.json',
             f'The rules used when the prompt is written for {label}.',
             content=_rules_page(label, organization, data),
+            checked=data.get('verified_at', ''),
+        )
+
+    for folder, title, writes in FILE_RULES:
+        try:
+            data = json.loads((root / folder / 'rules.json').read_text(encoding='utf-8'))
+            sources = json.loads((root / folder / 'sources.json').read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            continue
+        add(
+            'File rules',
+            title,
+            f'{folder}/rules.json',
+            f'The rules used when {title} mode writes {writes}.',
+            content=_file_rules_page(title, writes, data, sources),
             checked=data.get('verified_at', ''),
         )
 
