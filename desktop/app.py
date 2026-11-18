@@ -266,12 +266,7 @@ class PromptaWindow(QMainWindow):
         self.thoughts.attachRequested.connect(self.attachments.pick)
         # Which file the model read how depends on the request: an edit makes the last run's labels stale.
         self.thoughts.textChanged.connect(self.attachments.forget_uses)
-        # Under the field: the attached files on the left, the paperclip and the microphone on the right.
-        under = QHBoxLayout()
-        under.setContentsMargins(0, 0, 0, 0)
-        under.addWidget(self.attachments, 1)
-        under.addWidget(self.thoughts.icon_bar, 0, Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
-        box.addLayout(under)
+        box.addWidget(self.attachments)
         # What the brief assumed sits under the request as its own block: natural height, no scroll of its own.
         self.assumptions_slot = QVBoxLayout()
         self.assumptions_slot.setContentsMargins(0, 6, 0, 0)

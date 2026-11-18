@@ -33,6 +33,7 @@ from PyQt6.QtGui import (
     QFont,
     QPainter,
     QPen,
+    QRegion,
     QGuiApplication,
     QIcon,
     QDesktopServices,
@@ -44,7 +45,6 @@ from PyQt6.QtWidgets import (
     QAbstractScrollArea,
     QApplication,
     QComboBox,
-    QHBoxLayout,
     QFrame,
     QLabel,
     QListWidget,
@@ -440,13 +440,10 @@ class ThoughtsEdit(QPlainTextEdit):
 
     def __init__(self) -> None:
         super().__init__()
-        # The paperclip and the microphone sit in icon_bar, which the window puts under the field's right edge:
-        # outside the field, so the text has its whole height and never runs under them.
-        self.icon_bar = QWidget()
-        bar = QHBoxLayout(self.icon_bar)
-        bar.setContentsMargins(0, 4, 2, 0)
-        bar.setSpacing(4)
-        self.microphone_icon = QPushButton(self.icon_bar)
+        # The paperclip and the microphone sit inside the field, in its bottom-right corner. No strip or column is
+        # reserved for them: the text keeps the whole field, and only the corner under the icons is cut out of the
+        # text area (_mask_icon_corner), so a line that reaches it is hidden there instead of drawn under the icons.
+        self.microphone_icon = QPushButton(self)
         self.microphone_icon.setIcon(QIcon(str(ROOT / "desktop" / "microphone.svg")))
         self.microphone_icon.setIconSize(QSize(18, 18))
         self.microphone_icon.setFixedSize(24, 24)
@@ -458,8 +455,9 @@ class ThoughtsEdit(QPlainTextEdit):
         self.voice_state = "idle"
         self.voice_buffer = ""
         self.microphone_icon.setObjectName("micIcon")
+        self.microphone_icon.raise_()
         # Left of the microphone: attaches project files every mode reads.
-        self.attach_icon = QPushButton(self.icon_bar)
+        self.attach_icon = QPushButton(self)
         self.attach_icon.setObjectName("micIcon")
         self.attach_icon.setIcon(QIcon(str(ROOT / "desktop" / "paperclip.svg")))
         self.attach_icon.setIconSize(QSize(18, 18))
@@ -471,8 +469,27 @@ class ThoughtsEdit(QPlainTextEdit):
         )
         self.attach_icon.setCursor(Qt.CursorShape.PointingHandCursor)
         self.attach_icon.clicked.connect(self.attachRequested)
-        bar.addWidget(self.attach_icon)
-        bar.addWidget(self.microphone_icon)
+        self.attach_icon.raise_()
+        # A press over the icon starts dictation even if a neighbour (the field's text area, an overlay
+        # scrollbar) received it; presses near the icon are logged so a miss can be traced.
+        self.installEventFilter(self)
+        self.viewport().installEventFilter(self)
+
+    def eventFilter(self, watched, event) -> bool:  # noqa: N802 - Qt naming
+        if event.type() == QEvent.Type.MouseButtonPress and watched in (self, self.viewport()):
+            point = (
+                watched.mapTo(self, event.position().toPoint()) if watched is not self else event.position().toPoint()
+            )
+            hit = self.microphone_icon.geometry().adjusted(-6, -6, 6, 6)
+            if point.x() > self.width() - 90 and point.y() > self.height() - 60:
+                self._voice_log(f"press at {point.x()},{point.y()} on {type(watched).__name__} · icon {hit.getRect()}")
+            if hit.contains(point) and self.microphone_icon.isEnabled():
+                self._toggle_dictation()
+                return True
+            if self.attach_icon.geometry().adjusted(-4, -4, 4, 4).contains(point):
+                self.attachRequested.emit()
+                return True
+        return super().eventFilter(watched, event)
 
     @staticmethod
     def _voice_log(message: str) -> None:
@@ -640,6 +657,24 @@ class ThoughtsEdit(QPlainTextEdit):
             if not self.voice_process.waitForFinished(2000):
                 self.voice_process.kill()
                 self.voice_process.waitForFinished(1000)
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        if hasattr(self, "microphone_icon"):
+            x = self.width() - self.verticalScrollBar().sizeHint().width() - 19
+            y = self.height() - self.microphone_icon.height() - 8
+            self.microphone_icon.move(x, y)
+            self.microphone_icon.raise_()
+            self.attach_icon.move(x - 28, y)
+            self.attach_icon.raise_()
+            self._mask_icon_corner()
+
+    def _mask_icon_corner(self) -> None:
+        """Cut the icons' corner out of the text area: the field's own background shows there, never text."""
+        viewport = self.viewport()
+        icons = self.attach_icon.geometry().united(self.microphone_icon.geometry()).adjusted(-6, -4, 6, 4)
+        corner = QRect(viewport.mapFrom(self, icons.topLeft()), icons.size())
+        viewport.setMask(QRegion(viewport.rect()).subtracted(QRegion(corner)))
 
 
 TICK_PITCH = 7  # px from one tick to the next

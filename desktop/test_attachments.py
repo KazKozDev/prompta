@@ -17,7 +17,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from PyQt6.QtCore import QMimeData, QUrl
+from PyQt6.QtCore import QMimeData, QPoint, QUrl
 from PyQt6.QtWidgets import QApplication, QLabel, QPushButton
 
 from app import PromptaWindow
@@ -276,18 +276,23 @@ class AttachmentsTest(unittest.TestCase):
         w = self.window
         w.show()
         self.app.processEvents()
-        field = w.thoughts.geometry()
-        bar = w.thoughts.icon_bar
-        origin = bar.mapTo(w.thoughts.parentWidget(), bar.rect().topLeft())
-        clip = w.thoughts.attach_icon.geometry().translated(origin)
-        mic = w.thoughts.microphone_icon.geometry().translated(origin)
-        self.assertIsNot(w.thoughts.microphone_icon.parentWidget(), w.thoughts, 'outside the field')
+        clip, mic = w.thoughts.attach_icon.geometry(), w.thoughts.microphone_icon.geometry()
+        self.assertIs(w.thoughts.microphone_icon.parentWidget(), w.thoughts, 'inside the white field')
         self.assertEqual(clip.y(), mic.y(), 'same row as the microphone')
         self.assertLess(clip.right(), mic.x(), 'left of it')
-        self.assertGreater(clip.y(), field.bottom(), 'under the field')
-        self.assertGreater(mic.right(), field.right() - 30, 'at its right edge')
+        self.assertGreater(mic.right(), w.thoughts.width() - 40, 'in the bottom-right corner')
+        self.assertGreater(mic.bottom(), w.thoughts.height() - 30, 'at the bottom')
         margins = w.thoughts.viewportMargins()
-        self.assertEqual((margins.top(), margins.right(), margins.bottom()), (0, 0, 0), 'the text has the whole field')
+        self.assertEqual(
+            (margins.top(), margins.right(), margins.bottom()), (0, 0, 0), 'no strip or column: the text has the field'
+        )
+        viewport = w.thoughts.viewport()
+        self.assertGreater(viewport.geometry().bottom(), mic.center().y(), 'the text runs down past the icons')
+        mask = viewport.mask()
+        for icon in (clip, mic):
+            self.assertFalse(mask.contains(viewport.mapFrom(w.thoughts, icon.center())), 'no text under the icons')
+        left_of_icons = viewport.mapFrom(w.thoughts, clip.center()) - QPoint(80, 0)
+        self.assertTrue(mask.contains(left_of_icons), 'the rest of the bottom line is text')
         with patch('attachments.QFileDialog.getOpenFileNames', return_value=([str(self.root / 'README.md')], '')):
             w.thoughts.attach_icon.click()
         self.assertEqual([f['path'] for f in w.attachments.files()], ['README.md'])
