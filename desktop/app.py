@@ -15,7 +15,7 @@ from pathlib import Path
 
 from history import HistoryStore
 from library import LibraryWidget
-from mode_guide import mode_note
+from mode_guide import placeholder
 from run_request import document_status, manual_status, pipeline_status, prompt_request
 from settings_ui import field_label
 from mcp_settings import McpSettingsWidget
@@ -252,7 +252,7 @@ class PromptaWindow(QMainWindow):
         QApplication.instance().aboutToQuit.connect(self.thoughts.stop_dictation)
         self.thoughts.setAccessibleName("Thoughts")
         use_step_scroll(self.thoughts)
-        self.thoughts.setPlaceholderText(self._placeholder(PROMPT_MODE, "Describe what you need"))
+        self.thoughts.setPlaceholderText(placeholder(PROMPT_MODE))
         thoughts_palette = self.thoughts.palette()
         thoughts_palette.setColor(QPalette.ColorRole.PlaceholderText, QColor("#9a8c6b"))
         self.thoughts.setPalette(thoughts_palette)
@@ -566,11 +566,6 @@ class PromptaWindow(QMainWindow):
         views = {SKILL_MODE: self.skill_view, INSTRUCTIONS_MODE: self.instructions_view, AGENT_MODE: self.agent_view}
         return views.get(self.mode_switch.mode(), self.result_column)
 
-    @staticmethod
-    def _placeholder(mode: str, hint: str) -> str:
-        """The empty request field says what the mode writes and when it is read (mode_guide.py), then what to type."""
-        return f"{mode_note(mode)}\n\n{hint}"
-
     def _apply_mode(self, mode: str) -> None:
         """File modes (Skill, Project, Agent) swap the prompt controls and result; each keeps its state."""
         prompt = mode == PROMPT_MODE
@@ -587,19 +582,11 @@ class PromptaWindow(QMainWindow):
         self.skill_view.setVisible(mode == SKILL_MODE)
         self.instructions_view.setVisible(mode == INSTRUCTIONS_MODE)
         self.agent_view.setVisible(mode == AGENT_MODE)
-        label, hint = {
-            SKILL_MODE: ("Build skill", "Describe the skill: what it does and when to use it"),
-            INSTRUCTIONS_MODE: (
-                "Build file",
-                "Describe the project: stack, commands, conventions, what agents get wrong",
-            ),
-            AGENT_MODE: (
-                "Build subagent",
-                "Describe the subagent: its one job, when to use it, what it must not touch",
-            ),
-        }.get(mode, ("Build prompt", "Describe what you need"))
+        label = {SKILL_MODE: "Build skill", INSTRUCTIONS_MODE: "Build file", AGENT_MODE: "Build subagent"}.get(
+            mode, "Build prompt"
+        )
         self.build_label = label + "   ⌘↵"
-        self.thoughts.setPlaceholderText(self._placeholder(mode, hint))
+        self.thoughts.setPlaceholderText(placeholder(mode))
         self._sync_build_label()
         self._fit_input_column()
 

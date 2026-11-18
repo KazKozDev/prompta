@@ -82,7 +82,8 @@ class ProviderTest(WindowTestCase):
         self.assertNotIn('THOUGHTS', labels)
         self.assertEqual(
             window.thoughts.placeholderText(),
-            'You get a prompt: the text for one task. Paste it into a chat and use it once.\n\nDescribe what you need',
+            "Describe the task in your own words, rough is fine. "
+            "You'll get a prompt for this one task: paste it into any chat.",
         )
         self.assertEqual(window.thoughts.accessibleName(), 'Thoughts')
         self.assertFalse(window.settings_button.icon().isNull())

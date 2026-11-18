@@ -1,18 +1,31 @@
-"""One line per mode, shown at the top of the empty request field: what you get and who uses it when.
+"""The text of the empty request field, per mode: one short paragraph, what to type and what you get.
 
-Worded from the user's side ("You get …"), so it reads as the result of the mode, not a description of Prompta.
+The second sentence carries the difference between the modes: when the result is used and by whom
+(once in a chat, every session in this project, whenever a task matches, a job handed over).
 """
 
 from __future__ import annotations
 
-# mode key (skill_mode.py) → what the user gets and when it is used
-NOTES = {
-    "prompt": "You get a prompt: the text for one task. Paste it into a chat and use it once.",
-    "instructions": "You get AGENTS.md: your project's rules. Your coding agent reads it in every session.",
-    "skill": "You get SKILL.md: a repeated procedure. An agent loads it when a task matches, in any project.",
-    "agent": "You get a subagent: a specialist with its own tools. The main agent hands it a job.",
+# mode key (skill_mode.py) → what to type, then what the user gets and when it is used
+GUIDES = {
+    "prompt": (
+        "Describe the task in your own words, rough is fine. "
+        "You'll get a prompt for this one task: paste it into any chat."
+    ),
+    "instructions": (
+        "Describe the project: stack, commands, conventions, what agents get wrong. "
+        "You'll get AGENTS.md: rules your coding agent follows in every session of this project."
+    ),
+    "skill": (
+        "Describe a procedure you repeat: what it does, when to use it, its steps and limits. "
+        "You'll get SKILL.md: an agent loads it whenever a task matches, in any project."
+    ),
+    "agent": (
+        "Describe the specialist: its one job, when to call it, what it must not touch. "
+        "You'll get a subagent: your main agent hands it that job and gets the result back."
+    ),
 }
 
 
-def mode_note(mode: str) -> str:
-    return NOTES.get(mode, NOTES["prompt"])
+def placeholder(mode: str) -> str:
+    return GUIDES.get(mode, GUIDES["prompt"])
