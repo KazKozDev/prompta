@@ -90,7 +90,7 @@ QPushButton#ghost:pressed { background: #f5f2e5; }
 QPushButton#ghost:disabled { color: #a69f84; background: #f4ead0; border-color: #e1d4b0; }
 QProgressBar { background: #f7f3e4; border: none; border-radius: 1px; max-height: 2px; min-height: 2px; }
 QProgressBar::chunk { background: #c69b12; border-radius: 1px; }
-QProgressBar#generationProgress { background: #e9d8a0; min-height: 3px; max-height: 3px; border-radius: 1px; }
+QProgressBar#generationProgress { background: #e9d8a0; min-height: 2px; max-height: 2px; border-radius: 1px; }
 QProgressBar#generationProgress::chunk { background: #e1b72c; border-radius: 1px; }
 QScrollArea { border: none; background: #fff8e7; }
 QScrollArea#inputScroll, QWidget#inputViewport { background: transparent; }

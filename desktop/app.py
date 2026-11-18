@@ -357,7 +357,6 @@ class PromptaWindow(QMainWindow):
     APP_VERSION = "0.1.0"
     AUTHOR = "KazKozDev"
     AUTHOR_URL = "https://github.com/KazKozDev"
-    REPO_URL = "https://github.com/KazKozDev/prompta"
 
     # ── right column ──────────────────────────────────────────────
     def _build_output(self) -> QWidget:
@@ -435,9 +434,7 @@ class PromptaWindow(QMainWindow):
         dialog.add_page(self.dictation, "Dictation", on_show=self.dictation.refresh)
         self.thoughts.dictationSetupRequested.connect(self.open_dictation_settings)
         QApplication.instance().aboutToQuit.connect(self.dictation.download.cancel)  # no .part folder left behind
-        self.about = AboutPage(
-            self.APP_VERSION, self.AUTHOR, self.AUTHOR_URL, self.REPO_URL, self.history_store.path.parent
-        )
+        self.about = AboutPage(self.APP_VERSION, self.AUTHOR, self.AUTHOR_URL)
         dialog.add_page(self.about, "About", footer=self.about.footer, backdrop=True)
         return dialog
 

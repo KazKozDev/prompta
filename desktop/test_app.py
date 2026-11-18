@@ -7,7 +7,7 @@ import re
 import unittest
 from unittest.mock import Mock, patch
 
-from PyQt6.QtWidgets import QApplication, QPushButton, QLabel, QListWidget, QPlainTextEdit, QScrollArea
+from PyQt6.QtWidgets import QPushButton, QLabel, QListWidget, QPlainTextEdit, QScrollArea
 from app import PromptaWindow
 from generator_settings import GeneratorSettings
 from PyQt6.QtCore import Qt
@@ -23,7 +23,7 @@ class DesktopSmokeTest(WindowTestCase):
         self.assertIn('https://github.com/KazKozDev', window.about.author.text())
         self.assertRegex(
             window.about.how.text(),
-            r'^A model reads your request .* one of \d+ prompting techniques, .*prompt with it\.$',
+            r'^Prompta is an open-source macOS app .* one of \d+ prompting techniques, .*for comparison\.$',
         )
         versions = dict(window.about.versions())
         self.assertRegex(versions['Technique catalog'], r' · 90 entries$')
@@ -41,12 +41,6 @@ class DesktopSmokeTest(WindowTestCase):
         date = re.search(r'\d{4}-\d{2}-\d{2}$', claude.text(0)).group(0)
         tree.setCurrentItem(claude)
         self.assertIn(f'checked {date}', window.library.integrity.text())
-        self.assertIn('Copy version info', window.about.links.text())
-        window.about.copy_version_info()
-        self.assertIn('Copied', window.about.links.text())
-        copied = QApplication.clipboard().text()
-        self.assertIn('Prompta 0.1.0', copied)
-        self.assertIn('Pipeline prompts: ', copied)
         window.close()
 
     def test_repeated_results_fit_narrow_window_without_stale_rows(self):

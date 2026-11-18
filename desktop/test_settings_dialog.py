@@ -2,10 +2,9 @@
 
 import os
 import sys
-import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -78,32 +77,15 @@ class AboutPageTest(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
 
     def setUp(self):
-        self.folder = Path(tempfile.mkdtemp()) / "Prompta"
-        self.page = AboutPage(
-            "9.9.9", "Someone", "https://example.test/someone", "https://example.test/repo", self.folder
-        )
+        self.page = AboutPage("9.9.9", "Someone", "https://example.test/someone")
 
     def tearDown(self):
         self.page.deleteLater()
 
-    def test_version_credits_and_links(self):
+    def test_credits_and_source_link(self):
         self.assertIn("Someone", self.page.author.text())
-        self.assertIn("https://example.test/repo/issues", self.page.links.text())
-        self.assertTrue(self.page.version_text().startswith("Prompta 9.9.9\n"))
-
-    def test_copy_version_info_confirms(self):
-        clipboard = Mock()
-        with patch("PyQt6.QtGui.QGuiApplication.clipboard", return_value=clipboard):
-            self.page.copy_version_info()
-        clipboard.setText.assert_called_once_with(self.page.version_text())
-        self.assertIn("Copied", self.page.links.text())
-
-    def test_show_in_finder_creates_the_folder_privately(self):
-        with patch("PyQt6.QtGui.QDesktopServices.openUrl", return_value=True) as opened:
-            self.page.show_data_button.click()
-        self.assertTrue(self.folder.is_dir())
-        self.assertEqual(self.folder.stat().st_mode & 0o777, 0o700)
-        opened.assert_called_once()
+        self.assertNotIn("License", self.page.author.text())
+        self.assertIs(self.page.footer, self.page.author)
 
 
 if __name__ == "__main__":
