@@ -15,6 +15,7 @@ from pathlib import Path
 from history import HistoryStore
 from library import LibraryWidget
 from mode_guide import mode_note
+from run_request import document_status, manual_status, pipeline_status, prompt_request
 from settings_ui import field_label
 from mcp_settings import McpSettingsWidget
 
@@ -126,6 +127,20 @@ def load_local_providers(path: Path = LOCAL_PROVIDERS_FILE) -> dict[str, dict]:
     return found
 
 
+def header_button(icon: str, name: str, slot) -> QPushButton:
+    """A 28 px icon button in the window header; `name` is its tooltip and accessible name."""
+    button = QPushButton()
+    button.setObjectName("settings")
+    button.setIcon(QIcon(str(ROOT / "desktop" / icon)))
+    button.setIconSize(QSize(17, 17))
+    button.setFixedSize(28, 28)
+    button.setToolTip(name)
+    button.setAccessibleName(name)
+    button.setCursor(Qt.CursorShape.PointingHandCursor)
+    button.clicked.connect(slot)
+    return button
+
+
 class PromptaWindow(QMainWindow):
     """Main window: the finished prompt comes first (variants as tabs); brief, zero-shot baseline,
     technique rationale and sources fold into "How this prompt was built". The target the prompt is
@@ -168,25 +183,10 @@ class PromptaWindow(QMainWindow):
         header.addWidget(self.mode_switch, 0, Qt.AlignmentFlag.AlignVCenter)
         header.addStretch(1)  # the window title already says Prompta
         header.addWidget(self.history.picker)
-        self.clear_button = QPushButton()
-        self.clear_button.setObjectName("settings")
-        self.clear_button.setIcon(QIcon(str(ROOT / "desktop/trash.svg")))
-        self.clear_button.setIconSize(QSize(17, 17))
-        self.clear_button.setFixedSize(28, 28)
-        self.clear_button.setToolTip("Clear thoughts and results")
-        self.clear_button.setAccessibleName("Clear thoughts and results")
-        self.clear_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.clear_button.clicked.connect(self.clear_workspace)
+        self.clear_button = header_button("trash.svg", "Clear thoughts and results", self.clear_workspace)
         header.addWidget(self.clear_button, 0, Qt.AlignmentFlag.AlignVCenter)
         header.setSpacing(8)
-        self.settings_button = QPushButton()
-        self.settings_button.setObjectName("settings")
-        self.settings_button.setIcon(QIcon(str(ROOT / "desktop" / "settings.svg")))
-        self.settings_button.setIconSize(QSize(17, 17))
-        self.settings_button.setFixedSize(28, 28)
-        self.settings_button.setToolTip("Settings")
-        self.settings_button.setAccessibleName("Settings")
-        self.settings_button.clicked.connect(self.open_settings)
+        self.settings_button = header_button("settings.svg", "Settings", self.open_settings)
         header.addWidget(self.settings_button, 0, Qt.AlignmentFlag.AlignVCenter)
         outer.addLayout(header)
 
@@ -648,25 +648,17 @@ class PromptaWindow(QMainWindow):
             self._run_document(thoughts, generator, revised_brief)
             return
 
-        technique_keys = self.technique_panel.technique_keys()
-        payload = {
-            "thoughts": thoughts,
-            **generator,  # provider, model, key and URL
-            **self.target_selector.request_field(),
-            "variants": self.variants.value(),
-            **self._files_field(),
-        }
-        profile = self.execution_profile.current_key()
-        payload["executionProfile"] = profile
-        if profile == "agent":
-            payload["agentCapabilities"] = list(self.execution_profile.AGENT_CAPABILITIES)
-        if technique_keys:
-            if len(technique_keys) == 1:
-                payload["manualTechnique"] = technique_keys[0]
-            else:
-                payload["manualTechniques"] = technique_keys
-        if revised_brief is not None:
-            payload["brief"] = revised_brief
+        payload = prompt_request(
+            thoughts,
+            generator,
+            target=self.target_selector.request_field(),
+            variants=self.variants.value(),
+            files=self._files_field(),
+            profile=self.execution_profile.current_key(),
+            agent_capabilities=self.execution_profile.AGENT_CAPABILITIES,
+            technique_keys=self.technique_panel.technique_keys(),
+            revised_brief=revised_brief,
+        )
 
         self._set_running(True)
         self.generation_progress.setValue(0)
@@ -725,11 +717,7 @@ class PromptaWindow(QMainWindow):
             skill = data["skill"]
             self.skill_view.render_skill(skill, source_thoughts=self._active_thoughts)
             self._save_result(skill.get("name") or "SKILL.md", "skill", skill)
-            check = skill.get("check") or {}
-            problems = len(check.get("errors") or [])
-            self.status.setText(
-                f"{skill.get('name')} · ready" if check.get("valid") else f"SKILL.md · {problems} problem(s) left"
-            )
+            self.status.setText(document_status(str(skill.get("name")), "SKILL.md", skill.get("check")))
             return
 
         if data.get("instructions"):
@@ -737,11 +725,7 @@ class PromptaWindow(QMainWindow):
             self.instructions_view.render_instructions(instructions, source_thoughts=self._active_thoughts)
             file_name = instructions.get("fileName") or "AGENTS.md"
             self._save_result(file_name, "instructions", instructions)
-            check = instructions.get("check") or {}
-            problems = len(check.get("errors") or [])
-            self.status.setText(
-                f"{file_name} · ready" if check.get("valid") else f"{file_name} · {problems} problem(s) left"
-            )
+            self.status.setText(document_status(file_name, file_name, instructions.get("check")))
             return
 
         if data.get("agent"):
@@ -749,11 +733,7 @@ class PromptaWindow(QMainWindow):
             self.agent_view.render_agent(agent, source_thoughts=self._active_thoughts)
             file_name = agent.get("fileName") or "agent"
             self._save_result(agent.get("name") or file_name, "agent", agent)
-            check = agent.get("check") or {}
-            problems = len(check.get("errors") or [])
-            self.status.setText(
-                f"{file_name} · ready" if check.get("valid") else f"{file_name} · {problems} problem(s) left"
-            )
+            self.status.setText(document_status(file_name, file_name, agent.get("check")))
             return
 
         if data.get("procedure"):
@@ -765,23 +745,12 @@ class PromptaWindow(QMainWindow):
         if data.get("manual"):
             self.result_column.render_manual(data["manual"], source_thoughts=self._active_thoughts)
             self._save_result(data["manual"]["technique"]["name"], "manual", data["manual"])
-            self.status.setText(f"{data['manual']['technique']['name']} · built using this method")
-            built, failed = len(data["manual"].get("variants") or []), len(data["manual"].get("failed") or [])
-            if built > 1:
-                self.status.setText(
-                    f"{built} techniques built" + (f" · {failed} failed, see below the prompt" if failed else "")
-                )
+            self.status.setText(manual_status(data["manual"]))
             return
 
         self.result_column.render_result(data["result"], source_thoughts=self._active_thoughts)
         self._save_result(data["result"]["choice"]["name"], "pipeline", data["result"])
-        count = len(self.result_column.visible_warnings)
-        name = data["result"]["choice"]["name"]
-        self.status.setText(
-            f"{name} · {count} warning{'s' if count != 1 else ''} below the prompt" if count else f"{name} · ready"
-        )
-
-    # ── result rendering ──────────────────────────────────────────
+        self.status.setText(pipeline_status(data["result"]["choice"]["name"], len(self.result_column.visible_warnings)))
 
     # ── history ───────────────────────────────────────────────────
     def _save_result(self, label: str, kind: str, payload: dict) -> None:
