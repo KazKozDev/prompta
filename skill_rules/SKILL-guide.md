@@ -103,8 +103,8 @@ analyze → plan → validate the plan → execute → verify.
 Flexible: "sensible default, adapt as needed". If quality depends on style, give 2–3
 input → output pairs.
 
-**Rules.** Hard constraints. If Claude skips them, phrase them more strongly ("MUST") and
-move them higher. For MCP tools use fully qualified names: `ServerName:tool_name`.
+**Rules.** Hard constraints, right after Quick start: after compaction only the start of a skill may be kept.
+If Claude skips them, phrase them more strongly ("MUST") and give the reason. For MCP tools use fully qualified names: `ServerName:tool_name`.
 
 **Scripts.** Say explicitly whether Claude should **run** a script or **read** it as reference.
 Scripts handle their own errors, avoid unexplained magic numbers, and list dependencies.

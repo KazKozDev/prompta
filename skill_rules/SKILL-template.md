@@ -10,6 +10,11 @@ description: Does X with Y (formats, inputs). Use when the user asks to ..., men
 One default approach for the most common case, with a minimal command or snippet.
 If there is an exception, one fallback: "For <case>, use <alternative> instead."
 
+## Rules
+
+- MUST ...
+- Never ...
+
 ## Workflow
 
 Copy this checklist and track progress:
@@ -28,11 +33,6 @@ Use this structure; leave out a part the input gives no facts for:
 ````
 ...
 ````
-
-## Rules
-
-- MUST ...
-- Never ...
 
 ## Scripts
 

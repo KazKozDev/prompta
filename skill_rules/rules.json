@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-14.1",
+  "version": "2026-11-18.1",
   "verified_at": "2026-11-14",
   "rules": [
     { "id": "name-format", "source_id": "specification", "surface": "all",
@@ -34,6 +34,22 @@
       "rule_text": "Say explicitly whether Claude should run a script or read it as reference; scripts handle their own errors and list dependencies." },
     { "id": "no-secrets", "source_id": "complete-guide", "surface": "all",
       "rule_text": "Never put API keys, passwords or tokens in skill files." },
+    { "id": "body-top", "source_id": "claude-code-skills", "surface": "all",
+      "rule_text": "Put the rules whose breach ruins the result near the top of the body, right after Quick start: after context compaction only the start of a skill may be kept." },
+    { "id": "body-standing", "source_id": "claude-code-skills", "surface": "all",
+      "rule_text": "The body stays in context and is not re-read, so write guidance that holds for the whole task as a standing instruction (\"Run the tests after every edit\"), not a one-time step." },
+    { "id": "body-why", "source_id": "skill-creator", "surface": "all",
+      "rule_text": "Give a rule whose purpose is not obvious its reason in a few words instead of a bare MUST: a model that knows why applies the rule to cases the text did not foresee." },
+    { "id": "body-plan", "source_id": "best-practices", "surface": "all",
+      "rule_text": "For batch, destructive or irreversible operations use plan-validate-execute: analyze, write the plan, validate the plan, execute, verify." },
+    { "id": "body-sequence", "source_id": "complete-guide", "surface": "all",
+      "rule_text": "A sequential workflow states the step order, what a step takes from an earlier one, a check at each stage, and what to do when a step fails (stop, roll back, report)." },
+    { "id": "body-conditional", "source_id": "best-practices", "surface": "all",
+      "rule_text": "When the work branches, name the decision point first and send each case to its own short workflow (\"Creating new content? Follow the creation workflow.\")." },
+    { "id": "body-template", "source_id": "best-practices", "surface": "all",
+      "rule_text": "Give the output a template and match its strictness to the need: \"use exactly this structure\" for data formats, \"a sensible default, adapt as needed\" otherwise." },
+    { "id": "body-examples", "source_id": "best-practices", "surface": "all",
+      "rule_text": "When output quality depends on style, give 2-3 input -> output pairs: examples show the style and level of detail better than descriptions." },
     { "id": "skill-dir", "source_id": "claude-code-skills", "surface": "claude-code",
       "rule_text": "In Claude Code, ${CLAUDE_SKILL_DIR} expands to the folder of SKILL.md; elsewhere use paths relative to SKILL.md." }
   ]

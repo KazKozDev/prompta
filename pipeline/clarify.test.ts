@@ -61,3 +61,11 @@ test('clarify: a path given as an answer is not flagged as invented', async () =
   assert.deepEqual(withAnswer.clarify, clarify);
   assert.equal(without.clarify, undefined);
 });
+
+test('file-mode questions are asked in English, with concrete defaults and no invented values', () => {
+  const prompt = buildClarifyPrompt('skill', 'собери и поставь приложение');
+  assert.match(prompt, /in English, whatever language the request is in/);
+  assert.match(prompt, /the exact command or tool for each step, what to do when a step fails, which steps cannot be undone/);
+  assert.match(prompt, /Never invent a value the request does not give/);
+  assert.match(prompt, /Never a vague stand-in such as "from the project context"/);
+});

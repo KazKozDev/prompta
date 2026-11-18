@@ -206,6 +206,8 @@ test('bridge: file modes ask what is open first; Rebuild with the edited answers
       prompts.push(prompt);
       const answer = prompt.includes('First list what the request leaves open')
         ? JSON.stringify({ questions: [{ question: 'Which language?', default: 'English' }], assumptions: ['no badges'] })
+        : prompt.startsWith('A skill named ')
+        ? JSON.stringify({ trigger: ['write a README for this repo'], skip: ['fix the CI badge'] })
         : '---\nname: writing-readmes\ndescription: Writes READMEs. Use when the user asks for a README.\n---\n\n# Writing READMEs\n\nWrite it.\n';
       res.end(JSON.stringify({ response: answer }));
     });
@@ -223,15 +225,20 @@ test('bridge: file modes ask what is open first; Rebuild with the edited answers
     const base = { thoughts: 'a README skill', provider: 'ollama', model: 'synthetic', baseUrl: `http://127.0.0.1:${port}`, skill: 'portable' };
     const first = await run(base);
     assert.equal(first.ok, true, JSON.stringify(first));
-    assert.equal(prompts.length, 2, 'one clarify call, then the file');
+    // The skill's own review and test-request calls come after the file; they are not what this test counts.
+    const own = () => prompts.filter((p) => !/^You review a SKILL\.md|^A skill named /.test(p));
+    assert.equal(own().length, 2, 'one clarify call, then the file');
+    assert.equal(prompts.length, 4, 'then its review and test requests');
     assert.deepEqual(first.skill.clarify, { questions: [{ question: 'Which language?', default: 'English' }], assumptions: ['no badges'] });
     assert.match(prompts[1], /"answer":"English"/);
+    assert.deepEqual(first.skill.tests, { trigger: ['write a README for this repo'], skip: ['fix the CI badge'] }, 'the window gets the test requests');
+    assert.equal(first.skill.reviewed, false, 'a review that hands the file back unchanged is not a change');
     prompts.length = 0;
     const edited = { questions: [{ question: 'Which language?', default: 'Russian' }], assumptions: [] };
     const rebuilt = await run({ ...base, clarify: edited });
     assert.equal(rebuilt.ok, true, JSON.stringify(rebuilt));
-    assert.equal(prompts.length, 1, 'Rebuild writes the file only');
-    assert.match(prompts[0], /"answer":"Russian"/);
+    assert.equal(own().length, 1, 'Rebuild writes the file only');
+    assert.match(own()[0], /"answer":"Russian"/);
     assert.deepEqual(rebuilt.skill.clarify, edited);
   } finally {
     server.close();

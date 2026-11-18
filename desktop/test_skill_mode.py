@@ -17,13 +17,14 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from PyQt6.QtWidgets import QApplication, QLabel
+from PyQt6.QtWidgets import QApplication, QLabel, QToolButton
 
 from app import PromptaWindow
 from generator_settings import GeneratorSettings
 from history import HistoryStore
 from history_view import HistoryView
 from skill_mode import PROMPT_MODE, SKILL_MODE
+from result_view import Disclosure
 from skill_view import save_skill
 
 SKILL = {
@@ -120,6 +121,35 @@ class SkillModeTest(unittest.TestCase):
         w._render_history_entry({'kind': 'skill', 'thoughts': 'notes skill', 'payload': dict(SKILL)})
         self.assertEqual(w.mode_switch.mode(), SKILL_MODE)
         self.assertEqual(w.skill_view.editor.toPlainText(), SKILL['skill'])
+
+    def test_test_requests_and_review_show_under_the_file_and_survive_history(self):
+        w = self.window
+        w.mode_switch.set_mode(SKILL_MODE)
+        w._active_thoughts = 'notes skill'
+        payload = dict(SKILL, reviewed=True, tests={'trigger': ['sum up these notes'], 'skip': ['write notes for me']})
+        w.on_finished({'ok': True, 'skill': payload})
+        texts = [label.text() for label in w.skill_view.findChildren(QLabel)]
+        self.assertTrue(any('· reviewed' in t for t in texts), texts)
+        buttons = [b.text() for b in w.skill_view.findChildren(QToolButton)]
+        self.assertTrue(any(b.endswith('Try it: 1 requests should load it, 1 should not') for b in buttons), buttons)
+        self.assertIn('✓  sum up these notes', texts)
+        self.assertIn('✗  write notes for me', texts)
+        w._render_history_entry(
+            {'kind': 'skill', 'thoughts': 'notes skill', 'payload': self.store.load()[0]['payload']}
+        )
+        self.assertEqual(self.try_it_lines(w), ['✓  sum up these notes', '✗  write notes for me'], 'kept in history')
+        w.on_finished({'ok': True, 'skill': dict(SKILL)})
+        self.assertIsNone(self.try_it_lines(w), 'no block when the run gave no requests')
+
+    @staticmethod
+    def try_it_lines(w):
+        """The lines of the shown "Try it" block, or None when there is none."""
+        blocks = [
+            d
+            for d in w.skill_view.findChildren(Disclosure)
+            if d.isVisibleTo(w.skill_view) and 'Try it' in d.button.text()
+        ]
+        return [label.text() for label in blocks[0].findChildren(QLabel)] if blocks else None
 
     def test_a_long_skill_grows_the_block_instead_of_scrolling_inside_it(self):
         w = self.window

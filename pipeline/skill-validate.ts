@@ -109,7 +109,7 @@ export function validateSkill(markdown: string, surface: SkillSurface): SkillChe
 
   const leftovers = skeletonLeftovers(body);
   if (leftovers.length) warnings.push(`Unfilled template lines: ${leftovers.map((l) => `"${l}"`).join(', ')}.`);
-  const structure = structureProblems(body);
+  const structure = [...structureProblems(body), ...meaningProblems(description, body)];
   warnings.push(...structure);
   const placeholders = (body.match(PLACEHOLDER) ?? []).length;
   if (placeholders) warnings.push(`${placeholders} «INSERT HERE» placeholder${placeholders === 1 ? '' : 's'} to fill in.`);
@@ -150,6 +150,73 @@ export function structureProblems(body: string): string[] {
       }
     }
   }
+  return problems;
+}
+
+/** Sections the skeleton defines; a short one of these is fine. */
+const SKELETON_SECTIONS = /^(quick start|workflow|rules|output format|scripts|additional resources)$/i;
+/** Stand-ins for a value the skill needs: the agent reading the skill cannot act on them. */
+const VAGUE = [
+  /\b(?:based on|from|by|according to|depending on) (?:the )?(?:project(?:'s)? )?context\b/i,
+  /\bstandard (?:build|way|method|command|procedure|settings|location|tool)s?\b/i,
+  /\b(?:as usual|the usual way|the usual command)\b/i,
+  /\b(?:appropriate|relevant|proper|suitable) (?:command|tool|script|setting|path|flag)s?\b/i,
+];
+/** A step that cannot be undone, and the words that show it is guarded (a check, a confirmation, a plan, an order). */
+const IRREVERSIBLE = /\brm -rf\b|\b(?:delete|overwrite|drop table|force[- ]push|git push|publish|deploy|release to|move (?:the )?\S+ (?:copy )?to (?:the )?trash)\b/i;
+/** How far up, within the same section, a guard for an irreversible line may sit. */
+const GUARD_LINES = 8;
+const GUARDED = /\b(?:only after|after [^.]*(?:succeed|pass)|once [^.]*(?:succeed|pass)|confirm|ask|approval|verify|check|backup|back up|plan|dry[- ]run|roll ?back|if [^.]*(?:fail|succeed|pass))/i;
+
+/** Letters outside the Latin script, outside code and quotes: the file is written in English, and a quoted trigger
+ *  phrase or a code sample may keep its own language. */
+function foreignText(text: string): string[] {
+  const plain = text
+    .replace(/^ {0,3}(`{3,})[\s\S]*?^ {0,3}\1/gm, '')
+    .replace(/`[^`\n]*`/g, '')
+    .replace(/"[^"\n]*"|«[^»\n]*»|“[^”\n]*”|\([^()\n]*\)/g, '');
+  return [...new Set(plain.match(/[^\s\p{Script=Latin}\p{N}\p{P}\p{S}\p{M}]+(?:\s+[^\s\p{Script=Latin}\p{N}\p{P}\p{S}\p{M}]+)*/gu) ?? [])];
+}
+
+/** What the structure checks cannot see: mixed languages, sections that only repeat a step, vague stand-ins for
+ *  values, and an irreversible step with nothing guarding it. Each problem sends the draft to the repair pass. */
+export function meaningProblems(description: string, body: string): string[] {
+  const problems: string[] = [];
+  const foreign = [...foreignText(description), ...foreignText(body)];
+  if (foreign.length) {
+    problems.push(`Not in English: ${foreign.slice(0, 3).map((f) => `"${f}"`).join(', ')}. Write the whole file in English; only a trigger phrase quoted in the description keeps the user's language.`);
+  }
+  for (const { heading, text } of sections(body)) {
+    if (SKELETON_SECTIONS.test(heading)) continue;
+    const lines = text.split(/\r?\n/).filter((line) => line.trim());
+    if (lines.length === 1) {
+      problems.push(`"## ${heading}" holds one line. Fold it into its Workflow step, or give the section what the step does not say (settings, numbers, conditions).`);
+    }
+  }
+  const lines = body.split(/\r?\n/);
+  const vague = new Set<string>();
+  for (const line of lines) {
+    for (const re of VAGUE) {
+      const hit = line.match(re);
+      if (hit) vague.add(hit[0]);
+    }
+  }
+  if (vague.size) {
+    problems.push(`Vague stand-in for a value: ${[...vague].map((v) => `"${v}"`).join(', ')}. Name the value (a command, a path, a number) or where the skill reads it (README, build_*.sh, package.json); if neither is known, write «INSERT HERE: <what>».`);
+  }
+  let heading = '';
+  let since = 0; // the guard may sit a few lines up: a step's prose, or a check at the top of its code block
+  lines.forEach((line, i) => {
+    if (/^#{2,4} /.test(line)) {
+      heading = line;
+      since = i;
+    }
+    if (!IRREVERSIBLE.test(line) || /\b(?:never|do not|don't|must not|not)\b/i.test(line)) return;
+    const before = [heading, ...lines.slice(Math.max(since, i - GUARD_LINES), i + 1)].join(' ');
+    if (!GUARDED.test(before)) {
+      problems.push(`"${line.trim()}" cannot be undone and nothing guards it. Say what must have succeeded first or what is checked or confirmed before it.`);
+    }
+  });
   return problems;
 }
 

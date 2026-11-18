@@ -77,7 +77,7 @@ ${rules.map((r) => `- [${r.id}] ${r.rule_text}`).join('\n')}
 
 Prompt skeleton (keep the parts the task fills, drop the rest, replace every placeholder):
 ${TEMPLATE}
-Write the prompt and description in the language of the task; keep name, field names, commands, paths and code as they are.
+Write the prompt and description in English, whatever language the task is in; keep name, field names, commands, paths and code as they are.
 Use only facts from the task. Where the agent needs a fact the task does not give (for example the test command),
 write «INSERT HERE: <what>» instead of inventing it; never make up a command, path or file.
 Return only the file content. No commentary, no code fence around it.

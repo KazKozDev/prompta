@@ -25,9 +25,9 @@ stream of thoughts
 | `prompt-version.ts` | Fingerprint of the internal prompts for reports and eval |
 | `index.ts` | `runPipeline`, `formatResult`, step tracing |
 | `cli.ts` | Running from the terminal |
-| `skill.ts` | Skill mode: thoughts → SKILL.md from `skill_rules/`, one repair pass if the check fails |
+| `skill.ts` | Skill mode: thoughts → SKILL.md from `skill_rules/`, a review pass, one repair pass if the check fails, test requests |
 | `skill-rules.ts` | Loads `skill_rules/rules.json` with its sources, per surface (portable / Claude Code) |
-| `skill-validate.ts` | Deterministic SKILL.md check: port of skill-creator's `quick_validate.py` plus documented rules |
+| `skill-validate.ts` | Deterministic SKILL.md check: port of skill-creator's `quick_validate.py`, documented rules, and meaning checks (English, one-line sections, vague values, unguarded irreversible steps) |
 | `instructions.ts` | Project mode: thoughts → AGENTS.md, CLAUDE.md, Cursor rule or Copilot instructions from `instructions_rules/`, one repair pass |
 | `instructions-rules.ts` | Loads `instructions_rules/rules.json` with its sources, per target file |
 | `instructions-validate.ts` | Deterministic instruction-file check: frontmatter per target, size limits, headings, commands, emphasis |

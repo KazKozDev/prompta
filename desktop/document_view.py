@@ -89,8 +89,9 @@ class DocumentView(QScrollArea):
         save_tip: str,
         on_save: Callable[[], None],
         source_thoughts: str | None = None,
+        extras: list[QWidget] | None = None,
     ) -> None:
-        """Title, status line, check notes, the editable file, the save link, the rules and the usage;
+        """Title, status line, check notes, the editable file, the save link, `extras`, the rules and the usage;
         the questions and assumptions it was written on go to the window as a card."""
         self.clear()
         self.payload = payload
@@ -128,6 +129,8 @@ class DocumentView(QScrollArea):
         save.setToolTip(save_tip)
         save.clicked.connect(on_save)
         self.output_layout.addWidget(save, 0, Qt.AlignmentFlag.AlignLeft)
+        for extra in extras or []:
+            self.output_layout.addWidget(extra)
 
         rules = payload.get("rules") or []
         if rules:

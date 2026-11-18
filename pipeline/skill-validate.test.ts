@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { fenceErrors, readFrontmatter, skeletonLeftovers, structureProblems, validateSkill } from './skill-validate.ts';
+import { fenceErrors, meaningProblems, readFrontmatter, skeletonLeftovers, structureProblems, validateSkill } from './skill-validate.ts';
 
 const ok = `---
 name: processing-invoices
@@ -114,4 +114,50 @@ test('MUST on nearly every line is flagged; a handful is fine', () => {
   assert.match(structureProblems(shouting).join(' '), /MUST is on 12 lines/);
   const calm = ok + '\n## Rules\n\n' + Array.from({ length: 4 }, (_, i) => rule(i)).join('\n') + '\n- Use 15 fps.\n';
   assert.deepEqual(structureProblems(calm), []);
+});
+
+test('meaning checks: mixed language, one-line sections, vague values, unguarded irreversible steps', () => {
+  const description = 'Reinstalls the app. Use when the user asks to собрать приложение, or says ("собери и поставь").';
+  const body = `
+## Quick start
+
+Стандартная сборка, then reinstall.
+
+## Closing the app
+
+- Quit the running app.
+
+## Install
+
+- Build it from the project context.
+- Move the old copy to the Trash.
+`;
+  const problems = meaningProblems(description, body).join(' ');
+  assert.match(problems, /Not in English: "собрать приложение", "Стандартная сборка"/);
+  assert.doesNotMatch(problems, /собери и поставь/, 'a quoted trigger phrase keeps its language');
+  assert.match(problems, /"## Closing the app" holds one line/);
+  assert.match(problems, /Vague stand-in for a value: "from the project context"/);
+  assert.match(problems, /"- Move the old copy to the Trash\." cannot be undone/);
+  const sound = `
+## Rules
+
+- Never rm -rf the old copy; move it to the Trash.
+
+## Workflow
+
+- [ ] Step 1: Run \`sh build.sh\` (the command in README).
+- [ ] Step 2: Only after the build succeeded, move the old copy to the Trash.
+- [ ] Step 3: Print \`ls ~/Desktop\` and «INSERT HERE: the app name».
+
+## Camera
+
+- Max zoom 1.4.
+- Every move at least 2.8 s.
+`;
+  assert.deepEqual(meaningProblems('Builds the app. Use when asked ("пересобери апп").', sound), []);
+});
+
+test('a meaning problem lands in check.structure, so the draft goes to the repair pass', () => {
+  const check = validateSkill(ok.replace('Run the extractor.', 'Run the extractor from the project context.'), 'portable');
+  assert.match(check.structure.join(' '), /Vague stand-in/);
 });

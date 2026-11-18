@@ -52,7 +52,7 @@ ${rules.map((r) => `- [${r.id}] ${r.rule_text}`).join('\n')}
 
 Skeleton to follow (keep the sections the task fills, drop the rest, replace every placeholder):
 ${TEMPLATE}
-Write the instructions in the language of the task; keep commands, paths and code as they are.
+Write the instructions in English, whatever language the task is in; keep commands, paths and code as they are.
 Use only facts from the task: commands, paths, tools and conventions it names. The skeleton's lines are examples:
 drop a line the task gives nothing for. Where the file needs a fact the task does not give (for example the
 test command), write «INSERT HERE: <what>» instead of inventing it; never make up a command, path or file.
