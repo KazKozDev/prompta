@@ -428,6 +428,11 @@ class ThoughtsEdit(QPlainTextEdit):
         # Files and folders: a folder brings its text files (attachments.folder_files).
         return [Path(u.toLocalFile()) for u in urls if u.isLocalFile() and Path(u.toLocalFile()).exists()]
 
+    def setPlaceholderText(self, text: str | None) -> None:  # noqa: N802 - Qt naming
+        # Qt repaints only when the hint appears or disappears, not when a shown hint changes (a mode switch).
+        super().setPlaceholderText(text)
+        self.viewport().update()
+
     def canInsertFromMimeData(self, source) -> bool:  # noqa: N802 - Qt naming
         return bool(self._local_files(source)) or super().canInsertFromMimeData(source)
 

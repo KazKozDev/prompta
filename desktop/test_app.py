@@ -423,6 +423,30 @@ class DesktopSmokeTest(WindowTestCase):
             window.worker = None
             window.close()
 
+    def test_new_placeholder_repaints_the_empty_field(self):
+        from PyQt6.QtCore import QEvent, QObject
+        from PyQt6.QtWidgets import QApplication
+        from widgets import ThoughtsEdit
+
+        class PaintCounter(QObject):
+            count = 0
+
+            def eventFilter(self, obj, event):  # noqa: N802
+                if event.type() == QEvent.Type.Paint:
+                    self.count += 1
+                return False
+
+        editor = ThoughtsEdit()
+        editor.setPlaceholderText('Describe the task')
+        editor.show()
+        QApplication.processEvents()
+        counter = PaintCounter()
+        editor.viewport().installEventFilter(counter)
+        editor.setPlaceholderText('Describe the project')  # a mode switch: the hint was shown and stays shown
+        QApplication.processEvents()
+        self.assertGreater(counter.count, 0)
+        editor.close()
+
     def test_whisper_updates_preserve_thoughts_and_restore_microphone(self):
         from widgets import ThoughtsEdit
 
