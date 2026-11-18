@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import http.client
 import json
 import shutil
 import subprocess
@@ -27,13 +28,16 @@ FALLBACK_MODELS = [
     "qwen3:30b",
 ]
 
+# A model list that cannot be fetched or read: no connection, timeout, HTTP error, a cut-off or non-JSON body.
+NETWORK_ERRORS = (OSError, http.client.HTTPException, ValueError)
+
 
 def fetch_ollama_models(timeout: float = 3.0) -> list[str]:
     """The full model list from the local Ollama daemon. Empty means the daemon is not running."""
     try:
         with urllib.request.urlopen(OLLAMA_TAGS, timeout=timeout) as response:
             data = json.loads(response.read().decode("utf-8"))
-    except Exception:
+    except NETWORK_ERRORS:
         return []
     names = [m.get("name", "") for m in data.get("models", []) if m.get("name")]
     return sorted(set(names), key=str.lower)
@@ -95,7 +99,7 @@ def fetch_cloud_models(provider: str, api_key: str, base_url: str = "", timeout:
     try:
         with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=timeout) as response:
             data = json.loads(response.read().decode("utf-8"))
-    except Exception:
+    except NETWORK_ERRORS:
         return []
     if provider == "gemini":  # only models that can generate text; ids come as "models/<id>"
         names = [
@@ -167,13 +171,19 @@ class ModelsLoader(QThread):
         self.source = "ollama" if provider == "ollama" else "provider"
 
     def run(self) -> None:
+        try:
+            names = self._names()
+        except Exception:  # noqa: BLE001 - the thread's edge: an odd answer must not leave the list loading forever
+            names = []
+        self.loaded.emit(names)
+
+    def _names(self) -> list[str]:
         if self.provider == "ollama":
-            self.loaded.emit(fetch_ollama_models())
-            return
+            return fetch_ollama_models()
         names = fetch_cloud_models(self.provider, self.api_key, self.base_url) if self.api_key else []
         if not names and not self.base_url:  # a custom URL is not that provider's public catalog
             names, self.source = catalog_models(self.provider), "catalog"
-        self.loaded.emit(names)
+        return names
 
 
 class Worker(QThread):

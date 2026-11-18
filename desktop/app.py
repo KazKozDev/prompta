@@ -914,8 +914,8 @@ def main() -> int:
                 cwd=str(ROOT),
             )
             window._on_techniques_loaded(json.loads(proc.stdout or "{}").get("techniques", []))
-        except Exception:
-            pass
+        except (OSError, subprocess.SubprocessError, ValueError):
+            pass  # the demo window still shows its result without the technique list
         window.result_column.render_result(demo_result())
         window.status.setText("Contextual prompting · ready")  # what on_finished shows for a result without warnings
         window.resize(1160, 1180)
