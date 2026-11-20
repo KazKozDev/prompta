@@ -81,7 +81,9 @@ const MATERIAL_MARKER = unicodeWords(/(?:(?:в|во|на|из)\s+(?:одн\w+\s+
 
 /** Fragments of someone else's material: quotes «…», "…", “…”, code comments, HTML and the text after a marker. */
 export function materialSpans(thoughts: string): string[] {
-  const spans = [...thoughts.matchAll(/«([^»]+)»|“([^”]+)”|"([^"]+)"|\/\/([^\n]+)|<([^>]+)>([^<]*)/g)]
+  // A tag starts with a letter, ! or / (as in hasThirdPartyMaterial): the <<< >>> frame composeThoughts puts around
+  // the conversation is not HTML, and reading it as one swallowed the background and the user's own task in one span.
+  const spans = [...thoughts.matchAll(/«([^»]+)»|“([^”]+)”|"([^"]+)"|\/\/([^\n]+)|<([a-z!/][^<>]*)>([^<]*)/gi)]
     .map((m) => (m[1] ?? m[2] ?? m[3] ?? m[4] ?? `${m[5] ?? ''} ${m[6] ?? ''}`).trim());
   for (const m of thoughts.matchAll(new RegExp(MATERIAL_MARKER.source, 'giu'))) {
     const tail = thoughts.slice((m.index ?? 0) + m[0].length).split(/(?<=[.!?])\s|\n/)[0];
