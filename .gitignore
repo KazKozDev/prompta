@@ -21,3 +21,6 @@ desktop/providers.local.json
 
 # The demo video: docs/demo/record.py builds it; the README plays the copy uploaded to GitHub
 docs/demo/demo.mp4
+
+# Packs the app with personal settings and API keys for another Mac: local only
+desktop/make_transfer.sh
