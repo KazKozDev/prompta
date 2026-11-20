@@ -126,7 +126,7 @@ async function dispatch(opts: RunOptions): Promise<PipelineResult> {
     throw new PipelineError(`No eligible techniques after filtering (${why})`, 'gate');
   }
 
-  opts.onProgress?.(30, 'Techniques filtered');
+  opts.onProgress?.(30, 'Choosing a prompting technique…');
   let choice: TechniqueChoice;
   let choices: TechniqueChoice[] = [];
   if (opts.techniqueKey) {
@@ -170,7 +170,7 @@ async function dispatch(opts: RunOptions): Promise<PipelineResult> {
     push('select', t0() - selectStart, { prompt: selectPrompt, raw: parsed.raw });
   }
 
-  opts.onProgress?.(40, 'Technique selected');
+  opts.onProgress?.(40, choices.length === 1 ? 'Writing your prompt…' : `Writing ${choices.length} variants…`);
   let completed = 0;
   const synthStart = t0();
   // Variants are independent: build them in parallel so 3 prompts do not wait for each other.
@@ -190,7 +190,10 @@ async function dispatch(opts: RunOptions): Promise<PipelineResult> {
         synthesis.warnings.push('The opening one-shot example requires LLM synthesis and is omitted in offline mode.');
       }
       completed += 1;
-      opts.onProgress?.(40 + Math.round(55 * completed / choices.length), `Variants ready: ${completed}/${choices.length}`);
+      const stage = completed === choices.length
+        ? 'Preparing the comparison…'
+        : `${completed} of ${choices.length} variants ready`;
+      opts.onProgress?.(40 + Math.round(55 * completed / choices.length), stage);
       return { choice: item, technique, synthesis };
     }),
   );

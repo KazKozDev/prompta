@@ -119,7 +119,7 @@ test('bridge: live progress stays on stderr and preserves the final JSON protoco
   assert.match(stderr, /PROMPTA_PROGRESS /);
   const update = JSON.parse(stderr.split('\n').find((line) => line.startsWith('PROMPTA_PROGRESS '))!.slice('PROMPTA_PROGRESS '.length));
   assert.equal(update.percent, 10);
-  assert.equal(update.stage, 'Technique loaded');
+  assert.equal(update.stage, 'Reading your request…');
 });
 
 test('bridge: several techniques — input validation before the model call', () => {

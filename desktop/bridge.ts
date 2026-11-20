@@ -229,18 +229,24 @@ async function main() {
       if (!technique.template) throw new Error(`${technique.key}: No synthesis template`);
       return technique;
     });
-    onProgress?.(5, 'Techniques loaded');
+    onProgress?.(5, 'Reading your request…');
     // The same brief as automatic choice: format, constraints, assumptions and questions for every prompt.
     const brief = await getManualBrief();
-    onProgress?.(15, 'Brief ready');
+    onProgress?.(15, `Writing ${techniques.length} variants…`);
     const zeroShot = generateZeroShotPrompt(thoughts, brief, llm, executionCapabilities);  // Variant 0, by the model too
     let finished = 0;
+    let ready = 0;
     const settled = await settleWithLimit(techniques, MANUAL_CONCURRENCY, async (technique) => {
       try {
-        return await generateManualPrompt(thoughts, technique, llm, oneShot, brief, executionCapabilities);
+        const prompt = await generateManualPrompt(thoughts, technique, llm, oneShot, brief, executionCapabilities);
+        ready += 1;
+        return prompt;
       } finally {
         finished += 1;
-        onProgress?.(15 + Math.round(75 * finished / techniques.length), `Prompts ready: ${finished}/${techniques.length}`);
+        const stage = finished === techniques.length && ready > 0
+          ? 'Preparing the comparison…'
+          : `${ready} of ${techniques.length} variants ready`;
+        onProgress?.(15 + Math.round(75 * finished / techniques.length), stage);
       }
     });
     const meta = (t: (typeof techniques)[number]) => ({ key: t.key, name: t.name, category: t.category });
@@ -254,7 +260,7 @@ async function main() {
     });
     if (!variants.length) throw new Error(`No technique produced a prompt: ${failed.map((f) => `${f.name}: ${f.error}`).join('; ')}`);
     const topic = brief?.topic ?? await topicFor(req.thoughts, llm);
-    onProgress?.(95, 'Topic ready');
+    onProgress?.(95, 'Preparing the comparison…');
     const first = variants[0];
     reply({ ok: true, manual: withFiles({
       zeroShotPrompt: (await zeroShot).prompt, topic, brief, usage: usage(), promptVersion: promptVersion(),
@@ -270,7 +276,7 @@ async function main() {
   }
 
   if (req.manualTechnique) {
-    onProgress?.(10, 'Technique loaded');
+    onProgress?.(10, 'Reading your request…');
     const technique = catalog.techniques.find((t) => t.key === req.manualTechnique);
     if (!technique) throw new Error(`Unknown technique: ${req.manualTechnique}`);
 
@@ -296,7 +302,7 @@ async function main() {
 
     if (req.deterministic) throw new Error('Manual technique selection requires LLM synthesis. Disable Skip LLM synthesis.');
     const brief = await getManualBrief();
-    onProgress?.(30, 'Brief ready');
+    onProgress?.(30, 'Writing your prompt…');
     const [prompt, zeroShot] = await Promise.all([generateManualPrompt(thoughts, technique, llm, oneShot, brief, executionCapabilities),
       generateZeroShotPrompt(thoughts, brief, llm, executionCapabilities)]);
     onProgress?.(85, 'Prompt ready');

@@ -474,13 +474,18 @@ test('catalog display metadata is English and procedure steps remain available',
 });
 
 
-test('desktop defaults: model topic survives and progress advances only after completed stages', async () => {
+test('desktop defaults: model topic survives and progress describes the stage in progress', async () => {
   const updates: [number, string][] = [];
   const { llm, calls } = fakeLLM({ brief: JSON.stringify({ ...brief, topic: 'Анализ отзывов' }) });
   const result = await runPipeline({ thoughts: 'Classify reviews', catalog, llm, oneShot: true,
     onProgress: (percent, stage) => updates.push([percent, stage]) });
   assert.equal(result.brief.topic, 'Анализ отзывов');
-  assert.deepEqual(updates.map(([percent]) => percent), [20, 30, 40, 95]);
+  assert.deepEqual(updates, [
+    [20, 'Brief ready'],
+    [30, 'Choosing a prompting technique…'],
+    [40, 'Writing your prompt…'],
+    [95, 'Preparing the comparison…'],
+  ]);
   assert.match(calls.at(-1)!, /Begin the final prompt with one short, relevant worked example/);
   assert.match(calls[0], /"topic"/);
 });

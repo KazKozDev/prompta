@@ -120,12 +120,12 @@ export function loadOfficialRules(raw: unknown, sources: unknown, profile: Offic
 export async function runOfficialPipeline(opts: { thoughts: string; brief?: TaskBrief; executionCapabilities?: ExecutionCapabilities; llm: LLM; variants?: number; oneShot?: boolean; onProgress?: (percent: number, stage: string) => void }, profile: OfficialProfile, rawRules: unknown, sources: unknown): Promise<PipelineResult> {
   if (!opts.thoughts?.trim()) throw new PipelineError('Enter your thoughts.', profile.target);
   const bundle = loadOfficialRules(rawRules, sources, profile);
-  opts.onProgress?.(20, 'Official rules loaded');
   const promptRules = bundle.rules.filter((r) => r.application === 'prompt');
   const requiredIds = profile.requiredRuleIds ?? ['clear', 'uncertainty'];
   const count = Math.min(5, Math.max(1, Math.floor(opts.variants ?? 1)));
   const segments = injectedSegments(opts.thoughts);
   if (!Number.isFinite(count)) throw new PipelineError('Invalid number of prompt variants.', profile.target);
+  opts.onProgress?.(20, count === 1 ? 'Writing your prompt…' : `Writing ${count} variants…`);
   const revised = opts.brief ? sanitizeBrief(opts.brief, opts.thoughts) : undefined;
   const instructions = `You compile user tasks into ready-to-use prompts targeted at ${profile.label}.
 The ONLY prompting recommendations you may apply are the saved official ${profile.organization} rules below. Do not use a generic prompting-technique catalog or add unsupported advice from another provider.
