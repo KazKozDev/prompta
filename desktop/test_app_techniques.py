@@ -165,7 +165,7 @@ class TechniqueTest(WindowTestCase):
             )
             tabs = window.result_column.output_holder.findChild(QTabWidget, 'variantTabs')
             self.assertEqual(
-                [tabs.tabText(i) for i in range(tabs.count())], ['Zero-shot', 'Few-shot', 'Chain of thought']
+                [tabs.tabText(i) for i in range(tabs.count())], ['Basic prompt', 'Few-shot', 'Chain of thought']
             )
             self.assertIn('Chain of thought prompt', tabs.widget(2).toPlainText())
             self.assertEqual(tabs.widget(0).toPlainText(), 'Task')

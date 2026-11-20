@@ -445,6 +445,7 @@ class ThoughtsEdit(QPlainTextEdit):
 
     def __init__(self) -> None:
         super().__init__()
+        self.setTabChangesFocus(True)
         # The paperclip and the microphone sit inside the field, in its bottom-right corner. No strip or column is
         # reserved for them: the text keeps the whole field, and only the corner under the icons is cut out of the
         # text area (_mask_icon_corner), so a line that reaches it is hidden there instead of drawn under the icons.
@@ -475,6 +476,8 @@ class ThoughtsEdit(QPlainTextEdit):
         self.attach_icon.setCursor(Qt.CursorShape.PointingHandCursor)
         self.attach_icon.clicked.connect(self.attachRequested)
         self.attach_icon.raise_()
+        QWidget.setTabOrder(self, self.attach_icon)
+        QWidget.setTabOrder(self.attach_icon, self.microphone_icon)
         # A press over the icon starts dictation even if a neighbour (the field's text area, an overlay
         # scrollbar) received it; presses near the icon are logged so a miss can be traced.
         self.installEventFilter(self)
@@ -809,6 +812,8 @@ class DashedScrollPainter(QObject):
 class PromptEdit(QPlainTextEdit):
     """An editable prompt block with a fixed copy icon inside its upper-right corner."""
 
+    copied = pyqtSignal()
+
     def __init__(self, text: str, scroll_target, target: str | None = None) -> None:
         super().__init__()
         self.setObjectName("prompt")
@@ -831,7 +836,7 @@ class PromptEdit(QPlainTextEdit):
         self.copy_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.copy_button.setAccessibleName("Copy prompt")
         self.copy_button.setToolTip("Copy prompt")
-        self.copy_button.clicked.connect(self._copy)
+        self.copy_button.clicked.connect(self._copy_prompt)
         if target in CHAT_URLS:
             label = PROMPT_TARGETS[target][0]
             self.chat_button = QPushButton(self)
@@ -932,11 +937,17 @@ class PromptEdit(QPlainTextEdit):
         QGuiApplication.clipboard().setText(self.toPlainText())
         self.copy_button.setIcon(QIcon(str(ROOT / "desktop" / "check.svg")))
         self.copy_button.setToolTip("Copied")
+        self.copy_button.setAccessibleName("Prompt copied")
         self.copy_reset.start(1400)
+
+    def _copy_prompt(self) -> None:
+        self._copy()
+        self.copied.emit()
 
     def _reset_copy(self) -> None:
         self.copy_button.setIcon(QIcon(str(ROOT / "desktop" / "copy.svg")))
         self.copy_button.setToolTip("Copy prompt")
+        self.copy_button.setAccessibleName("Copy prompt")
 
     def _open_chat(self) -> None:
         text = self.toPlainText()

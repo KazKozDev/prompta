@@ -586,7 +586,7 @@ class DesktopSmokeTest(WindowTestCase):
         window.result_column.assumption_rows[-1]['field'].setText('Include direct sources')
         fields[1].setText('last 12 months')
         self.assertTrue(
-            window.run_button.text().startswith('Rebuild · 4 changes'), 'the one button says what it will do'
+            window.run_button.text().startswith('Rebuild with your answers'), 'the one button says what it will do'
         )
         with patch.object(window, 'run_pipeline') as run:
             revised = window._card_revision()
@@ -730,7 +730,7 @@ class DesktopSmokeTest(WindowTestCase):
 
         editors = window.result_column.output_holder.findChildren(QPlainTextEdit)
         self.assertEqual(len(editors), 4)
-        zero = [editor for editor in editors if editor.accessibleName() == 'Zero-shot baseline prompt']
+        zero = [editor for editor in editors if editor.accessibleName() == 'Basic prompt']
         self.assertEqual(len(zero), 1)
         self.assertNotIn('First prompt', zero[0].toPlainText())
         variants = sorted((editor for editor in editors if editor not in zero), key=lambda editor: editor.toPlainText())
@@ -750,11 +750,19 @@ class DesktopSmokeTest(WindowTestCase):
             self.assertLess(editor.viewport().geometry().top(), 20)
         clipboard = Mock()
         with patch('PyQt6.QtGui.QGuiApplication.clipboard', return_value=clipboard):
+            window.status.setText('Ready')
             zero[0].copy_button.click()
             clipboard.setText.assert_called_with(zero[0].toPlainText())
+            self.assertEqual(window.status.text(), 'Basic prompt copied')
+            self.assertEqual(zero[0].copy_button.accessibleName(), 'Prompt copied')
+            window.status._notice_timer.timeout.emit()
+            self.assertEqual(window.status.text(), 'Ready')
             for index in (2, 0, 1, 2):
                 buttons[index].click()
                 clipboard.setText.assert_called_with(['First prompt', 'Second prompt', 'Third prompt'][index])
+            window.status.setText('Reading your request…')
+            window.status._notice_timer.timeout.emit()
+            self.assertEqual(window.status.text(), 'Reading your request…')
         window.close()
 
     def test_result_shows_prompt_first_with_variant_tabs_and_folded_details(self):
@@ -804,7 +812,7 @@ class DesktopSmokeTest(WindowTestCase):
             details = next(w for w in widgets if isinstance(w, Disclosure))
             self.assertLess(widgets.index(tabs), widgets.index(details))
             self.assertEqual(
-                [tabs.tabText(i) for i in range(tabs.count())], ['Zero-shot', 'Code prompting', 'Few-shot']
+                [tabs.tabText(i) for i in range(tabs.count())], ['Basic prompt', 'Code prompting', 'Few-shot']
             )
             self.assertEqual(tabs.currentIndex(), 1, 'the built prompt is shown first')
             self.assertEqual(tabs.widget(0).toPlainText(), 'Task: snake')
@@ -833,7 +841,7 @@ class DesktopSmokeTest(WindowTestCase):
             self.assertIsNot(first_reason[0], second_reason[0], 'switching tabs swaps the explanation')
             self.assertTrue(meta.text().startswith('Few-shot · confidence 70%'), 'header names the shown technique')
             tabs.setCurrentIndex(0)
-            self.assertTrue(any(t.startswith('Zero-shot:') for t in shown()))
+            self.assertTrue(any(t.startswith('Basic prompt:') for t in shown()))
             self.assertNotIn('because', shown())
             self.assertIn('coding · low stakes · en', shown(), 'the shared brief stays under every tab')
         finally:

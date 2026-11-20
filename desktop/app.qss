@@ -274,6 +274,7 @@ QTabWidget#variantTabs QTabBar::scroller { width: 48px; }  /* ‹ › side by si
 QTabWidget#variantTabs QTabBar QToolButton { background: #343434; border: none; }
 QTabWidget#variantTabs QTabBar QToolButton:hover { background: #3d3d3d; }
 QTabWidget#variantTabs QTabBar QToolButton:disabled { background: #343434; }
+QTabWidget#variantTabs QTabBar QToolButton#ScrollRightButton { border-top-right-radius: 12px; }  /* sits on the card's corner: keep it round */
 QTabWidget#variantTabs QTabBar QToolButton::left-arrow { image: url(@desktop/chevron-left.svg); width: 6px; height: 10px; }
 QTabWidget#variantTabs QTabBar QToolButton::right-arrow { image: url(@desktop/chevron-right.svg); width: 6px; height: 10px; }
 QTabWidget#variantTabs QTabBar QToolButton::left-arrow:disabled { image: url(@desktop/chevron-left-off.svg); }
@@ -292,6 +293,7 @@ QLabel#aboutTitle { font-size: 13px; font-weight: 600; color: #332e24; }  /* bel
 QFrame#divider { background: #d8c593; border: none; }
 QLabel#procedureSteps { background: #fff8e7; border: 1px solid #d8c593; border-radius: 8px; padding: 12px; }
 QPushButton#micIcon { background: transparent; border: none; }
+QPushButton#micIcon:focus { border: 1px solid #c69b12; border-radius: 6px; }
 QLabel#hint { color: #4a4232; font-size: 12px; background: transparent; }  /* hover hints (widgets.HintLabel) */
 QScrollArea#clearScroll, QScrollArea#clearScroll > QWidget > QWidget { background: transparent; }
 QLineEdit#listSearch { min-height: 20px; padding: 3px 10px; }  /* the window style's min-height 0 collapsed it to a line */

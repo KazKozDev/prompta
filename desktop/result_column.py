@@ -72,6 +72,7 @@ class AssumptionsCard(QFrame):
     `change_count` (it says Rebuild then) and the run sends `revised_brief` instead of a new brief."""
 
     change_count: Callable[[], int]
+    has_edited_answers: Callable[[], bool]
     revised_brief: Callable[[], dict | None]
     question_answers: list
     assumption_rows: list
@@ -110,6 +111,14 @@ def brief_card(
     body_layout.setContentsMargins(0, 0, 0, 0)
     body_layout.setSpacing(0)
     layout.addLayout(body_layout)
+    if questions and built == "prompt":
+        body_layout.addWidget(
+            muted_label(
+                "Prompta suggests answers when details are missing. Edit them and rebuild to update the prompt.",
+                "question",
+            )
+        )
+        body_layout.addSpacing(6)
 
     # One list, one kind of row: an editable value, the question it answers (if any) above it, × to drop it.
     rows_layout = QVBoxLayout()
@@ -180,6 +189,15 @@ def brief_card(
     def change_count() -> int:
         return changes() if request_unchanged() else 0
 
+    def has_edited_answers() -> bool:
+        return request_unchanged() and any(
+            row["question"]
+            and not row["removed"]
+            and (answer := row["field"].text().strip())
+            and answer != row["original"]
+            for row in rows
+        )
+
     def revised_brief() -> dict | None:
         if not change_count():
             return None
@@ -213,6 +231,7 @@ def brief_card(
     title.setToolTip(f"The {built} is built on these. Change any of them, then Rebuild: the request is not re-read.")
 
     box.change_count = change_count
+    box.has_edited_answers = has_edited_answers
     box.revised_brief = revised_brief
     box.question_answers = [(row["question"], row["field"]) for row in rows if row["question"]]
     box.assumption_rows = assumption_rows
@@ -229,6 +248,7 @@ class ResultColumn(QScrollArea):
     briefEdited = pyqtSignal()
     rebuildRequested = pyqtSignal()
     promptEdited = pyqtSignal(int, str)
+    promptCopied = pyqtSignal(str)
 
     def __init__(self, request_text: Callable[[], str], parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -353,7 +373,7 @@ class ResultColumn(QScrollArea):
         details = QVBoxLayout(card)
         details.setContentsMargins(0, 4, 0, 0)
         details.setSpacing(5)
-        label = QLabel("Zero-shot")
+        label = QLabel("Basic prompt")
         label.setObjectName("section")
         details.addWidget(label)
         description = QLabel("Direct task instructions without examples.")
@@ -362,7 +382,8 @@ class ResultColumn(QScrollArea):
         details.addWidget(description)
         self.output_layout.addWidget(card)
         editor = PromptEdit(text, self)
-        editor.setAccessibleName("Zero-shot baseline prompt")
+        editor.setAccessibleName("Basic prompt")
+        editor.copied.connect(lambda: self.promptCopied.emit("Basic prompt copied"))
         editor.setFixedHeight(260)
         details.addWidget(editor)
         divider = QFrame()
@@ -420,7 +441,7 @@ class ResultColumn(QScrollArea):
     def _prompt_view(
         self, prompts: list[tuple[str, str]], target: str | None, zero_shot: str, named_tabs: bool = False
     ) -> QTabWidget:
-        """Tabs: Variant 0 is always the zero-shot baseline; the built prompts follow and the first one is selected."""
+        """The basic prompt comes first; the first built variant is selected by default."""
 
         def editor(text: str) -> PromptEdit:
             box = PromptEdit(text, self, target)
@@ -444,9 +465,9 @@ class ResultColumn(QScrollArea):
         # Technique names tell variants apart; official targets share one name per run, so they keep numbers.
         by_name = named_tabs or (all(names) and len(set(names)) == len(names))
         zero = editor(zero_shot)
-        zero.setAccessibleName("Zero-shot baseline prompt")
-        tabs.addTab(zero, "Zero-shot" if by_name else "Variant 0")
-        tabs.setTabToolTip(0, "Zero-shot: the task stated directly, without a prompting technique")
+        zero.setAccessibleName("Basic prompt")
+        tabs.addTab(zero, "Basic prompt")
+        tabs.setTabToolTip(0, "The task stated directly, without a prompting technique")
         self.prompt_edit = editor(prompts[0][1])
         tabs.addTab(self.prompt_edit, names[0] if by_name else "Variant 1")
         for index, (_, prompt) in enumerate(prompts[1:], 2):
@@ -458,6 +479,7 @@ class ResultColumn(QScrollArea):
             page = tabs.widget(index)
             page.textChanged.connect(lambda i=index, e=page: self.promptEdited.emit(i, e.toPlainText()))
             base = tabs.tabText(index)
+            page.copied.connect(lambda title=base: self.promptCopied.emit(f"{title} copied"))
             page.on_edited = lambda edited, i=index, b=base: tabs.setTabText(i, f"{b} •" if edited else b)
 
         def follow_current(*_: object) -> None:
@@ -485,7 +507,7 @@ class ResultColumn(QScrollArea):
             editor._update_edited()
 
     ZERO_SHOT_NOTE = (
-        "Zero-shot: the task stated directly, without a prompting technique. A baseline to compare the variants with."
+        "Basic prompt: the task stated directly, without a prompting technique. Compare it with the other variants."
     )
 
     @staticmethod
@@ -601,7 +623,7 @@ class ResultColumn(QScrollArea):
                 f" · confidence {round(confidence * 100)}%" if isinstance(confidence, (int, float)) else ""
             )
 
-        metas = ["Zero-shot · baseline without a technique", meta_for(choice)] + [
+        metas = ["Basic prompt · no prompting technique", meta_for(choice)] + [
             meta_for(a["choice"]) for a in alternatives
         ]
         meta_label = muted_label(metas[1], "meta")
@@ -647,7 +669,7 @@ class ResultColumn(QScrollArea):
 
         # 2 · why this technique, short; the cheaper-method argument folds away
         body.addSpacing(BLOCK_GAP)
-        why_head = field_label("What it adds over zero-shot")
+        why_head = field_label("What it adds over the basic prompt")
         if result.get("rejected"):
             why_head.setToolTip(f"Techniques filtered out: {len(result['rejected'])}")
         body.addWidget(why_head)
@@ -687,7 +709,7 @@ class ResultColumn(QScrollArea):
         ]
         names = [v["technique"]["name"] for v in variants]
         self.output_layout.addWidget(self._heading(manual.get("topic") or names[0], "goal"))
-        metas = ["Zero-shot · baseline without a technique"] + [f"{name} · chosen manually" for name in names]
+        metas = ["Basic prompt · no prompting technique"] + [f"{name} · chosen manually" for name in names]
         meta_label = muted_label(metas[1], "meta")
         self._add_meta_row(meta_label, manual)
         self.output_layout.addSpacing(10)
@@ -718,7 +740,7 @@ class ResultColumn(QScrollArea):
             body.addLayout(self._brief_block(brief)[0])
             body.addSpacing(BLOCK_GAP)
         if any(v.get("why") for v in variants):
-            body.addWidget(field_label("What it adds over zero-shot"))
+            body.addWidget(field_label("What it adds over the basic prompt"))
         pages: list[list[QWidget]] = [[muted_label(self.ZERO_SHOT_NOTE)]]
         for variant in variants:
             own: list[QWidget] = [muted_label(variant["why"])] if variant.get("why") else []

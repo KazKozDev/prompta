@@ -1,4 +1,4 @@
-"""A dark graphite title bar on macOS.
+"""Native macOS title bar and accessibility integration.
 
 The title bar is drawn by macOS, not by Qt or app.qss, and the app runs in the light Aqua appearance
 (NSRequiresAquaSystemAppearance in build_standalone.sh). So the colour is set on the window's NSWindow:
@@ -20,9 +20,14 @@ from PyQt6.QtWidgets import QApplication, QWidget
 GRAPHITE = (0x36, 0x37, 0x3A)  # dark graphite grey
 
 
+def _appkit() -> ctypes.CDLL:
+    return ctypes.cdll.LoadLibrary(
+        ctypes.util.find_library("AppKit") or "/System/Library/Frameworks/AppKit.framework/AppKit"
+    )
+
+
 def _runtime() -> Any:
     objc = ctypes.cdll.LoadLibrary(ctypes.util.find_library("objc") or "libobjc.dylib")
-    ctypes.cdll.LoadLibrary(ctypes.util.find_library("AppKit") or "/System/Library/Frameworks/AppKit.framework/AppKit")
     objc.objc_getClass.restype = ctypes.c_void_p
     objc.objc_getClass.argtypes = [ctypes.c_char_p]
     objc.sel_registerName.restype = ctypes.c_void_p
@@ -44,6 +49,7 @@ def paint_title_bar(window: QWidget, rgb: tuple[int, int, int] = GRAPHITE) -> bo
     if sys.platform != "darwin" or QGuiApplication.platformName() != "cocoa":
         return False
     try:
+        _appkit()
         objc = _runtime()
         view = ctypes.c_void_p(int(window.winId()))  # creates the native window if needed
         nswindow = _send(objc, view, "window")
@@ -76,6 +82,49 @@ def paint_title_bar(window: QWidget, rgb: tuple[int, int, int] = GRAPHITE) -> bo
         return True
     except (OSError, AttributeError, TypeError, ValueError):
         return False  # an older or unusual system keeps the standard title bar
+
+
+def announce_accessibility(window: QWidget | None, text: str) -> None:
+    """Post a macOS accessibility announcement without moving keyboard focus."""
+    if (
+        sys.platform != "darwin"
+        or QGuiApplication.platformName() != "cocoa"
+        or window is None
+        or not window.isVisible()
+    ):
+        return
+    try:
+        appkit = _appkit()
+        objc = _runtime()
+        pointer = ctypes.c_void_p
+        nswindow = _send(objc, int(window.winId()), "window")
+        if not nswindow:
+            return
+        message = _send(
+            objc, objc.objc_getClass(b"NSString"), "stringWithUTF8String:", text.encode(), argtypes=(ctypes.c_char_p,)
+        )
+        # NSAccessibilityPriorityMedium queues feedback without interrupting speech.
+        priority = _send(objc, objc.objc_getClass(b"NSNumber"), "numberWithInteger:", 50, argtypes=(ctypes.c_long,))
+        keys = (pointer * 2)(
+            pointer.in_dll(appkit, "NSAccessibilityAnnouncementKey"),
+            pointer.in_dll(appkit, "NSAccessibilityPriorityKey"),
+        )
+        values = (pointer * 2)(message, priority)
+        info = _send(
+            objc,
+            objc.objc_getClass(b"NSDictionary"),
+            "dictionaryWithObjects:forKeys:count:",
+            values,
+            keys,
+            2,
+            argtypes=(ctypes.POINTER(pointer), ctypes.POINTER(pointer), ctypes.c_ulong),
+        )
+        post = appkit.NSAccessibilityPostNotificationWithUserInfo
+        post.argtypes = [pointer, pointer, pointer]
+        post.restype = None
+        post(nswindow, pointer.in_dll(appkit, "NSAccessibilityAnnouncementRequestedNotification"), info)
+    except (OSError, AttributeError, TypeError, ValueError):
+        pass  # the visible status still provides the confirmation
 
 
 class _TitleBarPainter(QObject):

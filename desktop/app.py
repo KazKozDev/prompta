@@ -20,7 +20,7 @@ from run_request import document_status, manual_status, pipeline_status, prompt_
 from settings_ui import field_label
 from mcp_settings import McpSettingsWidget
 
-from PyQt6.QtCore import QSize, Qt
+from PyQt6.QtCore import QSize, Qt, QTimer
 from PyQt6.QtGui import QColor, QPalette, QIcon, QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QApplication,
@@ -42,7 +42,7 @@ from single_instance import SingleInstance, bring_forward
 from history_view import HistoryView
 from target_selector import TargetSelector
 from technique_panel import TechniquePanel
-from result_column import ResultColumn
+from result_column import AssumptionsCard, ResultColumn
 from agent_mode import AgentTargetSelector
 from attachments import Attachments
 from agent_view import AgentView
@@ -62,7 +62,7 @@ from dictation import DictationPage
 from generator_settings import GeneratorSettings
 from settings_dialog import SettingsDialog
 import qt_log
-from mac_titlebar import paint_all_title_bars
+from mac_titlebar import announce_accessibility, paint_all_title_bars
 
 from controls import BackgroundWidget, Card, ExecutionProfileDropdown
 from result_view import ACTION_HEIGHT, CONTROL_HEIGHT
@@ -142,6 +142,30 @@ def header_button(icon: str, name: str, slot) -> QPushButton:
     return button
 
 
+class StatusLabel(QLabel):
+    """Show brief feedback without losing the current run status."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._status = ""
+        self._notice_timer = QTimer(self)
+        self._notice_timer.setSingleShot(True)
+        self._notice_timer.timeout.connect(self._restore_status)
+
+    def setText(self, text: str | None) -> None:  # noqa: N802
+        self._notice_timer.stop()
+        self._status = text or ""
+        self._restore_status()
+
+    def show_notice(self, text: str) -> None:
+        super().setText(text)
+        self._notice_timer.start(2500)
+        announce_accessibility(self.window(), text)
+
+    def _restore_status(self) -> None:
+        super().setText(self._status)
+
+
 class PromptaWindow(QMainWindow):
     """Main window: the finished prompt comes first (variants as tabs); brief, zero-shot baseline,
     technique rationale and sources fold into "How this prompt was built". The target the prompt is
@@ -215,7 +239,7 @@ class PromptaWindow(QMainWindow):
         splitter.setSizes([440, 700])
         outer.addWidget(splitter, 1)
 
-        self.status = QLabel("Thoughts → brief → technique → ready-to-use prompt")
+        self.status = StatusLabel()
         self.status.setObjectName("status")
         outer.addSpacing(3)  # keep the original 6px above the status line
         outer.addWidget(self.status)
@@ -377,6 +401,7 @@ class PromptaWindow(QMainWindow):
         self.result_column.briefEdited.connect(lambda: self._sync_build_label())
         self.result_column.rebuildRequested.connect(lambda: self.run_pipeline())
         self.result_column.promptEdited.connect(self.history.prompt_edited)  # edits go into the saved result
+        self.result_column.promptCopied.connect(lambda text: self.status.show_notice(text))
         box.addWidget(self.result_column, 1)
         request_text = lambda: self.thoughts.toPlainText().strip()  # noqa: E731
         self.skill_view = SkillView(request_text)
@@ -548,6 +573,8 @@ class PromptaWindow(QMainWindow):
         base = getattr(self, "build_label", "Build prompt")
         _, gap, shortcut = base.partition("   ")  # "Build skill   ⌘↵": keep the shortcut, whatever the label
         rebuild = f"Rebuild · {count} change{'s' if count != 1 else ''}{gap}{shortcut}"
+        if self._prompt_mode() and isinstance(card, AssumptionsCard) and card.has_edited_answers():
+            rebuild = f"Rebuild with your answers{gap}{shortcut}"
         self.run_button.setText(rebuild if count else base)
 
     def _prompt_mode(self) -> bool:
@@ -656,11 +683,12 @@ class PromptaWindow(QMainWindow):
             if selected
             else ""
         )
-        self.status.setText(
-            f"Building {target_label} prompt from official sources"
-            if selected
-            else "Brief → technique selection → synthesis"
-        )
+        if selected:
+            self.status.setText(f"Loading guidance for {target_label}…")
+        elif revised_brief is not None:
+            self.status.setText("Using your revised brief…")
+        else:
+            self.status.setText("Reading your request…")
 
         self._rebuilding_brief = revised_brief is not None
         self._active_thoughts = thoughts
@@ -675,7 +703,9 @@ class PromptaWindow(QMainWindow):
             return
         if self.generation_progress.isHidden() or (self.worker and self.worker.cancelled is True):
             return
-        self.generation_progress.setValue(max(self.generation_progress.value(), min(99, percent)))
+        if percent < self.generation_progress.value():
+            return
+        self.generation_progress.setValue(min(99, percent))
         self.status.setText(stage)
 
     def on_finished(self, data: dict) -> None:

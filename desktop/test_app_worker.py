@@ -30,10 +30,11 @@ class WorkerTest(WindowTestCase):
                     self.assertTrue(window.generation_progress.isVisible())
                     self.assertEqual(window.generation_progress.maximum(), 100)
                     self.assertEqual(window.generation_progress.value(), 0)
-                    window.on_progress(40, 'Technique selected')
+                    window.on_progress(40, 'Writing your prompt…')
                     self.assertEqual(window.generation_progress.value(), 40)
                     window.on_progress(20, 'Late event')
                     self.assertEqual(window.generation_progress.value(), 40)
+                    self.assertEqual(window.status.text(), 'Writing your prompt…')
                     if outcome == 'cancel':
                         worker.isRunning.return_value = True
                         window.cancel_run()
